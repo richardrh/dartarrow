@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:dartaframes_polars/dartaframes_arrow.dart';
+import 'package:dartaframes/arrow.dart';
 import 'package:test/test.dart';
 
 void main() {
