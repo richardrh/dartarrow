@@ -35,14 +35,18 @@ final class ArrowFloatingValue extends ArrowValue {
     }
   }
   factory ArrowFloatingValue.float16(int rawBits) =>
-      ArrowFloatingValue(16, rawBits);
+      ArrowFloatingValue(16, rawBits & 0xffff);
   factory ArrowFloatingValue.float32(double value) {
     final data = ByteData(4)..setFloat32(0, value, Endian.little);
     return ArrowFloatingValue(32, data.getUint32(0, Endian.little));
   }
   factory ArrowFloatingValue.float64(double value) {
     final data = ByteData(8)..setFloat64(0, value, Endian.little);
-    return ArrowFloatingValue(64, data.getUint64(0, Endian.little));
+    final rawBits = data.getInt64(0, Endian.little);
+    return ArrowFloatingValue(
+      64,
+      rawBits < 0 ? BigInt.from(rawBits) + (BigInt.one << 64) : rawBits,
+    );
   }
   final int bitWidth;
   final BigInt bits;
