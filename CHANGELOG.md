@@ -12,6 +12,8 @@
 - Add typed scalar equality/hashing and casts, encoding-aware dictionary equality,
   and visible-span list/struct casts. Nullability remains a schema declaration:
   nested physical nulls are accepted and fully validated as in PyArrow.
+- Preserve parent struct nulls in `RecordBatch.fromStructArray`, intersecting
+  validity with each visible child while sharing exact value/dictionary storage.
 - Encode ordinary native primitives directly into owned buffers, retain exact
   typed-scalar IEEE payloads, and reject overflowing chunk-length accumulation.
 - Keep the core independent of native libraries. Owned JSON is available through

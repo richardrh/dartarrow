@@ -130,6 +130,8 @@ def evaluate(e):
         return pa.DictionaryArray.from_arrays(evaluate(e['indices']), evaluate(e['dictionary']))
     if op == 'chunked':
         return pa.chunked_array([evaluate(c) for c in e['chunks']], type=dtype(e['type']) if 'type' in e else None)
+    if op == 'maskedStruct':
+        return pa.StructArray.from_arrays([evaluate(c) for c in e['children']], names=e['names'], mask=pa.array(e['mask'],type=pa.bool_()))
     if op == 'field':
         return pa.field(e['name'], dtype(e['type']), nullable=e.get('nullable', True), metadata={bytes(k): bytes(v) for k,v in e['metadata']} if 'metadata' in e else None)
     if op == 'schema':
@@ -143,6 +145,7 @@ def evaluate(e):
             kw['metadata'] = {bytes(k): bytes(v) for k,v in e['metadata']}
         return (pa.record_batch if op == 'batch' else pa.table)(data, **kw)
     value = evaluate(e['source'])
+    if op == 'fromStructBatch': return pa.RecordBatch.from_struct_array(value)
     if op == 'index': return value[e['index']]
     if op == 'slice': return value.slice(e.get('offset', 0), e.get('length'))
     if op == 'cast': return value.cast(dtype(e['type']), safe=e.get('safe', True))
@@ -305,6 +308,14 @@ def cases():
     for label,t in [('date32','date32'),('date64','date64'),('time32',['time32','s']),('time64',['time64','us']),('timestamp',['timestamp','ns']),('duration',['duration','ns'])]:
         add('scalar.value.'+label,unary('scalarValue',scalar(1,t)))
     add('scalar.value.typedNull',unary('scalarValue',scalar(None,['timestamp','ns'])))
+    def parent(children,names,mask): return {'op':'maskedStruct','children':children,'names':names,'mask':mask}
+    add('batch.structParent.maskedChild',unary('fromStructBatch',parent([arr([99,1],'int32')],['x'],[True,False])))
+    add('batch.structParent.childNullIntersection',unary('fromStructBatch',parent([arr([99,None,2],'int32')],['x'],[True,False,False])))
+    offsetChild=unary('slice',arr([7,99,1,2],'int32'),offset=1)
+    add('batch.structParent.slicedOffsets',unary('fromStructBatch',unary('slice',parent([offsetChild],['x'],[False,True,False]),offset=1)))
+    nestedDictionary={'op':'dictionary','indices':arr([0,1],'int8'),'dictionary':arr(['bad','good'])}
+    add('batch.structParent.nestedDictionary',unary('fromStructBatch',parent([arr([[99],[1]]),nestedDictionary],['nested','encoded'],[True,False])))
+    add('batch.structParent.zeroColumns',unary('fromStructBatch',parent([],[],[True,False,False])))
     return result
 
 

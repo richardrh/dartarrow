@@ -86,9 +86,13 @@ final class RecordBatch {
   factory RecordBatch.fromStructArray(Array array) {
     final type = array.type;
     if (type is! StructType) throw ArgumentError('Expected struct array');
+    final hasParentNulls = array.nullCount != 0;
     return RecordBatch._(Schema(type.fields), [
       for (final child in array.children)
-        child.slice(array.offset, array.length),
+        if (hasParentNulls)
+          _maskStructChild(array, child.slice(array.offset, array.length))
+        else
+          child.slice(array.offset, array.length),
     ], array.length);
   }
   final Schema schema;
@@ -207,4 +211,44 @@ RecordBatch recordBatch(
       metadata: metadata,
     );
   throw ArgumentError.value(data, 'data', 'Expected mapping or arrays');
+}
+
+Array _maskStructChild(Array parent, Array child) {
+  if (child._storage is NullType || child.length == 0) return child;
+  Uint8List? validity;
+  if (child.offset == parent.offset && child.nullCount == 0) {
+    // The parent bitmap already has exactly the required physical alignment.
+    validity = parent._physicalBuffers.first;
+  } else {
+    final original = child._physicalBuffers.first;
+    for (var i = 0; i < child.length; i++) {
+      if (parent._isValid(i) || !child._isValid(i)) continue;
+      if (validity == null) {
+        final end = _checkedLengthAdd(child.offset, child.length);
+        final bytes = end ~/ 8 + (end % 8 == 0 ? 0 : 1);
+        validity = Uint8List(bytes);
+        if (original == null) {
+          validity.fillRange(0, bytes, 255);
+          if (end % 8 != 0) validity[bytes - 1] &= (1 << (end % 8)) - 1;
+        } else {
+          validity.setRange(0, bytes, original);
+        }
+      }
+      final physical = child.offset + i;
+      validity[physical >> 3] &= ~(1 << (physical & 7));
+    }
+  }
+  if (validity == null) return child;
+  return Array._(
+    child.type,
+    child.length,
+    child.offset,
+    List<Uint8List?>.unmodifiable([
+      validity.asUnmodifiableView(),
+      ...child._physicalBuffers.skip(1),
+    ]),
+    child.children,
+    child.dictionary,
+    (parent, child),
+  );
 }

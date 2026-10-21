@@ -10832,6 +10832,594 @@
       "expected": {
         "ok": null
       }
+    },
+    {
+      "id": "batch.structParent.maskedChild",
+      "input": {
+        "op": "fromStructBatch",
+        "source": {
+          "op": "maskedStruct",
+          "children": [
+            {
+              "op": "array",
+              "values": [
+                99,
+                1
+              ],
+              "type": "int32"
+            }
+          ],
+          "names": [
+            "x"
+          ],
+          "mask": [
+            true,
+            false
+          ]
+        }
+      },
+      "expected": {
+        "ok": {
+          "kind": "RecordBatch",
+          "numRows": 2,
+          "numColumns": 1,
+          "schema": {
+            "fields": [
+              {
+                "name": "x",
+                "type": {
+                  "kind": "int32"
+                },
+                "nullable": true,
+                "metadata": null
+              }
+            ],
+            "metadata": null
+          },
+          "columns": [
+            {
+              "kind": "Array",
+              "type": {
+                "kind": "int32"
+              },
+              "length": 2,
+              "nullCount": 1,
+              "values": [
+                null,
+                {
+                  "integer": "1"
+                }
+              ],
+              "scalars": [
+                {
+                  "kind": "Scalar",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "isValid": false,
+                  "value": null
+                },
+                {
+                  "kind": "Scalar",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "isValid": true,
+                  "value": {
+                    "integer": "1"
+                  }
+                }
+              ]
+            }
+          ],
+          "rows": [
+            {
+              "x": null
+            },
+            {
+              "x": {
+                "integer": "1"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "batch.structParent.childNullIntersection",
+      "input": {
+        "op": "fromStructBatch",
+        "source": {
+          "op": "maskedStruct",
+          "children": [
+            {
+              "op": "array",
+              "values": [
+                99,
+                null,
+                2
+              ],
+              "type": "int32"
+            }
+          ],
+          "names": [
+            "x"
+          ],
+          "mask": [
+            true,
+            false,
+            false
+          ]
+        }
+      },
+      "expected": {
+        "ok": {
+          "kind": "RecordBatch",
+          "numRows": 3,
+          "numColumns": 1,
+          "schema": {
+            "fields": [
+              {
+                "name": "x",
+                "type": {
+                  "kind": "int32"
+                },
+                "nullable": true,
+                "metadata": null
+              }
+            ],
+            "metadata": null
+          },
+          "columns": [
+            {
+              "kind": "Array",
+              "type": {
+                "kind": "int32"
+              },
+              "length": 3,
+              "nullCount": 2,
+              "values": [
+                null,
+                null,
+                {
+                  "integer": "2"
+                }
+              ],
+              "scalars": [
+                {
+                  "kind": "Scalar",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "isValid": false,
+                  "value": null
+                },
+                {
+                  "kind": "Scalar",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "isValid": false,
+                  "value": null
+                },
+                {
+                  "kind": "Scalar",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "isValid": true,
+                  "value": {
+                    "integer": "2"
+                  }
+                }
+              ]
+            }
+          ],
+          "rows": [
+            {
+              "x": null
+            },
+            {
+              "x": null
+            },
+            {
+              "x": {
+                "integer": "2"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "batch.structParent.slicedOffsets",
+      "input": {
+        "op": "fromStructBatch",
+        "source": {
+          "op": "slice",
+          "source": {
+            "op": "maskedStruct",
+            "children": [
+              {
+                "op": "slice",
+                "source": {
+                  "op": "array",
+                  "values": [
+                    7,
+                    99,
+                    1,
+                    2
+                  ],
+                  "type": "int32"
+                },
+                "offset": 1
+              }
+            ],
+            "names": [
+              "x"
+            ],
+            "mask": [
+              false,
+              true,
+              false
+            ]
+          },
+          "offset": 1
+        }
+      },
+      "expected": {
+        "ok": {
+          "kind": "RecordBatch",
+          "numRows": 2,
+          "numColumns": 1,
+          "schema": {
+            "fields": [
+              {
+                "name": "x",
+                "type": {
+                  "kind": "int32"
+                },
+                "nullable": true,
+                "metadata": null
+              }
+            ],
+            "metadata": null
+          },
+          "columns": [
+            {
+              "kind": "Array",
+              "type": {
+                "kind": "int32"
+              },
+              "length": 2,
+              "nullCount": 1,
+              "values": [
+                null,
+                {
+                  "integer": "2"
+                }
+              ],
+              "scalars": [
+                {
+                  "kind": "Scalar",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "isValid": false,
+                  "value": null
+                },
+                {
+                  "kind": "Scalar",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "isValid": true,
+                  "value": {
+                    "integer": "2"
+                  }
+                }
+              ]
+            }
+          ],
+          "rows": [
+            {
+              "x": null
+            },
+            {
+              "x": {
+                "integer": "2"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "batch.structParent.nestedDictionary",
+      "input": {
+        "op": "fromStructBatch",
+        "source": {
+          "op": "maskedStruct",
+          "children": [
+            {
+              "op": "array",
+              "values": [
+                [
+                  99
+                ],
+                [
+                  1
+                ]
+              ]
+            },
+            {
+              "op": "dictionary",
+              "indices": {
+                "op": "array",
+                "values": [
+                  0,
+                  1
+                ],
+                "type": "int8"
+              },
+              "dictionary": {
+                "op": "array",
+                "values": [
+                  "bad",
+                  "good"
+                ]
+              }
+            }
+          ],
+          "names": [
+            "nested",
+            "encoded"
+          ],
+          "mask": [
+            true,
+            false
+          ]
+        }
+      },
+      "expected": {
+        "ok": {
+          "kind": "RecordBatch",
+          "numRows": 2,
+          "numColumns": 2,
+          "schema": {
+            "fields": [
+              {
+                "name": "nested",
+                "type": {
+                  "kind": "list",
+                  "field": {
+                    "name": "item",
+                    "type": {
+                      "kind": "int64"
+                    },
+                    "nullable": true,
+                    "metadata": {}
+                  }
+                },
+                "nullable": true,
+                "metadata": null
+              },
+              {
+                "name": "encoded",
+                "type": {
+                  "kind": "dictionary",
+                  "indexType": {
+                    "kind": "int8"
+                  },
+                  "valueType": {
+                    "kind": "utf8"
+                  },
+                  "ordered": false
+                },
+                "nullable": true,
+                "metadata": null
+              }
+            ],
+            "metadata": null
+          },
+          "columns": [
+            {
+              "kind": "Array",
+              "type": {
+                "kind": "list",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "int64"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "length": 2,
+              "nullCount": 1,
+              "values": [
+                null,
+                [
+                  {
+                    "integer": "1"
+                  }
+                ]
+              ],
+              "scalars": [
+                {
+                  "kind": "Scalar",
+                  "type": {
+                    "kind": "list",
+                    "field": {
+                      "name": "item",
+                      "type": {
+                        "kind": "int64"
+                      },
+                      "nullable": true,
+                      "metadata": {}
+                    }
+                  },
+                  "isValid": false,
+                  "value": null
+                },
+                {
+                  "kind": "Scalar",
+                  "type": {
+                    "kind": "list",
+                    "field": {
+                      "name": "item",
+                      "type": {
+                        "kind": "int64"
+                      },
+                      "nullable": true,
+                      "metadata": {}
+                    }
+                  },
+                  "isValid": true,
+                  "value": [
+                    {
+                      "integer": "1"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "Array",
+              "type": {
+                "kind": "dictionary",
+                "indexType": {
+                  "kind": "int8"
+                },
+                "valueType": {
+                  "kind": "utf8"
+                },
+                "ordered": false
+              },
+              "length": 2,
+              "nullCount": 1,
+              "values": [
+                null,
+                "good"
+              ],
+              "scalars": [
+                {
+                  "kind": "Scalar",
+                  "type": {
+                    "kind": "dictionary",
+                    "indexType": {
+                      "kind": "int8"
+                    },
+                    "valueType": {
+                      "kind": "utf8"
+                    },
+                    "ordered": false
+                  },
+                  "isValid": false,
+                  "value": null,
+                  "index": {
+                    "kind": "Scalar",
+                    "type": {
+                      "kind": "int8"
+                    },
+                    "isValid": false,
+                    "value": null
+                  },
+                  "dictionaryValue": {
+                    "kind": "Scalar",
+                    "type": {
+                      "kind": "utf8"
+                    },
+                    "isValid": false,
+                    "value": null
+                  }
+                },
+                {
+                  "kind": "Scalar",
+                  "type": {
+                    "kind": "dictionary",
+                    "indexType": {
+                      "kind": "int8"
+                    },
+                    "valueType": {
+                      "kind": "utf8"
+                    },
+                    "ordered": false
+                  },
+                  "isValid": true,
+                  "value": "good",
+                  "index": {
+                    "kind": "Scalar",
+                    "type": {
+                      "kind": "int8"
+                    },
+                    "isValid": true,
+                    "value": {
+                      "integer": "1"
+                    }
+                  },
+                  "dictionaryValue": {
+                    "kind": "Scalar",
+                    "type": {
+                      "kind": "utf8"
+                    },
+                    "isValid": true,
+                    "value": "good"
+                  }
+                }
+              ]
+            }
+          ],
+          "rows": [
+            {
+              "nested": null,
+              "encoded": null
+            },
+            {
+              "nested": [
+                {
+                  "integer": "1"
+                }
+              ],
+              "encoded": "good"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "batch.structParent.zeroColumns",
+      "input": {
+        "op": "fromStructBatch",
+        "source": {
+          "op": "maskedStruct",
+          "children": [],
+          "names": [],
+          "mask": [
+            true,
+            false,
+            false
+          ]
+        }
+      },
+      "expected": {
+        "ok": {
+          "kind": "RecordBatch",
+          "numRows": 3,
+          "numColumns": 0,
+          "schema": {
+            "fields": [],
+            "metadata": null
+          },
+          "columns": [],
+          "rows": [
+            {},
+            {},
+            {}
+          ]
+        }
+      }
     }
   ]
 }

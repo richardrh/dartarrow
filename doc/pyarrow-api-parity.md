@@ -1,7 +1,7 @@
 # PyArrow-shaped Dart interface: implemented scope
 
 Status: **approved breaking 0.2.0 interface; scoped independent API acceptance
-passed**, researched against Apache Arrow/PyArrow **26.0.0**. The 176 executable
+passed**, researched against Apache Arrow/PyArrow **26.0.0**. The 181 executable
 API cases pass; this establishes the tested scope, not complete PyArrow parity.
 This is not full PyArrow, complete Arrow type coverage, or IPC interoperability.
 The historical 0.1.0 tag/draft is unchanged.
@@ -114,16 +114,16 @@ pins PyArrow 26.0.0 and keeps missing inventory separate from failures. Human-re
 pretty-print output is not the contract. Physical layouts, native conversion,
 metadata, errors, chunk boundaries, and shared-storage slicing are separate checks.
 
-Observed final acceptance: `build/api-conformance.json` reports **176 passed,
+Observed final acceptance: `build/api-conformance.json` reports **181 passed,
 0 failed**. The throwaway corrupted-oracle CLI exits 1 and
-`build/api-negative.json` reports **175 passed, 1 failed**, specifically the
+`build/api-negative.json` reports **180 passed, 1 failed**, specifically the
 corrupted `infer.empty` expectation. The separate physical pipeline reports
 **238 passed, 18 explicitly missing, 0 failed**, versus the prior 237/19
 inventory: only `decimal128.negativeScale` was promoted after its full
 foreign/slice/owned/JSON checks passed. API regeneration twice produced
 byte-identical fixtures. These counts do not turn explicitly missing types
 into supported capabilities.
-The final QA owner additionally reports **234 package tests passed**, with
+The final QA owner additionally reports **244 package tests passed**, with
 formatting and analysis clean. Scalar equality/casts and encoded array/chunk
 dictionary equality are included in the independent API inventory; NaN,
 signed zero, typed null, nested types and remapped dictionaries are compared
@@ -137,6 +137,15 @@ dictionary values as null, independently of the encoded index's validity.
 The tested chunked mask operations drop empty input chunks. Nested nonnullable
 field annotations do not reject existing child nulls, including during full
 validation, matching the separately pinned PyArrow constructor cases.
+
+`RecordBatch.fromStructArray` intersects struct parent validity with each
+child's validity: a masked parent cannot expose an independently populated
+child value. Independent PyArrow cases cover child-null intersections,
+sliced parents with nonzero child offsets, nested and dictionary columns,
+and zero-column positive-height batches. Child storage sharing is retained
+while parent nulls propagate; the foreign-input preparation deliberately
+keeps masked child values populated so the regression cannot pass by
+pre-clearing test inputs.
 
 ### Independent API acceptance format and observed cases
 

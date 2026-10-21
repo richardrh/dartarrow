@@ -313,6 +313,26 @@ Object? evaluateOperation(Map<String, dynamic> e) {
         pa.Buffer(Uint8List.fromList([1])),
         pa.Buffer(Uint8List.fromList([1, 126, 0, 0])),
       ]);
+    case 'maskedStruct':
+      // Foreign parent validity intentionally leaves child values populated.
+      final children = [
+        for (final c in e['children'] as List) evaluate(object(c)) as pa.Array,
+      ];
+      final names = (e['names'] as List).cast<String>();
+      final mask = (e['mask'] as List).cast<bool>();
+      final validity = Uint8List((mask.length + 7) ~/ 8);
+      for (var i = 0; i < mask.length; i++) {
+        if (!mask[i]) validity[i ~/ 8] |= 1 << (i % 8);
+      }
+      return pa.Array.fromBuffers(
+        pa.struct([
+          for (var i = 0; i < children.length; i++)
+            pa.field(names[i], children[i].type),
+        ]),
+        mask.length,
+        [pa.Buffer(validity)],
+        children: children,
+      );
     case 'dictionary':
       return pa.Array.fromDictionary(
         evaluate(object(e['indices'])) as pa.Array,
@@ -361,6 +381,8 @@ Object? evaluateOperation(Map<String, dynamic> e) {
             );
   }
   final dynamic source = evaluate(object(e['source']));
+  if (op == 'fromStructBatch')
+    return pa.RecordBatch.fromStructArray(source as pa.Array);
   if (op == 'validateFull') {
     source.validate(full: true);
     return source;
