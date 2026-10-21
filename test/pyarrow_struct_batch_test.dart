@@ -136,4 +136,18 @@ void main() {
       'n': [null, null],
     });
   });
+
+  test(
+    'virtual empty structs validate and batch without scanning logical rows',
+    () {
+      const height = 1 << 40;
+      final parent = pa.Array.fromBuffers(pa.struct([]), height, [
+        null,
+      ], offset: 17);
+      final batch = pa.RecordBatch.fromStructArray(parent);
+      expect(batch.numRows, height);
+      expect(batch.numColumns, 0);
+      expect(pa.Table.fromBatches([batch]).toBatches().single.numRows, height);
+    },
+  );
 }
