@@ -1,30 +1,38 @@
-import 'schema.dart';
+part of 'core.dart';
 
-enum ArrowTimeUnit {
+enum TimeUnit {
   second('seconds'),
   millisecond('milliseconds'),
   microsecond('microseconds'),
   nanosecond('nanoseconds');
 
-  const ArrowTimeUnit(this.jsonName);
+  const TimeUnit(this.jsonName);
   final String jsonName;
 
-  static ArrowTimeUnit parse(String value) => values.firstWhere(
-    (unit) => unit.jsonName == value || unit.name == value,
+  String get shortName => switch (this) {
+    TimeUnit.second => 's',
+    TimeUnit.millisecond => 'ms',
+    TimeUnit.microsecond => 'us',
+    TimeUnit.nanosecond => 'ns',
+  };
+
+  static TimeUnit parse(String value) => values.firstWhere(
+    (unit) =>
+        unit.jsonName == value || unit.name == value || unit.shortName == value,
     orElse: () => throw FormatException('Unknown time unit: $value'),
   );
 }
 
-enum ArrowDateUnit { day, millisecond }
+enum DateUnit { day, millisecond }
 
-enum ArrowOffsetWidth { normal, large }
+enum OffsetWidth { normal, large }
 
-sealed class ArrowDataType {
-  const ArrowDataType();
+sealed class DataType {
+  const DataType();
 
   Map<String, Object?> toJson();
 
-  static ArrowDataType fromJson(Map<String, Object?> json) {
+  static DataType fromJson(Map<String, Object?> json) {
     try {
       return _fromJson(json);
     } on FormatException {
@@ -36,7 +44,7 @@ sealed class ArrowDataType {
     }
   }
 
-  static ArrowDataType _fromJson(Map<String, Object?> json) {
+  static DataType _fromJson(Map<String, Object?> json) {
     final kind = json['kind'];
     if (kind is! String)
       throw const FormatException('dtype.kind must be a string');
@@ -80,94 +88,94 @@ sealed class ArrowDataType {
 
     switch (kind) {
       case 'null':
-        return const ArrowNullType();
+        return const NullType();
       case 'boolean':
-        return const ArrowBooleanType();
+        return const BooleanType();
       case 'int8':
-        return ArrowIntegerType(8);
+        return IntegerType(8);
       case 'int16':
-        return ArrowIntegerType(16);
+        return IntegerType(16);
       case 'int32':
-        return ArrowIntegerType(32);
+        return IntegerType(32);
       case 'int64':
-        return ArrowIntegerType(64);
+        return IntegerType(64);
       case 'int128':
-        return ArrowIntegerType(128);
+        return IntegerType(128);
       case 'uint8':
-        return ArrowIntegerType(8, signed: false);
+        return IntegerType(8, signed: false);
       case 'uint16':
-        return ArrowIntegerType(16, signed: false);
+        return IntegerType(16, signed: false);
       case 'uint32':
-        return ArrowIntegerType(32, signed: false);
+        return IntegerType(32, signed: false);
       case 'uint64':
-        return ArrowIntegerType(64, signed: false);
+        return IntegerType(64, signed: false);
       case 'uint128':
-        return ArrowIntegerType(128, signed: false);
+        return IntegerType(128, signed: false);
       case 'float16':
-        return ArrowFloatingType(16);
+        return FloatingType(16);
       case 'float32':
-        return ArrowFloatingType(32);
+        return FloatingType(32);
       case 'float64':
-        return ArrowFloatingType(64);
+        return FloatingType(64);
       case 'decimal':
-        return ArrowDecimalType(integer('precision'), integer('scale'));
+        return DecimalType(integer('precision'), integer('scale'));
       case 'string':
       case 'utf8':
-        return const ArrowUtf8Type();
+        return const Utf8Type();
       case 'largeString':
       case 'largeUtf8':
-        return const ArrowUtf8Type(ArrowOffsetWidth.large);
+        return const Utf8Type(OffsetWidth.large);
       case 'binary':
-        return const ArrowBinaryType();
+        return const BinaryType();
       case 'largeBinary':
-        return const ArrowBinaryType(ArrowOffsetWidth.large);
+        return const BinaryType(OffsetWidth.large);
       case 'date':
         return switch (string('unit')) {
-          'days' => const ArrowDateType(),
-          'milliseconds' => const ArrowDateType(ArrowDateUnit.millisecond),
+          'days' => const DateType(),
+          'milliseconds' => const DateType(DateUnit.millisecond),
           final unit => throw FormatException('Unknown date unit: $unit'),
         };
       case 'datetime':
       case 'timestamp':
-        return ArrowTimestampType(
-          ArrowTimeUnit.parse(string('unit')),
+        return TimestampType(
+          TimeUnit.parse(string('unit')),
           timeZone: optionalString('timeZone'),
         );
       case 'duration':
-        return ArrowDurationType(ArrowTimeUnit.parse(string('unit')));
+        return DurationType(TimeUnit.parse(string('unit')));
       case 'time':
-        return ArrowTimeType(ArrowTimeUnit.parse(string('unit')));
+        return TimeType(TimeUnit.parse(string('unit')));
       case 'list':
-        return ArrowListType(ArrowField.fromJson(object('field')));
+        return ListType(Field.fromJson(object('field')));
       case 'fixedSizeList':
       case 'array':
-        return ArrowFixedSizeListType(
-          ArrowField.fromJson(object('field')),
+        return FixedSizeListType(
+          Field.fromJson(object('field')),
           integer('size'),
         );
       case 'struct':
         final fields = json['fields'];
         if (fields is! List)
           throw const FormatException('dtype.fields must be a list');
-        return ArrowStructType(
+        return StructType(
           fields.indexed
               .map(
-                (e) => ArrowField.fromJson(
+                (e) => Field.fromJson(
                   _stringObjectMap(e.$2, 'dtype.fields[${e.$1}]'),
                 ),
               )
               .toList(),
         );
       case 'dictionary':
-        return ArrowDictionaryType(
-          ArrowDataType.fromJson(object('indexType')),
-          ArrowDataType.fromJson(object('valueType')),
+        return DictionaryType(
+          DataType.fromJson(object('indexType')),
+          DataType.fromJson(object('valueType')),
           ordered: boolean('ordered', false),
         );
       case 'extension':
-        return ArrowExtensionType(
+        return ExtensionType(
           string('name'),
-          ArrowDataType.fromJson(object('storageType')),
+          DataType.fromJson(object('storageType')),
           metadata: optionalString('metadata'),
         );
       default:
@@ -175,31 +183,94 @@ sealed class ArrowDataType {
     }
   }
 
-  @override
-  bool operator ==(Object other) =>
-      other is ArrowDataType && _deepEquals(toJson(), other.toJson());
+  bool equals(DataType other, {bool checkMetadata = false}) {
+    if (this is ListType && other is ListType) {
+      return (this as ListType).field.equals(
+        other.field,
+        checkMetadata: checkMetadata,
+      );
+    }
+    if (this is FixedSizeListType && other is FixedSizeListType) {
+      final self = this as FixedSizeListType;
+      return self.size == other.size &&
+          self.field.equals(other.field, checkMetadata: checkMetadata);
+    }
+    if (this is StructType && other is StructType) {
+      final fields = (this as StructType).fields;
+      if (fields.length != other.fields.length) return false;
+      for (var i = 0; i < fields.length; i++) {
+        if (!fields[i].equals(other.fields[i], checkMetadata: checkMetadata)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (this is DictionaryType && other is DictionaryType) {
+      final self = this as DictionaryType;
+      return self.ordered == other.ordered &&
+          self.indexType.equals(
+            other.indexType,
+            checkMetadata: checkMetadata,
+          ) &&
+          self.valueType.equals(other.valueType, checkMetadata: checkMetadata);
+    }
+    if (this is ExtensionType && other is ExtensionType) {
+      final self = this as ExtensionType;
+      return self.name == other.name &&
+          self.metadata == other.metadata &&
+          self.storageType.equals(
+            other.storageType,
+            checkMetadata: checkMetadata,
+          );
+    }
+    return _deepEquals(toJson(), other.toJson());
+  }
 
   @override
-  int get hashCode => _deepHash(toJson());
+  bool operator ==(Object other) => other is DataType && equals(other);
+
+  @override
+  int get hashCode => switch (this) {
+    ListType type => Object.hash(ListType, type.field),
+    FixedSizeListType type => Object.hash(
+      FixedSizeListType,
+      type.size,
+      type.field,
+    ),
+    StructType type => Object.hash(StructType, Object.hashAll(type.fields)),
+    DictionaryType type => Object.hash(
+      DictionaryType,
+      type.indexType,
+      type.valueType,
+      type.ordered,
+    ),
+    ExtensionType type => Object.hash(
+      ExtensionType,
+      type.name,
+      type.storageType,
+      type.metadata,
+    ),
+    _ => _deepHash(toJson()),
+  };
 
   @override
   String toString() => toJson().toString();
 }
 
-final class ArrowNullType extends ArrowDataType {
-  const ArrowNullType();
+final class NullType extends DataType {
+  const NullType();
   @override
   Map<String, Object?> toJson() => const {'kind': 'null'};
 }
 
-final class ArrowBooleanType extends ArrowDataType {
-  const ArrowBooleanType();
+final class BooleanType extends DataType {
+  const BooleanType();
   @override
   Map<String, Object?> toJson() => const {'kind': 'boolean'};
 }
 
-final class ArrowIntegerType extends ArrowDataType {
-  ArrowIntegerType(this.bitWidth, {this.signed = true}) {
+final class IntegerType extends DataType {
+  IntegerType(this.bitWidth, {this.signed = true}) {
     if (bitWidth != 8 &&
         bitWidth != 16 &&
         bitWidth != 32 &&
@@ -222,8 +293,8 @@ final class ArrowIntegerType extends ArrowDataType {
   Map<String, Object?> toJson() => {'kind': '${signed ? '' : 'u'}int$bitWidth'};
 }
 
-final class ArrowFloatingType extends ArrowDataType {
-  ArrowFloatingType(this.bitWidth) {
+final class FloatingType extends DataType {
+  FloatingType(this.bitWidth) {
     if (bitWidth != 16 && bitWidth != 32 && bitWidth != 64) {
       throw ArgumentError.value(bitWidth, 'bitWidth', 'must be 16, 32, or 64');
     }
@@ -233,13 +304,13 @@ final class ArrowFloatingType extends ArrowDataType {
   Map<String, Object?> toJson() => {'kind': 'float$bitWidth'};
 }
 
-final class ArrowDecimalType extends ArrowDataType {
-  ArrowDecimalType(this.precision, this.scale) {
+final class DecimalType extends DataType {
+  DecimalType(this.precision, this.scale) {
     if (precision < 1 || precision > 38) {
       throw RangeError.range(precision, 1, 38, 'precision');
     }
-    if (scale < 0 || scale > precision) {
-      throw RangeError.range(scale, 0, precision, 'scale');
+    if (scale < -2147483648 || scale > 2147483647) {
+      throw RangeError.range(scale, -2147483648, 2147483647, 'scale');
     }
   }
   final int precision;
@@ -252,37 +323,37 @@ final class ArrowDecimalType extends ArrowDataType {
   };
 }
 
-final class ArrowUtf8Type extends ArrowDataType {
-  const ArrowUtf8Type([this.offsetWidth = ArrowOffsetWidth.normal]);
-  final ArrowOffsetWidth offsetWidth;
+final class Utf8Type extends DataType {
+  const Utf8Type([this.offsetWidth = OffsetWidth.normal]);
+  final OffsetWidth offsetWidth;
   @override
   Map<String, Object?> toJson() => {
-    'kind': offsetWidth == ArrowOffsetWidth.large ? 'largeString' : 'string',
+    'kind': offsetWidth == OffsetWidth.large ? 'largeString' : 'string',
   };
 }
 
-final class ArrowBinaryType extends ArrowDataType {
-  const ArrowBinaryType([this.offsetWidth = ArrowOffsetWidth.normal]);
-  final ArrowOffsetWidth offsetWidth;
+final class BinaryType extends DataType {
+  const BinaryType([this.offsetWidth = OffsetWidth.normal]);
+  final OffsetWidth offsetWidth;
   @override
   Map<String, Object?> toJson() => {
-    'kind': offsetWidth == ArrowOffsetWidth.large ? 'largeBinary' : 'binary',
+    'kind': offsetWidth == OffsetWidth.large ? 'largeBinary' : 'binary',
   };
 }
 
-final class ArrowDateType extends ArrowDataType {
-  const ArrowDateType([this.unit = ArrowDateUnit.day]);
-  final ArrowDateUnit unit;
+final class DateType extends DataType {
+  const DateType([this.unit = DateUnit.day]);
+  final DateUnit unit;
   @override
   Map<String, Object?> toJson() => {
     'kind': 'date',
-    'unit': unit == ArrowDateUnit.day ? 'days' : 'milliseconds',
+    'unit': unit == DateUnit.day ? 'days' : 'milliseconds',
   };
 }
 
-final class ArrowTimestampType extends ArrowDataType {
-  const ArrowTimestampType(this.unit, {this.timeZone});
-  final ArrowTimeUnit unit;
+final class TimestampType extends DataType {
+  const TimestampType(this.unit, {this.timeZone});
+  final TimeUnit unit;
   final String? timeZone;
   @override
   Map<String, Object?> toJson() => {
@@ -292,32 +363,32 @@ final class ArrowTimestampType extends ArrowDataType {
   };
 }
 
-final class ArrowDurationType extends ArrowDataType {
-  const ArrowDurationType(this.unit);
-  final ArrowTimeUnit unit;
+final class DurationType extends DataType {
+  const DurationType(this.unit);
+  final TimeUnit unit;
   @override
   Map<String, Object?> toJson() => {'kind': 'duration', 'unit': unit.jsonName};
 }
 
-final class ArrowTimeType extends ArrowDataType {
-  const ArrowTimeType(this.unit);
-  final ArrowTimeUnit unit;
+final class TimeType extends DataType {
+  const TimeType(this.unit);
+  final TimeUnit unit;
   @override
   Map<String, Object?> toJson() => {'kind': 'time', 'unit': unit.jsonName};
 }
 
-final class ArrowListType extends ArrowDataType {
-  ArrowListType(this.field);
-  final ArrowField field;
+final class ListType extends DataType {
+  ListType(this.field);
+  final Field field;
   @override
   Map<String, Object?> toJson() => {'kind': 'list', 'field': field.toJson()};
 }
 
-final class ArrowFixedSizeListType extends ArrowDataType {
-  ArrowFixedSizeListType(this.field, this.size) {
+final class FixedSizeListType extends DataType {
+  FixedSizeListType(this.field, this.size) {
     if (size < 0) throw RangeError.value(size, 'size', 'must be non-negative');
   }
-  final ArrowField field;
+  final Field field;
   final int size;
   @override
   Map<String, Object?> toJson() => {
@@ -327,9 +398,9 @@ final class ArrowFixedSizeListType extends ArrowDataType {
   };
 }
 
-final class ArrowStructType extends ArrowDataType {
-  ArrowStructType(List<ArrowField> fields) : fields = List.unmodifiable(fields);
-  final List<ArrowField> fields;
+final class StructType extends DataType {
+  StructType(List<Field> fields) : fields = List.unmodifiable(fields);
+  final List<Field> fields;
   @override
   Map<String, Object?> toJson() => {
     'kind': 'struct',
@@ -337,9 +408,9 @@ final class ArrowStructType extends ArrowDataType {
   };
 }
 
-final class ArrowDictionaryType extends ArrowDataType {
-  ArrowDictionaryType(this.indexType, this.valueType, {this.ordered = false}) {
-    if (indexType is! ArrowIntegerType) {
+final class DictionaryType extends DataType {
+  DictionaryType(this.indexType, this.valueType, {this.ordered = false}) {
+    if (indexType is! IntegerType) {
       throw ArgumentError.value(
         indexType,
         'indexType',
@@ -347,8 +418,8 @@ final class ArrowDictionaryType extends ArrowDataType {
       );
     }
   }
-  final ArrowDataType indexType;
-  final ArrowDataType valueType;
+  final DataType indexType;
+  final DataType valueType;
   final bool ordered;
   @override
   Map<String, Object?> toJson() => {
@@ -359,13 +430,13 @@ final class ArrowDictionaryType extends ArrowDataType {
   };
 }
 
-final class ArrowExtensionType extends ArrowDataType {
-  ArrowExtensionType(this.name, this.storageType, {this.metadata}) {
+final class ExtensionType extends DataType {
+  ExtensionType(this.name, this.storageType, {this.metadata}) {
     if (name.isEmpty)
       throw ArgumentError.value(name, 'name', 'must not be empty');
   }
   final String name;
-  final ArrowDataType storageType;
+  final DataType storageType;
   final String? metadata;
   @override
   Map<String, Object?> toJson() => {

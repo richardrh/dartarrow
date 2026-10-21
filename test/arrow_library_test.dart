@@ -1,81 +1,93 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
-import 'package:dartaframes_arrow/arrow.dart';
+import 'package:dartaframes_arrow/arrow.dart' as pa;
+import 'package:dartaframes_arrow/json.dart';
 import 'package:test/test.dart';
+
+pa.Array halfBits(List<int> bits) {
+  final bytes = ByteData(bits.length * 2);
+  for (var i = 0; i < bits.length; i++) {
+    bytes.setUint16(i * 2, bits[i], Endian.little);
+  }
+  return pa.Array.fromBuffers(pa.float16(), bits.length, [
+    null,
+    pa.Buffer(bytes.buffer.asUint8List()),
+  ]);
+}
 
 void main() {
   group('datatypes', () {
     test('JSON round-trips every logical family', () {
-      final types = <ArrowDataType>[
-        const ArrowNullType(),
-        const ArrowBooleanType(),
+      final types = <pa.DataType>[
+        pa.nullType(),
+        pa.boolType(),
         for (final width in [8, 16, 32, 64, 128]) ...[
-          ArrowIntegerType(width),
-          ArrowIntegerType(width, signed: false),
+          pa.IntegerType(width),
+          pa.IntegerType(width, signed: false),
         ],
-        for (final width in [16, 32, 64]) ArrowFloatingType(width),
-        ArrowDecimalType(38, 9),
-        const ArrowUtf8Type(),
-        const ArrowUtf8Type(ArrowOffsetWidth.large),
-        const ArrowBinaryType(),
-        const ArrowBinaryType(ArrowOffsetWidth.large),
-        const ArrowDateType(),
-        const ArrowDateType(ArrowDateUnit.millisecond),
-        const ArrowTimestampType(ArrowTimeUnit.nanosecond, timeZone: 'UTC'),
-        const ArrowTimestampType(ArrowTimeUnit.microsecond),
-        const ArrowTimestampType(ArrowTimeUnit.millisecond),
-        const ArrowDurationType(ArrowTimeUnit.nanosecond),
-        const ArrowTimeType(ArrowTimeUnit.microsecond),
-        ArrowListType(ArrowField('item', ArrowIntegerType(32))),
-        ArrowFixedSizeListType(ArrowField('item', ArrowFloatingType(32)), 3),
-        ArrowStructType([
-          ArrowField('x', const ArrowBooleanType(), nullable: false),
-          ArrowField('y', const ArrowUtf8Type()),
+        for (final width in [16, 32, 64]) pa.FloatingType(width),
+        pa.decimal128(38, 9),
+        pa.decimal128(3, 4),
+        pa.decimal128(3, -4),
+        pa.string(),
+        pa.largeString(),
+        pa.binary(),
+        pa.largeBinary(),
+        pa.date32(),
+        pa.date64(),
+        pa.timestamp('ns', tz: 'UTC'),
+        pa.timestamp('us'),
+        pa.timestamp('ms'),
+        pa.duration('ns'),
+        pa.time64('us'),
+        pa.listType(pa.int32()),
+        pa.listType(pa.float32(), listSize: 3),
+        pa.struct([
+          pa.Field('x', pa.boolType(), nullable: false),
+          pa.Field('y', pa.string()),
         ]),
-        ArrowDictionaryType(
-          ArrowIntegerType(16, signed: false),
-          const ArrowUtf8Type(),
-          ordered: true,
-        ),
-        ArrowExtensionType(
-          'vendor.point',
-          const ArrowBinaryType(),
-          metadata: '{"version":1}',
-        ),
+        pa.dictionary(pa.uint16(), pa.string(), ordered: true),
+        pa.extension('vendor.point', pa.binary(), metadata: '{"version":1}'),
       ];
       for (final type in types) {
         expect(
-          ArrowDataType.fromJson(
-            jsonDecode(jsonEncode(type.toJson())).cast<String, Object?>(),
+          pa.DataType.fromJson(
+            (jsonDecode(jsonEncode(type.toJson())) as Map)
+                .cast<String, Object?>(),
           ),
           type,
         );
       }
     });
 
-    test('rejects invalid decimal, list and dictionary types', () {
-      expect(() => ArrowIntegerType(24), throwsArgumentError);
-      expect(() => ArrowFloatingType(128), throwsArgumentError);
-      expect(() => ArrowDecimalType(0, 0), throwsRangeError);
-      expect(() => ArrowDecimalType(3, 4), throwsRangeError);
-      expect(
-        () =>
-            ArrowFixedSizeListType(ArrowField('x', const ArrowNullType()), -1),
-        throwsRangeError,
-      );
-      expect(
-        () => ArrowDictionaryType(ArrowFloatingType(32), const ArrowUtf8Type()),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'validates datatype parameters without restricting scale to precision',
+      () {
+        expect(() => pa.IntegerType(24), throwsArgumentError);
+        expect(() => pa.FloatingType(128), throwsArgumentError);
+        expect(() => pa.decimal128(0), throwsRangeError);
+        expect(() => pa.decimal128(39), throwsRangeError);
+        expect(() => pa.decimal128(3, 2147483648), throwsRangeError);
+        expect(pa.decimal128(3, 4).scale, 4);
+        expect(
+          () => pa.FixedSizeListType(pa.Field('x', pa.nullType()), -1),
+          throwsRangeError,
+        );
+        expect(
+          () => pa.dictionary(pa.float32(), pa.string()),
+          throwsArgumentError,
+        );
+      },
+    );
 
     test('strictly validates descriptor units and booleans', () {
       expect(
-        () => ArrowDataType.fromJson({'kind': 'date', 'unit': 'seconds'}),
+        () => pa.DataType.fromJson({'kind': 'date', 'unit': 'seconds'}),
         throwsFormatException,
       );
       expect(
-        () => ArrowField.fromJson({
+        () => pa.Field.fromJson({
           'name': 'x',
           'dtype': {'kind': 'boolean'},
           'nullable': 'yes',
@@ -83,7 +95,7 @@ void main() {
         throwsFormatException,
       );
       expect(
-        () => ArrowDataType.fromJson({
+        () => pa.DataType.fromJson({
           'kind': 'dictionary',
           'indexType': {'kind': 'int8'},
           'valueType': {'kind': 'string'},
@@ -94,367 +106,350 @@ void main() {
     });
   });
 
-  group('values and arrays', () {
+  group('native arrays and scalars', () {
     test('validates signed, unsigned, 128-bit and uint64 boundaries', () {
-      final int128 = ArrowIntegerType(128);
-      final uint64 = ArrowIntegerType(64, signed: false);
       final minimum = -(BigInt.one << 127);
       final maximum = (BigInt.one << 127) - BigInt.one;
       expect(
-        ArrowArray(int128, [
-          ArrowIntegerValue(minimum),
-          ArrowIntegerValue(maximum),
-        ]).length,
-        2,
+        pa.array([minimum, maximum], type: pa.bindingInt128()).toDartList(),
+        [minimum, maximum],
       );
       expect(
-        () => ArrowArray(int128, [ArrowIntegerValue(minimum - BigInt.one)]),
-        throwsRangeError,
-      );
-      expect(
-        ArrowArray(uint64, [ArrowIntegerValue('18446744073709551615')])[0],
-        ArrowIntegerValue(BigInt.parse('18446744073709551615')),
-      );
-      expect(
-        () => ArrowArray(uint64, [ArrowIntegerValue(-1)]),
-        throwsRangeError,
-      );
-    });
-
-    test('keeps raw Float16 bits and all Float64 bits', () {
-      final half = ArrowFloatingValue.float16(0x7e01);
-      expect(half.hexadecimalBits, '7e01');
-      final array = ArrowArray(ArrowFloatingType(16), [half]);
-      expect(array[0], half);
-      expect(
-        ArrowFloatingValue(
-          64,
-          BigInt.parse('fff0000000000000', radix: 16),
-        ).hexadecimalBits,
-        'fff0000000000000',
-      );
-    });
-
-    test('validates decimal precision and raw temporal range', () {
-      expect(
-        ArrowArray(ArrowDecimalType(5, 2), [ArrowDecimalValue(-99999)]).length,
-        1,
-      );
-      expect(
-        () => ArrowArray(ArrowDecimalType(5, 2), [ArrowDecimalValue(100000)]),
-        throwsRangeError,
-      );
-      expect(
-        ArrowArray(const ArrowTimestampType(ArrowTimeUnit.nanosecond), [
-          ArrowTemporalValue('9223372036854775807'),
-        ]).length,
-        1,
-      );
-      expect(
-        () => ArrowArray(const ArrowTimeType(ArrowTimeUnit.nanosecond), [
-          ArrowTemporalValue(BigInt.one << 63),
-        ]),
-        throwsRangeError,
-      );
-    });
-
-    test('validates nested nullability, fixed width, and struct order', () {
-      final fixed = ArrowFixedSizeListType(
-        ArrowField('item', ArrowIntegerType(8), nullable: false),
-        2,
-      );
-      expect(
-        ArrowArray(fixed, [
-          ArrowListValue([ArrowIntegerValue(1), ArrowIntegerValue(2)]),
-        ]).length,
-        1,
-      );
-      expect(
-        () => ArrowArray(fixed, [
-          ArrowListValue([ArrowIntegerValue(1)]),
-        ]),
+        () => pa.array([minimum - BigInt.one], type: pa.bindingInt128()),
         throwsArgumentError,
       );
+      final unsignedMaximum = BigInt.parse('18446744073709551615');
       expect(
-        () => ArrowArray(fixed, [
-          ArrowListValue([ArrowIntegerValue(1), null]),
-        ]),
+        pa.scalar(unsignedMaximum, type: pa.uint64()).asDart(),
+        unsignedMaximum,
+      );
+      expect(() => pa.array([-1], type: pa.uint64()), throwsArgumentError);
+      expect(pa.array([-128, 127], type: pa.int8()).toDartList(), [-128, 127]);
+      expect(() => pa.array([128], type: pa.int8()), throwsArgumentError);
+    });
+
+    test('preserves Float16 payloads and Float64 encodings', () {
+      final half = halfBits([0x7e01, 0x8000]);
+      expect(half[0].rawBits, BigInt.from(0x7e01));
+      expect((half[0].asDart() as double).isNaN, isTrue);
+      expect(half[0].isValid, isTrue);
+      expect(half[1].rawBits, BigInt.from(0x8000));
+      expect(
+        pa.scalar(double.negativeInfinity).rawBits,
+        BigInt.parse('fff0000000000000', radix: 16),
+      );
+      expect(pa.scalar(-0.0).rawBits, BigInt.one << 63);
+    });
+
+    test('validates exact decimals and temporal range', () {
+      final decimal = pa.DecimalValue(-99999, 2);
+      expect(pa.scalar(decimal, type: pa.decimal128(5, 2)).asDart(), decimal);
+      expect(
+        () => pa.array([pa.DecimalValue(100000, 2)], type: pa.decimal128(5, 2)),
         throwsArgumentError,
       );
-
-      final struct = ArrowStructType([
-        ArrowField('a', const ArrowBooleanType(), nullable: false),
-        ArrowField(
-          'b',
-          ArrowListType(ArrowField('item', const ArrowUtf8Type())),
-        ),
-      ]);
-      final nested = ArrowStructValue([
-        const ArrowStructEntry('a', ArrowBooleanValue(true)),
-        ArrowStructEntry(
-          'b',
-          ArrowListValue([const ArrowStringValue('x'), null]),
-        ),
-      ]);
-      expect(ArrowArray(struct, [nested, null]).validity, [true, false]);
+      final tiny = pa.DecimalValue(123, 4);
+      expect(pa.scalar(tiny, type: pa.decimal128(3, 4)).asDart(), tiny);
+      final counter = BigInt.parse('9223372036854775807');
+      final temporal = pa.TemporalValue(
+        counter,
+        pa.TimeUnit.nanosecond,
+        kind: 'timestamp',
+      );
+      expect(pa.scalar(temporal, type: pa.timestamp('ns')).asDart(), temporal);
       expect(
-        () => ArrowArray(struct, [
-          ArrowStructValue([
-            const ArrowStructEntry('b', ArrowBooleanValue(true)),
-            const ArrowStructEntry('a', null),
-          ]),
-        ]),
+        () => pa.array([BigInt.one << 63], type: pa.time64('ns')),
         throwsArgumentError,
       );
     });
 
-    test('checks explicit validity and one-shot builder', () {
-      expect(
-        () => ArrowArray(
-          const ArrowBooleanType(),
-          [const ArrowBooleanValue(true)],
-          validity: [false],
-        ),
-        throwsArgumentError,
-      );
-      final builder = ArrowArrayBuilder(const ArrowBooleanType())
-        ..append(const ArrowBooleanValue(true))
-        ..appendNull();
-      expect(builder.build().validity, [true, false]);
-      expect(builder.length, 2);
-      expect(builder.build, throwsStateError);
+    test(
+      'preserves nested nullability declarations and validates fixed width',
+      () {
+        final fixed = pa.listType(
+          pa.Field('item', pa.int8(), nullable: false),
+          listSize: 2,
+        );
+        expect(
+          pa.array([
+            [1, 2],
+          ], type: fixed).toDartList(),
+          [
+            [1, 2],
+          ],
+        );
+        expect(
+          () => pa.array([
+            [1],
+          ], type: fixed),
+          throwsArgumentError,
+        );
+        final nullableValues = pa.array([
+          [1, null],
+        ], type: fixed);
+        expect(nullableValues.toDartList(), [
+          [1, null],
+        ]);
+        nullableValues.validate(full: true);
+        final type = pa.struct([
+          pa.Field('a', pa.boolType(), nullable: false),
+          pa.Field('b', pa.listType(pa.string())),
+        ]);
+        final nested = pa.array([
+          {
+            'b': ['x', null],
+            'a': true,
+          },
+          null,
+        ], type: type);
+        expect(nested.toDartList(), [
+          {
+            'a': true,
+            'b': ['x', null],
+          },
+          null,
+        ]);
+        expect(nested[0].isValid, isTrue);
+        expect(nested[1].isValid, isFalse);
+        final nullableStruct = pa.array([
+          {
+            'a': null,
+            'b': ['x'],
+          },
+        ], type: type);
+        expect(nullableStruct.toDartList(), [
+          {
+            'a': null,
+            'b': ['x'],
+          },
+        ]);
+        nullableStruct.validate(full: true);
+      },
+    );
+
+    test('mask controls nulls and validates its length', () {
+      final values = pa.array([true, false], mask: [false, true]);
+      expect(values.type, pa.boolType());
+      expect(values.toDartList(), [true, null]);
+      expect(values.nullCount, 1);
+      expect(values[1].isValid, isFalse);
+      expect(() => pa.array([true], mask: [false, true]), throwsArgumentError);
+      expect(pa.array([null, null]).type, pa.nullType());
     });
   });
 
   group('schema and record batches', () {
-    test('metadata is copied, immutable, and JSON round-trips', () {
+    test('schema metadata is copied and JSON round-trips losslessly', () {
       final source = {'source': 'test'};
-      final schema = ArrowSchema([
-        ArrowField(
-          'id',
-          ArrowIntegerType(64),
-          nullable: false,
-          metadata: source,
-        ),
+      final schema = pa.Schema([
+        pa.Field('id', pa.int64(), nullable: false, metadata: source),
       ], metadata: source);
       source['source'] = 'changed';
-      expect(schema.metadata['source'], 'test');
-      expect(() => schema.metadata['new'] = 'x', throwsUnsupportedError);
-      expect(ArrowSchema.fromJson(schema.toJson()), schema);
+      expect(
+        schema.equals(
+          pa.Schema(
+            [
+              pa.Field(
+                'id',
+                pa.int64(),
+                nullable: false,
+                metadata: {'source': 'test'},
+              ),
+            ],
+            metadata: {'source': 'test'},
+          ),
+          checkMetadata: true,
+        ),
+        isTrue,
+      );
+      final decoded = pa.Schema.fromJson(schema.toJson());
+      expect(decoded.equals(schema, checkMetadata: true), isTrue);
     });
 
-    test('metadata equality and hash are independent of insertion order', () {
-      final first = ArrowSchema([], metadata: {'a': '1', 'b': '2'});
-      final second = ArrowSchema([], metadata: {'b': '2', 'a': '1'});
-      final firstField = ArrowField(
-        'x',
-        const ArrowBooleanType(),
-        metadata: {'a': '1', 'b': '2'},
-      );
-      final secondField = ArrowField(
-        'x',
-        const ArrowBooleanType(),
-        metadata: {'b': '2', 'a': '1'},
-      );
-      expect(first, second);
+    test('metadata equality is independent of insertion order', () {
+      final first = pa.Schema([], metadata: {'a': '1', 'b': '2'});
+      final second = pa.Schema([], metadata: {'b': '2', 'a': '1'});
+      expect(first.equals(second, checkMetadata: true), isTrue);
       expect(first.hashCode, second.hashCode);
       expect({first}, contains(second));
-      expect({firstField}, contains(secondField));
     });
 
     test('preserves explicit row counts for batches without columns', () {
-      final batch = RecordBatch(ArrowSchema([]), [], rowCount: 3);
+      final batch = pa.RecordBatch.fromDartList([
+        {},
+        {},
+        {},
+      ], schema: pa.Schema([]));
       const codec = OwnedBatchJsonCodec();
       final decoded = codec.decode(codec.encode(batch));
-      expect(decoded.length, 3);
-      expect(decoded.columns, isEmpty);
-      expect(
-        () => RecordBatch(ArrowSchema([]), [], rowCount: -1),
-        throwsRangeError,
-      );
+      expect(decoded.numRows, 3);
+      expect(decoded.numColumns, 0);
     });
 
-    test('validates datatype, nullability, and equal column lengths', () {
-      final schema = ArrowSchema([
-        ArrowField('a', const ArrowBooleanType(), nullable: false),
-        ArrowField('b', const ArrowUtf8Type()),
+    test('constructs typed columns and validates equal column lengths', () {
+      final schema = pa.Schema([
+        pa.Field('a', pa.boolType(), nullable: false),
+        pa.Field('b', pa.string()),
       ]);
+      final batch = pa.RecordBatch.fromArrays([
+        pa.array([true]),
+        pa.array(['x']),
+      ], schema: schema);
+      expect(batch.numRows, 1);
+      expect(batch.numColumns, 2);
+      expect(batch.schema, schema);
       expect(
-        RecordBatch(schema, [
-          ArrowArray(const ArrowBooleanType(), [const ArrowBooleanValue(true)]),
-          ArrowArray(const ArrowUtf8Type(), [const ArrowStringValue('x')]),
-        ]).length,
-        1,
-      );
-      expect(
-        () => RecordBatch(schema, [
-          ArrowArray(const ArrowBooleanType(), [null]),
-          ArrowArray(const ArrowUtf8Type(), [null]),
-        ]),
-        throwsArgumentError,
-      );
-      expect(
-        () => RecordBatch(schema, [
-          ArrowArray(const ArrowBooleanType(), [const ArrowBooleanValue(true)]),
-          ArrowArray(const ArrowUtf8Type(), []),
-        ]),
+        () => pa.RecordBatch.fromArrays([
+          pa.array([true]),
+          pa.array([], type: pa.string()),
+        ], schema: schema),
         throwsArgumentError,
       );
     });
   });
 
   group('dictionary, extension, and owned codec', () {
+    test('dictionary checks integer indices and bounds', () {
+      final dictionary = pa.array(['red', 'blue']);
+      final values = pa.Array.fromDictionary(
+        pa.array([1, null], type: pa.uint8()),
+        dictionary,
+      );
+      expect(values.toDartList(), ['blue', null]);
+      final entry = values[0] as pa.DictionaryScalar;
+      expect(entry.index.asDart(), 1);
+      expect(entry.value.asDart(), 'blue');
+      expect(
+        () => pa.Array.fromDictionary(pa.array([2]), dictionary),
+        throwsRangeError,
+      );
+      expect(
+        () => pa.Array.fromDictionary(pa.array([1.0]), dictionary),
+        throwsArgumentError,
+      );
+    });
+
     test(
-      'dictionary validates index type, bounds, and dictionary datatype',
+      'round-trips nested values, BigInt, dictionary, and extension losslessly',
       () {
-        final type = ArrowDictionaryType(
-          ArrowIntegerType(8, signed: false),
-          const ArrowUtf8Type(),
+        final extensionType = pa.extension(
+          'vendor.uuid',
+          pa.binary(),
+          metadata: 'v1',
         );
-        final dictionary = ArrowArray(const ArrowUtf8Type(), [
-          const ArrowStringValue('red'),
-          const ArrowStringValue('blue'),
-        ]);
-        expect(
-          ArrowArray(type, [
-            ArrowDictionaryIndexValue(1),
+        final nestedType = pa.listType(
+          pa.struct([
+            pa.Field('n', pa.bindingInt128(), nullable: false),
+            pa.Field('s', pa.string()),
+          ]),
+        );
+        final dictionary = pa.array(['a', 'b']);
+        final binary = pa.array([
+          Uint8List.fromList([0, 1, 255]),
+          null,
+        ], type: pa.binary());
+        final columns = [
+          pa.array([
+            [
+              {'n': BigInt.one << 100, 's': 'hello'},
+              null,
+            ],
             null,
-          ], dictionary: dictionary).length,
-          2,
+          ], type: nestedType),
+          pa.Array.fromDictionary(
+            pa.array([1, 0], type: pa.uint16()),
+            dictionary,
+          ),
+          pa.Array.fromBuffers(extensionType, 2, binary.buffers()),
+          halfBits([0x8000, 0x7e01]),
+          pa.array([-42, 42], type: pa.timestamp('ns', tz: 'UTC')),
+          pa.array([
+            pa.DecimalValue(12340000, 4),
+            pa.DecimalValue(-1, 4),
+          ], type: pa.decimal128(38, 4)),
+        ];
+        final schema = pa.Schema(
+          [
+            for (final entry in columns.indexed)
+              pa.Field(
+                [
+                  'nested',
+                  'category',
+                  'extension',
+                  'half',
+                  'when',
+                  'amount',
+                ][entry.$1],
+                entry.$2.type,
+              ),
+          ],
+          metadata: {'owner': 'dart'},
         );
+        final batch = pa.RecordBatch.fromArrays(columns, schema: schema);
+        const codec = OwnedBatchJsonCodec();
+        final wire = codec.encode(batch);
+        expect(wire, contains('1267650600228229401496703205376'));
+        final decoded = codec.decode(wire);
+        expect(decoded.schema.equals(schema, checkMetadata: true), isTrue);
+        expect(decoded.numRows, 2);
+        for (final index in [0, 1, 2, 4, 5]) {
+          expect(
+            decoded.columns[index].toDartList(),
+            columns[index].toDartList(),
+          );
+        }
         expect(
-          () => ArrowArray(type, [
-            ArrowDictionaryIndexValue(2),
-          ], dictionary: dictionary),
-          throwsRangeError,
+          decoded.columns[1].dictionary!.toDartList(),
+          dictionary.toDartList(),
         );
+        expect(decoded.columns[3][0].rawBits, BigInt.from(0x8000));
+        expect(decoded.columns[3][1].rawBits, BigInt.from(0x7e01));
       },
     );
 
-    test('round-trips nested values, BigInt, dictionary, and extension', () {
-      final dictionaryType = ArrowDictionaryType(
-        ArrowIntegerType(16, signed: false),
-        const ArrowUtf8Type(),
-      );
-      final extensionType = ArrowExtensionType(
-        'vendor.uuid',
-        const ArrowBinaryType(),
-        metadata: 'v1',
-      );
-      final nestedType = ArrowListType(
-        ArrowField(
-          'item',
-          ArrowStructType([
-            ArrowField('n', ArrowIntegerType(128), nullable: false),
-            ArrowField('s', const ArrowUtf8Type()),
-          ]),
-        ),
-      );
-      final schema = ArrowSchema(
-        [
-          ArrowField('nested', nestedType),
-          ArrowField('category', dictionaryType),
-          ArrowField('extension', extensionType),
-          ArrowField('half', ArrowFloatingType(16)),
-          ArrowField(
-            'when',
-            const ArrowTimestampType(ArrowTimeUnit.nanosecond, timeZone: 'UTC'),
-          ),
-          ArrowField('amount', ArrowDecimalType(38, 4)),
-        ],
-        metadata: const {'owner': 'dart'},
-      );
-      final dictionary = ArrowArray(const ArrowUtf8Type(), [
-        const ArrowStringValue('a'),
-        const ArrowStringValue('b'),
-      ]);
-      final batch = RecordBatch(schema, [
-        ArrowArray(nestedType, [
-          ArrowListValue([
-            ArrowStructValue([
-              ArrowStructEntry('n', ArrowIntegerValue(BigInt.one << 100)),
-              const ArrowStructEntry('s', ArrowStringValue('hello')),
-            ]),
-            null,
-          ]),
-          null,
-        ]),
-        ArrowArray(dictionaryType, [
-          ArrowDictionaryIndexValue(1),
-          ArrowDictionaryIndexValue(0),
-        ], dictionary: dictionary),
-        ArrowArray(extensionType, [
-          ArrowExtensionValue(ArrowBinaryValue([0, 1, 255])),
-          null,
-        ]),
-        ArrowArray(ArrowFloatingType(16), [
-          ArrowFloatingValue.float16(0x8000),
-          ArrowFloatingValue.float16(0x7e01),
-        ]),
-        ArrowArray(
-          const ArrowTimestampType(ArrowTimeUnit.nanosecond, timeZone: 'UTC'),
-          [ArrowTemporalValue(-42), ArrowTemporalValue(42)],
-        ),
-        ArrowArray(ArrowDecimalType(38, 4), [
-          ArrowDecimalValue('12340000'),
-          ArrowDecimalValue('-1'),
-        ]),
-      ]);
-      const codec = OwnedBatchJsonCodec();
-      final wire = codec.encode(batch);
-      expect(wire, contains('1267650600228229401496703205376'));
-      final decoded = codec.decode(wire);
-      expect(decoded.schema, schema);
-      expect(decoded.length, 2);
-      expect(decoded.columns[0].values, batch.columns[0].values);
-      expect(decoded.columns[1].dictionary!.values, dictionary.values);
-      expect(decoded.columns[2].values, batch.columns[2].values);
-      expect(decoded.columns[3].values, batch.columns[3].values);
-      expect(decoded.columns[4].values, batch.columns[4].values);
-      expect(decoded.columns[5].values, batch.columns[5].values);
-    });
-
     test('codec rejects malformed validity and declared length', () {
       const codec = OwnedBatchJsonCodec();
-      final malformed = {
-        'schema': {
-          'fields': [
+      expect(
+        () => codec.fromJson({
+          'schema': {
+            'fields': [
+              {
+                'name': 'x',
+                'dtype': {'kind': 'boolean'},
+                'nullable': true,
+              },
+            ],
+          },
+          'length': 2,
+          'columns': [
             {
               'name': 'x',
               'dtype': {'kind': 'boolean'},
-              'nullable': true,
+              'validity': [true],
+              'values': [true],
             },
           ],
-        },
-        'length': 2,
-        'columns': [
-          {
-            'name': 'x',
-            'dtype': {'kind': 'boolean'},
-            'validity': [true],
-            'values': [true],
-          },
-        ],
-      };
-      expect(() => codec.fromJson(malformed), throwsFormatException);
+        }),
+        throwsFormatException,
+      );
     });
 
     test('malformed nested and metadata shapes throw FormatException', () {
       expect(
-        () => ArrowSchema.fromJson({
+        () => pa.Schema.fromJson({
           'fields': [false],
         }),
         throwsFormatException,
       );
       expect(
-        () => ArrowSchema.fromJson({
+        () => pa.Schema.fromJson({
           'fields': [],
           'metadata': {'valid': 1},
         }),
         throwsFormatException,
       );
       expect(
-        () => ArrowDataType.fromJson({
+        () => pa.DataType.fromJson({
           'kind': 'struct',
           'fields': ['not a field'],
         }),

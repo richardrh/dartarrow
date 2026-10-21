@@ -1,6 +1,6 @@
 name: dartaframes_arrow
-description: Buffer-backed Arrow arrays, schemas, logical values, and owned JSON for Dart.
-version: 0.1.0
+description: Pure Dart Arrow arrays, typed scalars, schemas, chunked tables, and owned JSON.
+version: 0.2.0
 repository: https://github.com/richardrh/dartarrow
 issue_tracker: https://github.com/richardrh/dartarrow/issues
 environment:

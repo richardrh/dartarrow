@@ -10,9 +10,9 @@
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header>
-  <p class="eyebrow">dartarrow · package 0.1.0</p>
-  <h1>Arrow buffers in pure Dart</h1>
-  <p><code>dartaframes_arrow</code> provides buffer-backed arrays, schemas, logical values and owned JSON without a native runtime or a Polars dependency.</p>
+  <p class="eyebrow">dartarrow · package 0.2.0</p>
+  <h1>PyArrow-shaped tables in pure Dart</h1>
+  <p><code>dartaframes_arrow</code> provides typed scalars, buffer-backed arrays, schemas and real chunked tables without a native runtime or Polars dependency. This is scoped core behavior, not full PyArrow support.</p>
   <p><a href="api/">API reference</a> · <a href="https://github.com/richardrh/dartarrow">Source repository</a></p>
 </header>
 <div class="layout">
@@ -46,54 +46,53 @@
 <p>See the official <a href="https://dart.dev/tools/pub/dependencies#git-packages">Git dependency documentation</a> for revision resolution.</p>
 </section>
 <section id="usage">
-<h2>Arrays, schemas, batches and owned JSON</h2>
-<p>Create logical values, retain nulls, and give each batch column a matching schema field. The second slice argument is a <em>count</em>, not an end index.</p>
-<pre><code>import 'package:dartaframes_arrow/arrow.dart';
+<h2>Arrays, typed scalars and chunked tables</h2>
+<p>Construct native values with dtype factories. Indexing returns a typed Scalar even for null; explicit conversion returns native values. Slice's second argument is a length, not an end index.</p>
+<pre><code>import 'package:dartaframes_arrow/arrow.dart' as pa;
+import 'package:dartaframes_arrow/json.dart';
 
 void main() {
-  final type = ArrowIntegerType(32);
-  final array = ArrowArray(type, [
-    ArrowIntegerValue(10),
-    null,
-    ArrowIntegerValue(30),
-  ]);
-  final slice = array.slice(1, 2); // [null, 30]; shared storage
-  final schema = ArrowSchema([ArrowField('value', type)]);
-  final batch = RecordBatch(schema, [slice]);
-
+  final values = pa.array([10, null, 30], type: pa.int32());
+  print(values[1].isValid); // false
+  print(values[0].asDart()); // 10
+  print(values.slice(1, 2).toDartList()); // [null, 30]
+  final schema = pa.schema([pa.field('value', pa.int32())],
+      metadata: {'producer': 'Dart'});
+  final batch = pa.RecordBatch.fromArrays([values], schema: schema);
+  final table = pa.table({
+    'value': pa.chunkedArray([values.slice(0, 1), values.slice(1)]),
+  });
+  print(table.column('value').numChunks); // 2
+  print(table.toBatches(maxChunkSize: 2).map((b) =&gt; b.numRows));
   const codec = OwnedBatchJsonCodec();
-  final text = codec.encode(batch);
-  final restored = codec.decode(text);
-  print(restored.length); // 2
-  print(restored.columns.first[1]);
-
-  final object = codec.toJson(batch);
-  final fromObject = codec.fromJson(object);
-  print(fromObject.length); // 2
+  print(codec.decode(codec.encode(batch)).numRows); // 3
 }</code></pre>
-<p><code>RecordBatch</code> checks column count, column types, equal lengths and field nullability. <code>batch.slice(start, count)</code> slices all columns with the same range. A zero-column batch can specify its row count with <code>rowCount:</code>.</p>
+<p>Batch columns are <a href="api/dartaframes_arrow/Array-class.html">Array</a>; Table columns are always <a href="api/dartaframes_arrow/ChunkedArray-class.html">ChunkedArray</a>. <a href="api/dartaframes_arrow/Table-class.html">Table</a> retains chunk boundaries until <code>combineChunks()</code>. Projection and slicing preserve positive height even with zero columns. Use <code>RecordBatch.fromStructArray</code> for an explicit zero-column struct carrier.</p>
+<p><a href="api/dartaframes_arrow/Field-class.html">Field</a> and <a href="api/dartaframes_arrow/Schema-class.html">Schema</a> preserve duplicate/empty names and nullable declarations. Metadata accepts String or Uint8List keys/values, preserves arbitrary bytes, and uses immutable content-based lookup. Absent versus empty metadata remains visible; default equality ignores metadata. Name lookup rejects duplicate ambiguity. Constructors permit physical nulls under a nonnullable field, as PyArrow does.</p>
+<h3>Precision is explicit</h3>
+<p><a href="api/dartaframes_arrow/Scalar-class.html">Scalar</a> conversion returns int or BigInt without lossy wide-integer doubles. DecimalValue retains unscaled BigInt and scale. Temporal Scalar.value exposes the raw int/BigInt counter; Scalar.type retains units/timezone. asDart returns UTC DateTime or Duration when exactly representable, otherwise TemporalValue. Time-of-day, nanosecond remainders, IANA-zone timestamps and out-of-host-range values retain that exact representation. NaN is valid, not null; rawBits exposes exact IEEE bits.</p>
+<p><strong>Dart adaptation:</strong> Array and ChunkedArray expose a lazy <code>.scalars</code> Iterable rather than implementing Iterable: its generic <code>cast&lt;R&gt;()</code> conflicts with Arrow's dtype cast. Iterate with <code>for (final scalar in values.scalars)</code>; materialize native values with <code>.toDartList()</code>. There is no native <code>.toList()</code> alias.</p>
+<p><code>array.isValid()</code> and <code>array.isNull(nanIsNull: false)</code> return non-null Boolean masks; ChunkedArray provides the corresponding chunked masks. Read an element's validity with <code>array[i].isValid</code>, not an indexed array method. Dictionary masks decode dictionary nulls while scalar validity describes the encoded index.</p>
 <h3>Owned JSON is not Arrow IPC</h3>
-<p><code>OwnedBatchJsonCodec</code> copies logical data into a package-specific JSON representation. It is neither a zero-copy transport nor the Arrow integration JSON format. Wide integers and temporal counters use decimal strings; floating-point values preserve raw IEEE bit patterns as hexadecimal data. Top-level dictionaries carry dictionary storage, but dictionaries nested in child arrays are rejected with <code>UnsupportedError</code>, not silently flattened.</p>
+<p><a href="api/dartaframes_arrow_json/OwnedBatchJsonCodec-class.html">OwnedBatchJsonCodec</a>, <a href="api/dartaframes_arrow_json/scalarToJson.html">scalarToJson</a> and <a href="api/dartaframes_arrow_json/scalarFromJson.html">scalarFromJson</a> live in the separate <code>json.dart</code> import. They provide a package-specific JSON representation, not Arrow integration JSON or IPC. Wide integers and temporal counters use decimal strings; floating-point values preserve raw IEEE bit patterns. Metadata uses explicit byte encoding and legacy string metadata still decodes. Nested dictionary encoding is rejected, not silently flattened.</p>
 <p>The codec defaults to nesting depth 64, collection size 100,000 and source length 16 Mi characters. These limits are constructor options. Decoding validates the owned representation rather than accepting arbitrary JSON as an Arrow batch.</p>
 </section>
 <section id="memory">
 <h2>Borrowing, aliases and zero-copy slices</h2>
-<p><code>ArrowArray.fromBuffers</code> imports little-endian physical buffers without copying their bytes. It exposes read-only views, but that does <strong>not</strong> make an existing writable alias immutable or transfer ownership.</p>
+<p><code>Array.fromBuffers</code> imports little-endian <a href="api/dartaframes_arrow/Buffer-class.html">Buffer</a> objects without copying their bytes. Read-only views do not make writable aliases immutable or transfer ownership.</p>
 <pre><code>import 'dart:typed_data';
-import 'package:dartaframes_arrow/arrow.dart';
+import 'package:dartaframes_arrow/arrow.dart' as pa;
 
 final bytes = Uint8List(8);
 final words = ByteData.sublistView(bytes);
 words.setInt32(0, 10, Endian.little);
 words.setInt32(4, 20, Endian.little);
-final borrowed = ArrowArray.fromBuffers(
-  ArrowIntegerType(32),
-  length: 2,
-  buffers: [null, bytes], // no validity bitmap: every value is valid
+final borrowed = pa.Array.fromBuffers(
+  pa.int32(), 2, [null, pa.Buffer(bytes)],
 );
 final last = borrowed.slice(1, 1);
-// Keep the backing allocation alive; do not mutate bytes or words
-// while borrowed or last is in use.</code></pre>
+// Do not mutate bytes or words while borrowed or last is in use.
+// Buffer.slice shares memory; Buffer.toBytes materializes a copy.</code></pre>
 <ul>
 <li>Keep every backing allocation alive through the lifetime of the array and all derived views, including children and dictionaries. Do not release external/native storage early.</li>
 <li>Do not mutate any backing alias while an imported array is in use. Read-only Dart views do not prevent another alias from changing bytes.</li>
@@ -106,11 +105,11 @@ final last = borrowed.slice(1, 1);
 <h2>Supported scope, not the whole Arrow specification</h2>
 <ul>
 <li>Null, booleans; signed and unsigned integers at 8, 16, 32 and 64 bits; floating-point at 16, 32 and 64 bits.</li>
-<li>Decimal128-style storage with precision 1–38 and scale 0–precision; normal and large UTF-8 and binary offsets.</li>
+<li>Decimal128 storage with precision 1–38 and signed 32-bit scale (including negative scales); normal and large UTF-8 and binary offsets.</li>
 <li>Dates, timestamps (including timezone metadata), durations and time values with the units represented by the API.</li>
 <li>Lists, fixed-size lists, structs, integer-indexed dictionaries and extension types backed by a supported storage type.</li>
 </ul>
-<p><code>int128</code> and <code>uint128</code> are binding extensions, <strong>not Apache Arrow integer types</strong>. Extension storage support does not implement arbitrary extension-specific semantics.</p>
+<p><code>bindingInt128()</code> and <code>bindingUint128()</code> expose binding extensions, <strong>not Apache Arrow integer types</strong>. Extension storage support does not implement arbitrary extension-specific semantics.</p>
 <p class="note">Unsupported families include maps, dense and sparse unions, intervals, fixed-size binary, string/binary/list views, large lists and run-end encoding. Decimal widths/precision outside the exposed decimal type are not supported. There is no Arrow IPC reader/writer, file/stream serialization engine, compute kernel layer or native runtime. No additional platform coverage is implied by extraction into this repository.</p>
 </section>
 <section id="abi">
@@ -138,8 +137,10 @@ dart run test/conformance/dart_probe.dart --output build/conformance.json</code>
 <h2>GitHub-first releases and provenance</h2>
 <p>The release path is a manually initiated <strong>draft GitHub release</strong>, not automatic pub.dev publication. A maintainer reviews validation results, the selected revision/tag, release notes and assets before making a draft public. A workflow-created draft is not proof that a release was published.</p>
 <p>Use the validated source archive and its accompanying <code>SHA256SUMS</code> asset when supplied by a release. Verify the checksum before extracting, and record the release tag and commit. GitHub's automatically generated source downloads are distinct from a separately validated archive; a digest establishes byte integrity against the checksum you trust, not an independent signature or a promise of compatibility.</p>
-<p>For publication readiness, run <code>dart pub publish --dry-run</code> from the standalone package. A dry run checks the package without publishing it; this repository's release workflow does not run a pub.dev publish step. Do not infer hosted availability from version <code>0.1.0</code>, a tag or a GitHub release.</p>
+<p>For publication readiness, run <code>dart pub publish --dry-run</code>. No workflow publishes to pub.dev. Version <code>0.2.0</code> is a new breaking main revision; the existing <code>v0.1.0</code> tag/draft is immutable and must not be overwritten. Do not infer hosted availability from a version, tag or draft.</p>
 <p>See <a href="https://github.com/richardrh/dartarrow/releases">actual releases</a> and their assets for available artifacts. The intended project Pages URL is <a href="https://richardrh.github.io/dartarrow/">richardrh.github.io/dartarrow/</a>; this guide does not assert that a deployment is already live.</p>
+<h3>Migrating from 0.1.0 and Polars</h3>
+<p>Use the canonical classes DataType, Field, Schema, Array, Scalar, Buffer, RecordBatch, ChunkedArray and Table. Replace wrapper construction with <code>pa.array(nativeValues, type: pa.int32())</code>; use <code>RecordBatch.fromArrays(..., schema: ...)</code>, <code>numRows</code>/<code>numColumns</code> and explicit scalar/native conversion. Factory names are lowerCamelCase: <code>field</code>, <code>schema</code>, <code>recordBatch</code>, <code>table</code>, <code>chunkedArray</code>, <code>boolType</code>, <code>nullType</code>, <code>listType</code>. No aliases or shims remain. Prefix the Arrow import with <code>pa</code> when Polars also exports Scalar.</p>
 </section>
 <section id="docs">
 <h2>Build and browse locally</h2>

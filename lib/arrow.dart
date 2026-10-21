@@ -1,4 +1,4 @@
-/// Buffer-backed Arrow arrays, schemas, logical values, and owned JSON.
+/// Buffer-backed Arrow arrays, typed scalars, schemas, and tabular objects.
 ///
 /// Little-endian physical buffers support borrowed imports and cheap slices
 /// without a native dependency. This is not the complete Apache Arrow
@@ -9,9 +9,77 @@
 /// Arrow integer types.
 library dartaframes_arrow;
 
-export 'src/array.dart';
-export 'src/batch.dart';
-export 'src/codec.dart';
-export 'src/schema.dart';
-export 'src/type.dart';
-export 'src/value.dart';
+export 'src/core.dart'
+    show
+        ArrowInvalid,
+        ArrowTypeError,
+        Array,
+        concatArrays,
+        RecordBatch,
+        recordBatch,
+        Buffer,
+        ChunkedArray,
+        chunkedArray,
+        Scalar,
+        DictionaryScalar,
+        DecimalValue,
+        TemporalValue,
+        ByteMetadata,
+        Field,
+        Schema,
+        field,
+        schema,
+        Table,
+        table,
+        DataType,
+        TimeUnit,
+        DateUnit,
+        OffsetWidth,
+        NullType,
+        BooleanType,
+        IntegerType,
+        FloatingType,
+        DecimalType,
+        Utf8Type,
+        BinaryType,
+        DateType,
+        TimestampType,
+        DurationType,
+        TimeType,
+        ListType,
+        FixedSizeListType,
+        StructType,
+        DictionaryType,
+        ExtensionType,
+        array,
+        scalar,
+        int8,
+        int16,
+        int32,
+        int64,
+        uint8,
+        uint16,
+        uint32,
+        uint64,
+        bindingInt128,
+        bindingUint128,
+        float16,
+        float32,
+        float64,
+        boolType,
+        nullType,
+        string,
+        largeString,
+        binary,
+        largeBinary,
+        decimal128,
+        date32,
+        date64,
+        time32,
+        time64,
+        timestamp,
+        duration,
+        listType,
+        struct,
+        dictionary,
+        extension;

@@ -127,7 +127,6 @@ def cases():
             ctx.prec=100
             boundary=Decimal('9'*precision).scaleb(-2)
             add(f'decimal{width}',pa.array([Decimal('12.34'),None,Decimal('-0.01'),boundary,-boundary],type=getattr(pa,f'decimal{width}')(precision,2)),missing=width!=128)
-    add('decimal128.negativeScale',pa.array([Decimal('1200'),None],type=pa.decimal128(8,-2)),missing=True)
     for t in [pa.date32(),pa.date64(),pa.time32('s'),pa.time32('ms'),pa.time64('us'),pa.time64('ns')]+[x(u) for x in [pa.timestamp,pa.duration] for u in UNITS]+[pa.timestamp('ns',tz='UTC'),pa.timestamp('us',tz='America/New_York')]:
         end=86400000 if pa.types.is_date64(t) else (86400*{'s':1,'ms':1000,'us':1000000,'ns':1000000000}[t.unit]-1 if pa.types.is_time(t) else 1)
         add(str(t),pa.array([0,None,end],type=t))
@@ -170,6 +169,7 @@ def cases():
         add('nested.fixedSizeList.'+id,pa.FixedSizeListArray.from_arrays(child,2,mask=mask))
         struct_child=a.take(pa.array([last,None,index],type=pa.int32()))
         add('nested.struct.'+id,pa.StructArray.from_arrays([struct_child],names=['value'],mask=pa.array([False,False,True])))
+    add('decimal128.negativeScale',pa.array([Decimal('1200'),None],type=pa.decimal128(8,-2)))
     return result
 
 def main():

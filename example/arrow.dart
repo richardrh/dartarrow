@@ -1,17 +1,9 @@
-import 'dart:convert';
-
-import 'package:dartaframes_arrow/arrow.dart';
+import 'package:dartaframes_arrow/arrow.dart' as pa;
 
 void main() {
-  final type = ArrowIntegerType(32);
-  final array = ArrowArray(type, [
-    ArrowIntegerValue(10),
-    null,
-    ArrowIntegerValue(30),
-  ]);
-  final slice = array.slice(1, 2);
-  final schema = ArrowSchema([ArrowField('value', type)]);
-  final batch = RecordBatch(schema, [slice]);
-  final json = const OwnedBatchJsonCodec().toJson(batch);
-  print(jsonEncode(json));
+  final values = pa.array([10, null, 30], type: pa.int32());
+  final slice = values.slice(1, 2);
+  print(slice.toDartList()); // [null, 30]
+  print(values[0].asDart()); // 10
+  print(values[1].isValid); // false
 }

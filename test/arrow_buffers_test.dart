@@ -1,80 +1,76 @@
 import 'dart:typed_data';
 
 import 'package:dartaframes_arrow/arrow.dart';
+import 'package:dartaframes_arrow/json.dart';
 import 'package:test/test.dart';
 
 void main() {
   test('owned buffers pack boolean and validity, slices share storage', () {
-    final array = ArrowArray(const ArrowBooleanType(), [
-      const ArrowBooleanValue(true),
-      null,
-      const ArrowBooleanValue(false),
-      const ArrowBooleanValue(true),
-    ]);
-    expect(array.buffers[0], [13]);
-    expect(array.buffers[1], [9]);
-    final slice = array.slice(1, 2);
+    final values = array([true, null, false, true], type: const BooleanType());
+    final buffers = values.buffers();
+    expect(buffers[0]!.toBytes(), [13]);
+    expect(buffers[1]!.toBytes(), [9]);
+    final slice = values.slice(1, 2);
     expect(slice.offset, 1);
-    expect(identical(slice.buffers, array.buffers), isTrue);
-    expect(slice.values, [null, const ArrowBooleanValue(false)]);
+    for (var i = 0; i < buffers.length; i++) {
+      expect(identical(slice.buffers()[i]!.bytes, buffers[i]!.bytes), isTrue);
+    }
+    expect(slice.toDartList(), [null, false]);
     expect(slice.nullCount, 1);
-    expect(() => array.buffers[1]![0] = 0, throwsUnsupportedError);
-    expect(array.slice(4).length, 0);
-    expect(() => array.slice(2, -1), throwsRangeError);
+    expect(() => buffers[1]!.bytes[0] = 0, throwsUnsupportedError);
+    final copy = buffers[1]!.toBytes();
+    copy[0] = 0;
+    expect(buffers[1]!.toBytes(), [9]);
+    expect(values.slice(4).length, 0);
+    expect(values.slice(20).length, 0);
+    expect(values.slice(2, 20).toDartList(), [false, true]);
+    expect(() => values.slice(-1), throwsRangeError);
+    expect(() => values.slice(2, -1), throwsArgumentError);
   });
   test(
     'foreign bit offsets cross byte boundaries and primitive offsets apply',
     () {
-      final booleans = ArrowArray.fromBuffers(
-        const ArrowBooleanType(),
-        length: 4,
-        offset: 6,
-        buffers: [
-          Uint8List.fromList([64, 3]),
-          Uint8List.fromList([192, 2]),
-        ],
-      );
-      expect(booleans.values, [
-        const ArrowBooleanValue(true),
-        null,
-        const ArrowBooleanValue(false),
-        const ArrowBooleanValue(true),
-      ]);
+      final booleans = Array.fromBuffers(const BooleanType(), 4, [
+        Buffer(Uint8List.fromList([64, 3])),
+        Buffer(Uint8List.fromList([192, 2])),
+      ], offset: 6);
+      expect(booleans.toDartList(), [true, null, false, true]);
       expect(booleans.slice(1, 3).nullCount, 1);
       final data = Uint8List(12);
       final view = ByteData.sublistView(data);
       view.setInt32(4, -7, Endian.little);
       view.setInt32(8, 11, Endian.little);
-      final numbers = ArrowArray.fromBuffers(
-        ArrowIntegerType(32),
-        length: 2,
-        offset: 1,
-        buffers: [null, data],
-      );
-      expect(numbers.values, [ArrowIntegerValue(-7), ArrowIntegerValue(11)]);
-      expect(numbers.slice(1)[0], ArrowIntegerValue(11));
+      final buffer = Buffer(data);
+      final numbers = Array.fromBuffers(IntegerType(32), 2, [
+        null,
+        buffer,
+      ], offset: 1);
+      expect(numbers.toDartList(), [-7, 11]);
+      expect(numbers.slice(1)[0].asDart(), 11);
+      view.setInt32(8, 17, Endian.little);
+      expect(numbers[1].asDart(), 17);
+      view.setInt32(8, 11, Endian.little);
+      expect(numbers.buffers()[1]!.bytes.offsetInBytes, data.offsetInBytes);
     },
   );
   test('borrowed buffers preserve floating bits', () {
     final bytes = Uint8List.fromList([1, 0, 192, 127, 0, 0, 0, 128]);
-    final array = ArrowArray.fromBuffers(
-      ArrowFloatingType(32),
-      length: 2,
-      buffers: [null, bytes],
-    );
-    expect((array[0] as ArrowFloatingValue).hexadecimalBits, '7fc00001');
-    expect(
-      (array.slice(1)[0] as ArrowFloatingValue).hexadecimalBits,
-      '80000000',
-    );
+    final values = Array.fromBuffers(FloatingType(32), 2, [
+      null,
+      Buffer(bytes),
+    ]);
+    expect(values[0].rawBits, BigInt.from(0x7fc00001));
+    expect(values[0].asDart(), isNaN);
+    expect(values[0].isValid, isTrue);
+    expect(values.slice(1)[0].rawBits, BigInt.from(0x80000000));
+    expect(1 / (values[1].asDart() as double), double.negativeInfinity);
   });
   test('foreign offsets and bitmap bounds are checked', () {
     expect(
-      () => ArrowArray.fromBuffers(
-        const ArrowBooleanType(),
-        length: 9,
-        buffers: [Uint8List(1), Uint8List(2)],
-      ),
+      () => Array.fromBuffers(const BooleanType(), 9, [
+        Buffer(Uint8List(1)),
+        Buffer(Uint8List(2)),
+      ]),
       throwsArgumentError,
     );
     for (final offsets in [
@@ -87,138 +83,107 @@ void main() {
         ByteData.sublistView(raw).setInt32(i * 4, offsets[i], Endian.little);
       }
       expect(
-        () => ArrowArray.fromBuffers(
-          const ArrowUtf8Type(),
-          length: 2,
-          buffers: [null, raw, Uint8List(3)],
-        ),
+        () => Array.fromBuffers(const Utf8Type(), 2, [
+          null,
+          Buffer(raw),
+          Buffer(Uint8List(3)),
+        ]),
         throwsArgumentError,
       );
     }
   });
   test('nested sliced arrays round trip through owned JSON', () {
-    final type = ArrowStructType([
-      ArrowField('', ArrowListType(ArrowField('', ArrowIntegerType(32)))),
-      ArrowField(
-        '',
-        ArrowFixedSizeListType(ArrowField('', const ArrowUtf8Type()), 2),
-      ),
+    final type = StructType([
+      Field('list', ListType(Field('', IntegerType(32)))),
+      Field('fixed', FixedSizeListType(Field('', const Utf8Type()), 2)),
     ]);
-    final row = ArrowStructValue([
-      ArrowStructEntry('', ArrowListValue([ArrowIntegerValue(7), null])),
-      ArrowStructEntry(
-        '',
-        ArrowListValue(const [ArrowStringValue('a'), ArrowStringValue('b')]),
-      ),
-    ]);
-    final array = ArrowArray(type, [null, row, row]).slice(1, 2).slice(1, 1);
-    expect(array[0], row);
-    final batch = RecordBatch(ArrowSchema([ArrowField('', type)]), [array]);
+    final row = <String, Object?>{
+      'list': [7, null],
+      'fixed': ['a', 'b'],
+    };
+    final values = array([null, row, row], type: type).slice(1, 2).slice(1, 1);
+    expect(values[0].asDart(), row);
+    final batch = RecordBatch.fromArrays([
+      values,
+    ], schema: Schema([Field('', type)]));
     const codec = OwnedBatchJsonCodec();
-    expect(codec.decode(codec.encode(batch)).columns[0].values, [row]);
+    expect(codec.decode(codec.encode(batch)).columns[0].toDartList(), [row]);
     expect(batch.slice(0, 1).columns[0].offset, 2);
-    final duplicates = RecordBatch(
-      ArrowSchema([ArrowField('', type), ArrowField('', type)]),
-      [
-        array,
-        ArrowArray(type, [null]),
-      ],
-    );
+    final duplicates = RecordBatch.fromArrays([
+      values,
+      array([null], type: type),
+    ], schema: Schema([Field('', type), Field('', type)]));
     final decoded = codec.decode(codec.encode(duplicates));
     expect(decoded.schema, duplicates.schema);
-    expect(decoded.columns[0].values, [row]);
-    expect(decoded.columns[1].values, [null]);
+    expect(decoded.columns[0].toDartList(), [row]);
+    expect(decoded.columns[1].toDartList(), [null]);
   });
   test('sliced child list offsets are child logical indices', () {
-    final child = ArrowArray(ArrowIntegerType(32), [
-      for (var i = 0; i < 5; i++) ArrowIntegerValue(i),
-    ]).slice(2);
+    final child = array([0, 1, 2, 3, 4], type: IntegerType(32)).slice(2);
     final offsets = Uint8List(8);
     ByteData.sublistView(offsets).setInt32(4, 2, Endian.little);
-    final list = ArrowArray.fromBuffers(
-      ArrowListType(ArrowField('', child.type)),
-      length: 1,
-      buffers: [null, offsets],
+    final list = Array.fromBuffers(
+      ListType(Field('', child.type)),
+      1,
+      [null, Buffer(offsets)],
       children: [child],
     );
-    expect((list[0] as ArrowListValue).values, [
-      ArrowIntegerValue(2),
-      ArrowIntegerValue(3),
-    ]);
+    expect(list[0].asDart(), [2, 3]);
   });
   test(
     'null struct masks nonnullable child and null dictionary skips indices',
     () {
-      final child = ArrowArray(ArrowIntegerType(8), [
-        null,
-        ArrowIntegerValue(1),
-      ]);
-      final struct = ArrowArray.fromBuffers(
-        ArrowStructType([ArrowField('', child.type, nullable: false)]),
-        length: 2,
-        buffers: [
-          Uint8List.fromList([2]),
+      final child = array([null, 1], type: IntegerType(8));
+      final struct = Array.fromBuffers(
+        StructType([Field('', child.type, nullable: false)]),
+        2,
+        [
+          Buffer(Uint8List.fromList([2])),
         ],
         children: [child],
       );
-      expect(struct[0], isNull);
+      expect(struct[0].isValid, isFalse);
+      expect(struct[0].asDart(), isNull);
       expect(struct.slice(1).nullCount, 0);
-      final dictionary = ArrowArray(const ArrowUtf8Type(), const [
-        ArrowStringValue('x'),
+      final dictionary = array(['x'], type: const Utf8Type());
+      final indices = Array.fromBuffers(IntegerType(8), 1, [
+        Buffer(Uint8List(1)),
+        Buffer(Uint8List.fromList([127])),
       ]);
-      final indices = ArrowArray.fromBuffers(
-        ArrowDictionaryType(ArrowIntegerType(8), dictionary.type),
-        length: 1,
-        buffers: [
-          Uint8List(1),
-          Uint8List.fromList([127]),
-        ],
-        dictionary: dictionary,
-      );
-      expect(indices[0], isNull);
+      final encoded = Array.fromDictionary(indices, dictionary);
+      expect(encoded[0].isValid, isFalse);
+      expect(encoded[0].asDart(), isNull);
     },
   );
   test('unknown and known null counts and empty buffer policy', () {
-    ArrowArray imported(int? count) => ArrowArray.fromBuffers(
-      const ArrowBooleanType(),
-      length: 2,
-      buffers: [
-        Uint8List.fromList([1]),
-        Uint8List(1),
-      ],
-      nullCount: count,
-    );
+    Array imported(int count) => Array.fromBuffers(const BooleanType(), 2, [
+      Buffer(Uint8List.fromList([1])),
+      Buffer(Uint8List(1)),
+    ], nullCount: count);
     expect(imported(-1).nullCount, 1);
     expect(imported(1).slice(1).nullCount, 1);
     expect(() => imported(0), throwsArgumentError);
     expect(() => imported(-2), throwsArgumentError);
     expect(
-      ArrowArray.fromBuffers(
-        ArrowIntegerType(32),
-        length: 0,
-        buffers: [null, Uint8List(0)],
-      ).values,
+      Array.fromBuffers(IntegerType(32), 0, [
+        null,
+        Buffer(Uint8List(0)),
+      ]).toDartList(),
       isEmpty,
     );
     expect(
-      () => ArrowArray.fromBuffers(
-        ArrowIntegerType(32),
-        length: 0,
-        buffers: [null, null],
-      ),
+      () => Array.fromBuffers(IntegerType(32), 0, [null, null]),
       throwsArgumentError,
     );
   });
   test('dictionary arguments are checked even for null extension storage', () {
-    final dictionary = ArrowArray(const ArrowUtf8Type(), const [
-      ArrowStringValue('x'),
-    ]);
+    final dictionary = array(['x'], type: const Utf8Type());
     for (final type in [
-      const ArrowNullType(),
-      ArrowExtensionType('null', const ArrowNullType()),
+      const NullType(),
+      ExtensionType('null', const NullType()),
     ]) {
       expect(
-        () => ArrowArray(type, [null], dictionary: dictionary),
+        () => Array.fromBuffers(type, 1, [], dictionary: dictionary),
         throwsArgumentError,
       );
     }
@@ -226,29 +191,26 @@ void main() {
   test(
     'physical nested dictionaries retain values and reject lossy owned JSON',
     () {
-      final dictionary = ArrowArray(const ArrowUtf8Type(), const [
-        ArrowStringValue('x'),
-      ]);
-      final child = ArrowArray(
-        ArrowDictionaryType(ArrowIntegerType(8), dictionary.type),
-        [ArrowDictionaryIndexValue(0)],
-        dictionary: dictionary,
+      final dictionary = array(['x'], type: const Utf8Type());
+      final child = Array.fromDictionary(
+        array([0], type: IntegerType(8)),
+        dictionary,
       );
       final offsets = Uint8List(8);
       ByteData.sublistView(offsets).setInt32(4, 1, Endian.little);
-      final list = ArrowArray.fromBuffers(
-        ArrowListType(ArrowField('', child.type)),
-        length: 1,
-        buffers: [null, offsets],
+      final list = Array.fromBuffers(
+        ListType(Field('', child.type)),
+        1,
+        [null, Buffer(offsets)],
         children: [child],
       );
-      expect((list[0] as ArrowListValue).values, [
-        ArrowDictionaryIndexValue(0),
-      ]);
-      expect(list.children[0].dictionary![0], const ArrowStringValue('x'));
-      final batch = RecordBatch(ArrowSchema([ArrowField('', list.type)]), [
+      expect(list[0].asDart(), ['x']);
+      expect((list.children[0][0] as DictionaryScalar).index.asDart(), 0);
+      expect(list.children[0].dictionary![0].asDart(), 'x');
+      list.validate(full: true);
+      final batch = RecordBatch.fromArrays([
         list,
-      ]);
+      ], schema: Schema([Field('', list.type)]));
       expect(
         () => const OwnedBatchJsonCodec().encode(batch),
         throwsUnsupportedError,
@@ -257,56 +219,54 @@ void main() {
   );
   test('foreign geometry cannot wrap required buffer sizes', () {
     expect(
-      () => ArrowArray.fromBuffers(
-        ArrowIntegerType(64),
-        length: 1 << 61,
-        buffers: [null, Uint8List(0)],
-      ),
+      () => Array.fromBuffers(IntegerType(64), 1 << 61, [
+        null,
+        Buffer(Uint8List(0)),
+      ]),
       throwsArgumentError,
     );
     expect(
-      () => ArrowArray.fromBuffers(
-        const ArrowNullType(),
-        length: 1,
+      () => Array.fromBuffers(
+        const NullType(),
+        1,
+        [],
         offset: 0x7fffffffffffffff,
-        buffers: [],
       ),
       throwsArgumentError,
     );
     expect(
-      () => ArrowArray.fromBuffers(
-        const ArrowBooleanType(),
-        length: 0x7fffffffffffffff,
-        buffers: [Uint8List(0), Uint8List(0)],
-      ),
+      () => Array.fromBuffers(const BooleanType(), 0x7fffffffffffffff, [
+        Buffer(Uint8List(0)),
+        Buffer(Uint8List(0)),
+      ]),
       throwsArgumentError,
     );
     expect(
-      () => ArrowArray.fromBuffers(
-        const ArrowUtf8Type(ArrowOffsetWidth.large),
-        length: 1 << 61,
-        buffers: [null, Uint8List(0), Uint8List(0)],
-      ),
+      () => Array.fromBuffers(const Utf8Type(OffsetWidth.large), 1 << 61, [
+        null,
+        Buffer(Uint8List(0)),
+        Buffer(Uint8List(0)),
+      ]),
       throwsArgumentError,
     );
-    final child = ArrowArray(ArrowIntegerType(32), []);
+    final child = array([], type: IntegerType(32));
     expect(
-      () => ArrowArray.fromBuffers(
-        ArrowFixedSizeListType(ArrowField('', child.type), 1 << 62),
-        length: 4,
-        buffers: [null],
+      () => Array.fromBuffers(
+        FixedSizeListType(Field('', child.type), 1 << 62),
+        4,
+        [null],
         children: [child],
       ),
       throwsArgumentError,
     );
     expect(
-      ArrowArray.fromBuffers(
-        ArrowFixedSizeListType(ArrowField('', child.type), 0),
-        length: 2,
-        buffers: [null],
+      Array.fromBuffers(
+        FixedSizeListType(Field('', child.type), 0),
+        2,
+        [null],
         children: [child],
-      ).values,
-      [ArrowListValue([]), ArrowListValue([])],
+      ).toDartList(),
+      [[], []],
     );
   });
 }

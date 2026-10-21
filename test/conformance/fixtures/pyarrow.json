@@ -885,39 +885,6 @@
       "missing": true
     },
     {
-      "id": "decimal128.negativeScale",
-      "family": "decimal",
-      "descriptor": {
-        "kind": "decimal",
-        "precision": 8,
-        "scale": -2
-      },
-      "array": {
-        "descriptor": {
-          "kind": "decimal",
-          "precision": 8,
-          "scale": -2
-        },
-        "length": 2,
-        "offset": 0,
-        "nullCount": 1,
-        "buffers": [
-          "AQ==",
-          "DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-        ],
-        "children": [],
-        "dictionary": null
-      },
-      "expected": [
-        {
-          "tag": "decimal",
-          "value": "12"
-        },
-        null
-      ],
-      "missing": true
-    },
-    {
       "id": "date32[day]",
       "family": "date",
       "descriptor": {
@@ -15543,6 +15510,38 @@
               "value": null
             }
           ]
+        },
+        null
+      ]
+    },
+    {
+      "id": "decimal128.negativeScale",
+      "family": "decimal",
+      "descriptor": {
+        "kind": "decimal",
+        "precision": 8,
+        "scale": -2
+      },
+      "array": {
+        "descriptor": {
+          "kind": "decimal",
+          "precision": 8,
+          "scale": -2
+        },
+        "length": 2,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "AQ==",
+          "DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "decimal",
+          "value": "12"
         },
         null
       ]

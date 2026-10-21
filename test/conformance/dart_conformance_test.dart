@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:dartaframes_arrow/arrow.dart';
+import 'package:dartaframes_arrow/arrow.dart' as pa;
 import 'package:test/test.dart';
 
 import 'dart_probe.dart' as conformance;
@@ -26,83 +26,64 @@ void main() {
   test(
     'foreign bounds, validity, dictionary and batch shape reject invalid input',
     () {
-      final type = ArrowIntegerType(32);
+      final type = pa.int32();
       expect(
-        () => ArrowArray.fromBuffers(
-          type,
-          length: -1,
-          buffers: [null, Uint8List(0)],
-        ),
+        () => pa.Array.fromBuffers(type, -1, [null, pa.Buffer(Uint8List(0))]),
         throwsArgumentError,
       );
       expect(
-        () => ArrowArray.fromBuffers(
-          type,
-          length: 2,
-          buffers: [null, Uint8List(4)],
-        ),
+        () => pa.Array.fromBuffers(type, 2, [null, pa.Buffer(Uint8List(4))]),
         throwsArgumentError,
       );
       expect(
-        () => ArrowArray.fromBuffers(
-          type,
-          length: 9,
-          buffers: [Uint8List(1), Uint8List(36)],
-        ),
+        () => pa.Array.fromBuffers(type, 9, [
+          pa.Buffer(Uint8List(1)),
+          pa.Buffer(Uint8List(36)),
+        ]),
         throwsArgumentError,
       );
       expect(
-        () => ArrowArray.fromBuffers(
-          type,
-          length: 1,
-          nullCount: 1,
-          buffers: [null, Uint8List(4)],
-        ),
+        () => pa.Array.fromBuffers(type, 1, [
+          null,
+          pa.Buffer(Uint8List(4)),
+        ], nullCount: 1),
         throwsArgumentError,
       );
-      final dictionary = ArrowArray(const ArrowUtf8Type(), const [
-        ArrowStringValue('x'),
-      ]);
+      final dictionary = pa.array(['x']);
       expect(
-        () => ArrowArray.fromBuffers(
-          ArrowDictionaryType(ArrowIntegerType(8), dictionary.type),
-          length: 1,
-          buffers: [
-            null,
-            Uint8List.fromList([1]),
-          ],
-          dictionary: dictionary,
-        ),
+        () =>
+            pa.Array.fromBuffers(pa.dictionary(pa.int8(), dictionary.type), 1, [
+              null,
+              pa.Buffer(Uint8List.fromList([1])),
+            ], dictionary: dictionary),
         throwsArgumentError,
       );
-      final values = ArrowArray(type, [ArrowIntegerValue(1)]);
+      final values = pa.array([1], type: type);
       expect(() => values.slice(-1), throwsRangeError);
-      expect(() => values.slice(0, 2), throwsRangeError);
+      expect(values.slice(0, 2).toDartList(), [1]);
       expect(
-        () => RecordBatch(ArrowSchema([ArrowField('a', type)]), []),
+        () => pa.RecordBatch.fromArrays(
+          [],
+          schema: pa.schema([pa.field('a', type)]),
+        ),
         throwsArgumentError,
       );
     },
   );
 
   test('parent validity masks independently populated child buffers', () {
-    final child = ArrowArray(ArrowIntegerType(8), [
-      ArrowIntegerValue(7),
-      ArrowIntegerValue(8),
-    ]);
-    final parent = ArrowArray.fromBuffers(
-      ArrowStructType([ArrowField('', child.type, nullable: false)]),
-      length: 2,
-      buffers: [
-        Uint8List.fromList([2]),
+    final child = pa.array([7, 8], type: pa.int8());
+    final parent = pa.Array.fromBuffers(
+      pa.struct([pa.field('', child.type, nullable: false)]),
+      2,
+      [
+        pa.Buffer(Uint8List.fromList([2])),
       ],
       children: [child],
     );
-    expect(parent[0], isNull);
-    expect(child[0], ArrowIntegerValue(7));
-    expect(
-      parent[1],
-      ArrowStructValue([ArrowStructEntry('', ArrowIntegerValue(8))]),
-    );
+    expect(parent[0].isValid, isFalse);
+    expect(parent[0].asDart(), isNull);
+    expect(child[0].asDart(), 7);
+    expect(parent[1].asDart(), {'': 8});
   });
 }

@@ -82,17 +82,27 @@ jobs:
         run: |
           python tool/conformance/generate_fixtures.py
           git diff --exit-code -- test/conformance/fixtures/pyarrow.json
+      - name: Regenerate and compare public API oracle exactly
+        run: |
+          python tool/conformance/generate_api_fixtures.py --output /tmp/api_pyarrow.json
+          cmp test/conformance/fixtures/api_pyarrow.json /tmp/api_pyarrow.json
       - name: Resolve locked dependencies
         run: dart pub get --enforce-lockfile
       - name: Report declared support and missing features
         run: |
           mkdir -p build
           dart run test/conformance/dart_probe.dart --output build/conformance.json
+      - name: Require independent public API parity
+        run: dart run test/conformance/api_probe.dart --output build/api-conformance.json
+      - name: Run API acceptance and corrupted-oracle negative control
+        run: dart test test/conformance/api_conformance_test.dart
       - name: Upload conformance report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: arrow-conformance
-          path: build/conformance.json
+          path: |
+            build/conformance.json
+            build/api-conformance.json
           if-no-files-found: error
           retention-days: 30
