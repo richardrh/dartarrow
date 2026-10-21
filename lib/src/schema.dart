@@ -11,10 +11,7 @@ final class ArrowField {
     this.type, {
     this.nullable = true,
     Map<String, String> metadata = const {},
-  }) : metadata = _metadata(metadata) {
-    if (name.isEmpty)
-      throw ArgumentError.value(name, 'name', 'must not be empty');
-  }
+  }) : metadata = _metadata(metadata);
   final String name;
   final ArrowDataType type;
   final bool nullable;
@@ -82,13 +79,7 @@ final class ArrowSchema {
     List<ArrowField> fields, {
     Map<String, String> metadata = const {},
   }) : fields = List.unmodifiable(fields),
-       metadata = _metadata(metadata) {
-    final names = <String>{};
-    for (final field in fields) {
-      if (!names.add(field.name))
-        throw ArgumentError('Duplicate schema field: ${field.name}');
-    }
-  }
+       metadata = _metadata(metadata);
   final List<ArrowField> fields;
   final Map<String, String> metadata;
 

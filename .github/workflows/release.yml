@@ -1,0 +1,85 @@
+name: Prepare GitHub draft release
+
+# Existing reviewed tags only. Never publishes a release or a pub.dev package.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing annotated tag, exactly v<pubspec version>
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check out main and existing tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate tag version, exact main commit, green CI, and draft policy
+        run: python3 .github/scripts/release.py validate "$TAG"
+      - name: Check out exact validated release source
+        run: git checkout --detach "refs/tags/$TAG"
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@e51d8e571e22473a2ddebf0ef8a2123f0ab2c02c # v1.7.1
+        with:
+          sdk: 3.13.0
+      - name: Resolve locked dependencies
+        run: dart pub get --enforce-lockfile
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Analyze package
+        run: dart analyze --fatal-infos
+      - name: Test release source
+        run: dart test
+      - name: Compile and run example
+        run: |
+          mkdir -p build
+          dart compile exe example/arrow.dart -o build/arrow-example
+          ./build/arrow-example
+      - name: Rebuild guide and API reference
+        run: python3 tool/build_docs.py
+      - name: Validate publishing without publishing
+        run: dart pub publish --dry-run
+      - name: Archive exact tag and calculate checksum
+        run: |
+          mkdir -p release-assets
+          git archive --format=tar.gz --prefix="dartaframes_arrow-$TAG/" --output="release-assets/dartaframes_arrow-$TAG-source.tar.gz" "refs/tags/$TAG"
+          (cd release-assets && sha256sum "dartaframes_arrow-$TAG-source.tar.gz" > SHA256SUMS)
+      - name: Test source archive outside Git
+        run: |
+          mkdir -p "$RUNNER_TEMP/arrow-release"
+          tar -xzf "release-assets/dartaframes_arrow-$TAG-source.tar.gz" -C "$RUNNER_TEMP/arrow-release"
+          cd "$RUNNER_TEMP/arrow-release/dartaframes_arrow-$TAG"
+          test ! -e .git
+          dart pub get --enforce-lockfile
+          dart test
+          dart pub publish --dry-run
+      - name: Create or update only the draft source release
+        run: python3 .github/scripts/release.py draft "$TAG" --directory release-assets
+      - name: Upload release verification artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: source-release-${{ inputs.tag }}
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 30

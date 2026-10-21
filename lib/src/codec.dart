@@ -34,14 +34,31 @@ final class OwnedBatchJsonCodec {
     return fromJson(value.cast<String, Object?>());
   }
 
-  Map<String, Object?> toJson(RecordBatch batch) => {
-    'schema': batch.schema.toJson(),
-    'length': batch.length,
-    'columns': [
-      for (var i = 0; i < batch.columns.length; i++)
-        _columnToJson(batch.schema.fields[i], batch.columns[i]),
-    ],
-  };
+  Map<String, Object?> toJson(RecordBatch batch) {
+    // Logical nested values carry dictionary indices, not the child dictionary
+    // storage. Do not serialize an apparently complete but lossy payload.
+    bool hasDictionary(ArrowArray array) =>
+        array.dictionary != null || array.children.any(hasDictionary);
+    void checkDictionaries(ArrowArray array) {
+      if (array.children.any(hasDictionary)) {
+        throw UnsupportedError(
+          'Owned JSON does not encode nested dictionary storage; use physical Arrow buffers',
+        );
+      }
+      if (array.dictionary case final dictionary?)
+        checkDictionaries(dictionary);
+    }
+
+    batch.columns.forEach(checkDictionaries);
+    return {
+      'schema': batch.schema.toJson(),
+      'length': batch.length,
+      'columns': [
+        for (var i = 0; i < batch.columns.length; i++)
+          _columnToJson(batch.schema.fields[i], batch.columns[i]),
+      ],
+    };
+  }
 
   RecordBatch fromJson(Map<String, Object?> json) {
     _checkJsonLimits(json);

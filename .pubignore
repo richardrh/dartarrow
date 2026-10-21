@@ -1,0 +1,14 @@
+.dart_tool/
+build/
+coverage/
+pubspec.lock
+pubspec_overrides.yaml
+__pycache__/
+*.pyc
+.pubignore
+.github/
+.gitignore
+.venv/
+doc/
+tool/
+mise.toml

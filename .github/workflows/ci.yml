@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dart:
+    name: Dart (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@e51d8e571e22473a2ddebf0ef8a2123f0ab2c02c # v1.7.1
+        with:
+          sdk: 3.13.0
+      - name: Resolve locked dependencies
+        run: dart pub get --enforce-lockfile
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Analyze package
+        run: dart analyze --fatal-infos
+      - name: Run package tests with coverage
+        run: dart test --coverage=coverage
+      - name: Generate LCOV
+        run: dart run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --packages=.dart_tool/package_config.json --report-on=lib
+      - name: Compile and execute the example
+        run: |
+          mkdir -p build
+          dart compile exe example/arrow.dart -o build/arrow-example.exe
+          ./build/arrow-example.exe
+      - name: Validate package publishing without publishing
+        run: dart pub publish --dry-run
+      - name: Upload coverage
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-${{ matrix.os }}
+          path: coverage/lcov.info
+          if-no-files-found: error
+          retention-days: 14
+
+  conformance:
+    name: Independent PyArrow fixtures and declared support
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@e51d8e571e22473a2ddebf0ef8a2123f0ab2c02c # v1.7.1
+        with:
+          sdk: 3.13.0
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned independent reference
+        run: python -m pip install -r tool/conformance/requirements.txt
+      - name: Regenerate and compare fixtures exactly
+        run: |
+          python tool/conformance/generate_fixtures.py
+          git diff --exit-code -- test/conformance/fixtures/pyarrow.json
+      - name: Resolve locked dependencies
+        run: dart pub get --enforce-lockfile
+      - name: Report declared support and missing features
+        run: |
+          mkdir -p build
+          dart run test/conformance/dart_probe.dart --output build/conformance.json
+      - name: Upload conformance report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: arrow-conformance
+          path: build/conformance.json
+          if-no-files-found: error
+          retention-days: 30

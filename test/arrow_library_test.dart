@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:dartaframes_polars/arrow.dart';
+import 'package:dartaframes_arrow/arrow.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -53,7 +53,7 @@ void main() {
       }
     });
 
-    test('rejects invalid decimal, list, dictionary and duplicate fields', () {
+    test('rejects invalid decimal, list and dictionary types', () {
       expect(() => ArrowIntegerType(24), throwsArgumentError);
       expect(() => ArrowFloatingType(128), throwsArgumentError);
       expect(() => ArrowDecimalType(0, 0), throwsRangeError);
@@ -65,13 +65,6 @@ void main() {
       );
       expect(
         () => ArrowDictionaryType(ArrowFloatingType(32), const ArrowUtf8Type()),
-        throwsArgumentError,
-      );
-      expect(
-        () => ArrowStructType([
-          ArrowField('x', const ArrowNullType()),
-          ArrowField('x', const ArrowNullType()),
-        ]),
         throwsArgumentError,
       );
     });
@@ -228,6 +221,7 @@ void main() {
         ..append(const ArrowBooleanValue(true))
         ..appendNull();
       expect(builder.build().validity, [true, false]);
+      expect(builder.length, 2);
       expect(builder.build, throwsStateError);
     });
   });

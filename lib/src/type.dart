@@ -328,14 +328,7 @@ final class ArrowFixedSizeListType extends ArrowDataType {
 }
 
 final class ArrowStructType extends ArrowDataType {
-  ArrowStructType(List<ArrowField> fields)
-    : fields = List.unmodifiable(fields) {
-    final names = <String>{};
-    for (final field in fields) {
-      if (!names.add(field.name))
-        throw ArgumentError('Duplicate struct field: ${field.name}');
-    }
-  }
+  ArrowStructType(List<ArrowField> fields) : fields = List.unmodifiable(fields);
   final List<ArrowField> fields;
   @override
   Map<String, Object?> toJson() => {

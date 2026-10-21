@@ -1,0 +1,10 @@
+.dart_tool/
+.packages
+.pub/
+build/
+coverage/
+doc/api/
+pubspec_overrides.yaml
+__pycache__/
+*.pyc
+.venv/

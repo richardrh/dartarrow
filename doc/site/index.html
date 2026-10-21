@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Install and use dartaframes_arrow: pure Dart Arrow buffers, schemas, record batches, slices and owned JSON, with explicit interoperability limits.">
+  <title>dartaframes_arrow — standalone guide</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header>
+  <p class="eyebrow">dartarrow · package 0.1.0</p>
+  <h1>Arrow buffers in pure Dart</h1>
+  <p><code>dartaframes_arrow</code> provides buffer-backed arrays, schemas, logical values and owned JSON without a native runtime or a Polars dependency.</p>
+  <p><a href="api/">API reference</a> · <a href="https://github.com/richardrh/dartarrow">Source repository</a></p>
+</header>
+<div class="layout">
+<nav aria-label="Guide sections">
+  <strong>Standalone guide</strong>
+  <ul>
+    <li><a href="#install">Install from Git</a></li>
+    <li><a href="#usage">Arrays, batches and JSON</a></li>
+    <li><a href="#memory">Borrowing and slicing</a></li>
+    <li><a href="#types">Supported scope</a></li>
+    <li><a href="#abi">Optional C ABI</a></li>
+    <li><a href="#conformance">Conformance evidence</a></li>
+    <li><a href="#release">Releases and provenance</a></li>
+    <li><a href="#docs">Build these docs</a></li>
+    <li><a href="#sources">Specifications and policies</a></li>
+  </ul>
+</nav>
+<main id="main">
+<section id="install">
+<h2>Install before pub.dev</h2>
+<p>This is a standalone repository. Until a hosted package is actually published, use a Git dependency, not a presumed pub.dev release. The following tracks <strong><code>main</code>, the development branch</strong>; it is not an immutable release pin.</p>
+<pre><code>dependencies:
+  dartaframes_arrow:
+    git:
+      url: https://github.com/richardrh/dartarrow.git
+      ref: main</code></pre>
+<p>For reproducible applications, select and review a real repository commit, then replace <code>ref: main</code> with its full commit ID. Obtain that ID from your checked-out revision with <code>git rev-parse HEAD</code>, or from GitHub's commit page; do not invent a hash. Commit the application's lockfile as well.</p>
+<pre><code>dart pub get</code></pre>
+<p>Import the core independently of any FFI support:</p>
+<pre><code>import 'package:dartaframes_arrow/arrow.dart';</code></pre>
+<p>See the official <a href="https://dart.dev/tools/pub/dependencies#git-packages">Git dependency documentation</a> for revision resolution.</p>
+</section>
+<section id="usage">
+<h2>Arrays, schemas, batches and owned JSON</h2>
+<p>Create logical values, retain nulls, and give each batch column a matching schema field. The second slice argument is a <em>count</em>, not an end index.</p>
+<pre><code>import 'package:dartaframes_arrow/arrow.dart';
+
+void main() {
+  final type = ArrowIntegerType(32);
+  final array = ArrowArray(type, [
+    ArrowIntegerValue(10),
+    null,
+    ArrowIntegerValue(30),
+  ]);
+  final slice = array.slice(1, 2); // [null, 30]; shared storage
+  final schema = ArrowSchema([ArrowField('value', type)]);
+  final batch = RecordBatch(schema, [slice]);
+
+  const codec = OwnedBatchJsonCodec();
+  final text = codec.encode(batch);
+  final restored = codec.decode(text);
+  print(restored.length); // 2
+  print(restored.columns.first[1]);
+
+  final object = codec.toJson(batch);
+  final fromObject = codec.fromJson(object);
+  print(fromObject.length); // 2
+}</code></pre>
+<p><code>RecordBatch</code> checks column count, column types, equal lengths and field nullability. <code>batch.slice(start, count)</code> slices all columns with the same range. A zero-column batch can specify its row count with <code>rowCount:</code>.</p>
+<h3>Owned JSON is not Arrow IPC</h3>
+<p><code>OwnedBatchJsonCodec</code> copies logical data into a package-specific JSON representation. It is neither a zero-copy transport nor the Arrow integration JSON format. Wide integers and temporal counters use decimal strings; floating-point values preserve raw IEEE bit patterns as hexadecimal data. Top-level dictionaries carry dictionary storage, but dictionaries nested in child arrays are rejected with <code>UnsupportedError</code>, not silently flattened.</p>
+<p>The codec defaults to nesting depth 64, collection size 100,000 and source length 16 Mi characters. These limits are constructor options. Decoding validates the owned representation rather than accepting arbitrary JSON as an Arrow batch.</p>
+</section>
+<section id="memory">
+<h2>Borrowing, aliases and zero-copy slices</h2>
+<p><code>ArrowArray.fromBuffers</code> imports little-endian physical buffers without copying their bytes. It exposes read-only views, but that does <strong>not</strong> make an existing writable alias immutable or transfer ownership.</p>
+<pre><code>import 'dart:typed_data';
+import 'package:dartaframes_arrow/arrow.dart';
+
+final bytes = Uint8List(8);
+final words = ByteData.sublistView(bytes);
+words.setInt32(0, 10, Endian.little);
+words.setInt32(4, 20, Endian.little);
+final borrowed = ArrowArray.fromBuffers(
+  ArrowIntegerType(32),
+  length: 2,
+  buffers: [null, bytes], // no validity bitmap: every value is valid
+);
+final last = borrowed.slice(1, 1);
+// Keep the backing allocation alive; do not mutate bytes or words
+// while borrowed or last is in use.</code></pre>
+<ul>
+<li>Keep every backing allocation alive through the lifetime of the array and all derived views, including children and dictionaries. Do not release external/native storage early.</li>
+<li>Do not mutate any backing alias while an imported array is in use. Read-only Dart views do not prevent another alias from changing bytes.</li>
+<li>Buffer zero is the optional LSB-first validity bitmap. Null validity means all valid; <code>nullCount: -1</code> means unknown. Required data buffers must be present even when empty.</li>
+<li>A slice is a constant-time view sharing buffers, children and dictionary; it advances a logical offset without copying or scanning values. It does not compact storage or shorten the backing allocation's lifetime. Reading values, counting nulls and encoding JSON are separate work.</li>
+<li>Offsets and lengths must fit the provided physical storage. List offsets address child logical index zero, including when the child itself is sliced. Parent validity masks a null parent without requiring child storage to be null.</li>
+</ul>
+</section>
+<section id="types">
+<h2>Supported scope, not the whole Arrow specification</h2>
+<ul>
+<li>Null, booleans; signed and unsigned integers at 8, 16, 32 and 64 bits; floating-point at 16, 32 and 64 bits.</li>
+<li>Decimal128-style storage with precision 1–38 and scale 0–precision; normal and large UTF-8 and binary offsets.</li>
+<li>Dates, timestamps (including timezone metadata), durations and time values with the units represented by the API.</li>
+<li>Lists, fixed-size lists, structs, integer-indexed dictionaries and extension types backed by a supported storage type.</li>
+</ul>
+<p><code>int128</code> and <code>uint128</code> are binding extensions, <strong>not Apache Arrow integer types</strong>. Extension storage support does not implement arbitrary extension-specific semantics.</p>
+<p class="note">Unsupported families include maps, dense and sparse unions, intervals, fixed-size binary, string/binary/list views, large lists and run-end encoding. Decimal widths/precision outside the exposed decimal type are not supported. There is no Arrow IPC reader/writer, file/stream serialization engine, compute kernel layer or native runtime. No additional platform coverage is implied by extraction into this repository.</p>
+</section>
+<section id="abi">
+<h2>Optional Arrow C ABI declarations</h2>
+<pre><code>import 'package:dartaframes_arrow/arrow_c.dart';</code></pre>
+<p>This separate, <code>dart:ffi</code>-dependent library declares the standard <code>CArrowArray</code>, <code>CArrowSchema</code> and <code>CArrowArrayStream</code> structs. The core <code>arrow.dart</code> does not import FFI.</p>
+<p>These are ABI layouts, not an owner, allocator, C-to-Dart import engine or release manager. Callers integrating native producers must manage allocations, callbacks, release ordering and stream errors according to the Arrow C interfaces. Importing these structs does not install or start a native runtime.</p>
+</section>
+<section id="conformance">
+<h2>Conformance evidence: missing is not failing</h2>
+<p>The committed physical fixture at <code>test/conformance/fixtures/pyarrow.json</code> is generated independently by <strong>PyArrow 26.0.0</strong>. It deliberately includes families outside this package's supported scope; the Dart implementation is not its oracle.</p>
+<pre><code>mkdir -p build
+dart run test/conformance/dart_probe.dart --output build/conformance.json</code></pre>
+<p>A <code>pass</code> is a successful probe; <code>missing</code> records an unsupported capability; <code>fail</code> records an actual mismatch or failure. A default successful report means no actual failures, <strong>not full Arrow support</strong>. Read status counts and individual results rather than treating process success as a blanket compatibility claim.</p>
+<p>Use the optional strict gate when your acceptance policy requires every fixture capability:</p>
+<pre><code>dart run test/conformance/dart_probe.dart --output build/conformance.json --require-full</code></pre>
+<p><code>--require-full</code> fails on missing capabilities as well as actual failures. It is intentionally stricter than the default supported-scope gate and can fail for the documented unsupported families.</p>
+<h3>Regenerate fixtures independently</h3>
+<pre><code>python3 -m venv .venv
+.venv/bin/python -m pip install -r tool/conformance/requirements.txt
+.venv/bin/python tool/conformance/generate_fixtures.py</code></pre>
+<p>The requirements pin is <code>pyarrow==26.0.0</code>. The generator resolves its default output relative to the package, not your working directory. Review the fixture diff, rerun the Dart conformance probe and tests, and retain the report with the tested revision. Do not change expected data simply to make a mismatch disappear.</p>
+</section>
+<section id="release">
+<h2>GitHub-first releases and provenance</h2>
+<p>The release path is a manually initiated <strong>draft GitHub release</strong>, not automatic pub.dev publication. A maintainer reviews validation results, the selected revision/tag, release notes and assets before making a draft public. A workflow-created draft is not proof that a release was published.</p>
+<p>Use the validated source archive and its accompanying <code>SHA256SUMS</code> asset when supplied by a release. Verify the checksum before extracting, and record the release tag and commit. GitHub's automatically generated source downloads are distinct from a separately validated archive; a digest establishes byte integrity against the checksum you trust, not an independent signature or a promise of compatibility.</p>
+<p>For publication readiness, run <code>dart pub publish --dry-run</code> from the standalone package. A dry run checks the package without publishing it; this repository's release workflow does not run a pub.dev publish step. Do not infer hosted availability from version <code>0.1.0</code>, a tag or a GitHub release.</p>
+<p>See <a href="https://github.com/richardrh/dartarrow/releases">actual releases</a> and their assets for available artifacts. The intended project Pages URL is <a href="https://richardrh.github.io/dartarrow/">richardrh.github.io/dartarrow/</a>; this guide does not assert that a deployment is already live.</p>
+</section>
+<section id="docs">
+<h2>Build and browse locally</h2>
+<p>With the repository's pinned Dart 3.13.0 SDK on <code>PATH</code>, resolve the package first. The builder uses only Python's standard library, clears only <code>build/site</code> to remove stale pages, copies this guide and CSS, then invokes <code>dart doc --validate-links</code> on the resolved local package. Pass <code>--dart</code> followed by an absolute SDK executable path to select Dart explicitly. No Hugo or site dependencies are required.</p>
+<pre><code>dart pub get
+python3 tool/build_docs.py
+python3 -m http.server 8000 --directory build/site</code></pre>
+<p>Open <a href="http://localhost:8000/">localhost:8000</a>; the <a href="api/">API reference</a> is at relative <code>api/</code> and the stylesheet at <code>style.css</code>. These relative paths also work beneath the project Pages prefix <code>/dartarrow/</code>. The build produces <code>build/site/index.html</code>, <code>build/site/style.css</code> and <code>build/site/api/index.html</code>.</p>
+</section>
+<section id="sources">
+<h2>Specifications and official policies</h2>
+<ul>
+<li><a href="https://arrow.apache.org/docs/format/Columnar.html">Apache Arrow columnar format</a> — physical layouts, validity and nested storage.</li>
+<li><a href="https://arrow.apache.org/docs/format/CDataInterface.html">Arrow C Data Interface</a> and <a href="https://arrow.apache.org/docs/format/CStreamInterface.html">C Stream Interface</a> — ABI and release contracts.</li>
+<li><a href="https://dart.dev/tools/pub/dependencies#git-packages">Dart Git dependencies</a> and <a href="https://dart.dev/tools/pub/cmd/pub-lish">pub publish and dry runs</a> — dependency and publication behavior.</li>
+<li><a href="https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages">GitHub Pages documentation</a> — static hosting and project sites.</li>
+<li><a href="https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository">Managing GitHub releases</a> and <a href="https://docs.github.com/en/repositories/working-with-files/using-files/downloading-source-code-archives">source archive behavior</a> — drafts, assets and source downloads.</li>
+</ul>
+</section>
+</main>
+</div>
+<footer>dartaframes_arrow · <a href="https://github.com/richardrh/dartarrow">Source and issue tracker</a> · <a href="api/">Generated API reference</a></footer>
+</body>
+</html>

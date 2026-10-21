@@ -26,14 +26,25 @@ final class RecordBatch {
           'Column $i (${field.name}) length ${column.length} does not match row count ${this.rowCount}',
         );
       }
-      if (!field.nullable && column.validity.any((valid) => !valid)) {
+      if (!field.nullable && column.nullCount != 0) {
         throw ArgumentError('Column $i (${field.name}) is not nullable');
       }
     }
   }
+  RecordBatch._(this.schema, this.columns, this.rowCount);
   final ArrowSchema schema;
   final List<ArrowArray> columns;
   final int rowCount;
   int get length => rowCount;
   int get columnCount => columns.length;
+
+  RecordBatch slice(int start, [int? count]) {
+    final size = count ?? rowCount - start;
+    RangeError.checkValidRange(start, start + size, rowCount);
+    return RecordBatch._(
+      schema,
+      List.unmodifiable(columns.map((c) => c.slice(start, size))),
+      size,
+    );
+  }
 }

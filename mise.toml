@@ -1,0 +1,23 @@
+[tools]
+dart = "3.13.0"
+python = "3.12"
+
+[tasks.setup]
+description = "Resolve locked Dart development dependencies"
+run = "dart pub get --enforce-lockfile"
+
+[tasks.check]
+description = "Check the standalone Dart package"
+depends = ["setup"]
+run = """
+dart format --output=none --set-exit-if-changed .
+dart analyze --fatal-infos
+dart test --coverage=coverage
+dart run example/arrow.dart
+dart pub publish --dry-run
+"""
+
+[tasks.docs]
+description = "Build the guide and Dart API reference"
+depends = ["setup"]
+run = "python3 tool/build_docs.py"
