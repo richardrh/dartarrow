@@ -121,7 +121,7 @@ final last = borrowed.slice(1, 1);
 </section>
 <section id="conformance">
 <h2>Conformance evidence: missing is not failing</h2>
-<p>The committed physical fixture at <code>test/conformance/fixtures/pyarrow.json</code> is generated independently by <strong>PyArrow 26.0.0</strong>. It deliberately includes families outside this package's supported scope; the Dart implementation is not its oracle.</p>
+<p>The committed physical fixture at <code>test/conformance/fixtures/pyarrow.json</code> uses independent <strong>PyArrow 26.0.0</strong> expectations. Two legacy interval cases are explicitly labelled Arrow-format literals, not PyArrow-produced arrays; their per-case producer and specification source record this provenance. The fixture deliberately includes families outside this package's supported scope; the Dart implementation is not its oracle.</p>
 <pre><code>mkdir -p build
 dart run test/conformance/dart_probe.dart --output build/conformance.json</code></pre>
 <p>A <code>pass</code> is a successful probe; <code>missing</code> records an unsupported capability; <code>fail</code> records an actual mismatch or failure. A default successful report means no actual failures, <strong>not full Arrow support</strong>. Read status counts and individual results rather than treating process success as a blanket compatibility claim.</p>
