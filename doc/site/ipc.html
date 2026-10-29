@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Read and write standard Apache Arrow IPC streams and files in pure Dart with dartaframes_arrow, verified against PyArrow 26.">
+  <title>dartaframes_arrow — Arrow IPC</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header>
+  <p class="eyebrow">dartarrow · Arrow IPC</p>
+  <h1>Standard Arrow IPC streams and files</h1>
+  <p><code>package:dartaframes_arrow/ipc.dart</code> reads and writes Apache Arrow IPC format V5 entirely in Dart, shaped like <code>pyarrow.ipc</code>. FlatBuffers metadata is implemented in-tree; there is no native runtime.</p>
+  <p><a href="index.html">Guide home</a> · <a href="api/dartaframes_arrow_ipc/">IPC API reference</a> · <a href="https://github.com/richardrh/dartarrow">Source repository</a></p>
+</header>
+<div class="layout">
+<nav aria-label="IPC sections">
+  <strong>Arrow IPC</strong>
+  <ul>
+    <li><a href="#use">Read and write</a></li>
+    <li><a href="#families">Supported families</a></li>
+    <li><a href="#compression">Compression</a></li>
+    <li><a href="#limits">Limits and errors</a></li>
+    <li><a href="#verification">Independent verification</a></li>
+  </ul>
+</nav>
+<main id="main">
+<section id="use">
+<h2>Read and write in memory</h2>
+<pre><code>import 'package:dartaframes_arrow/arrow.dart' as pa;
+import 'package:dartaframes_arrow/ipc.dart' as ipc;
+
+void main() {
+  final table = pa.table({'id': pa.array([1, 2], type: pa.int64())});
+  final stream = (ipc.newStream(table.schema)..writeTable(table)).close();
+  final restored = ipc.openStream(stream).readAll(); // Table
+
+  final file = (ipc.newFile(restored.schema)..writeTable(restored)).close();
+  final reader = ipc.openFile(file);
+  print(reader.numRecordBatches);
+  print(reader.getBatch(0).toDartList());
+}</code></pre>
+<p><code>openStream</code> returns a <code>RecordBatchStreamReader</code> (<code>schema</code>, <code>readNextBatch()</code> returning null at end of stream, single-pass iteration, <code>readAll()</code>). <code>openFile</code> returns a <code>RecordBatchFileReader</code> (<code>schema</code>, <code>numRecordBatches</code>, <code>getBatch(i)</code>, <code>readAll()</code>). <code>newStream</code>/<code>newFile</code> return writers with <code>writeBatch</code>, <code>writeTable(table, maxChunkSize:)</code>, <code>write</code> and <code>close()</code>, which returns the complete bytes. File-system I/O is left to the caller.</p>
+<p>Uncompressed bodies are read as zero-copy views: the returned arrays borrow the input <code>Uint8List</code>, so keep it alive and unmodified. Writers serialize directly from the arrays' physical buffers and rebase slices (bitmaps realigned, offsets rebased, run ends trimmed). Run <code>dart run example/arrow_ipc.dart</code> for a complete example.</p>
+</section>
+<section id="families">
+<h2>Supported standard families</h2>
+<table>
+<thead><tr><th>Family</th><th>Coverage</th></tr></thead>
+<tbody>
+<tr><td>Primitive</td><td>Null, boolean, signed/unsigned 8/16/32/64-bit integers, float16/32/64 with raw bit preservation</td></tr>
+<tr><td>Binary and text</td><td>UTF-8, binary, large offsets, fixed-size binary, string/binary views with variadic buffers</td></tr>
+<tr><td>Decimal</td><td>Decimal32/64/128/256, including negative scales</td></tr>
+<tr><td>Temporal</td><td>Dates, times, timestamps with time-zone metadata, durations, year-month/day-time/month-day-nano intervals</td></tr>
+<tr><td>Nested</td><td>Lists, large and fixed-size lists, list views, structs, maps</td></tr>
+<tr><td>Dictionary</td><td>Root and nested dictionaries, extension-wrapped dictionaries, stream replacement and deltas</td></tr>
+<tr><td>Other layouts</td><td>Sparse/dense unions and run-end encoding</td></tr>
+<tr><td>Metadata</td><td>Schema and field metadata as raw bytes; extension annotations</td></tr>
+<tr><td>Structure</td><td>Multiple and empty batches, zero rows, positive-row zero-column batches</td></tr>
+</tbody>
+</table>
+<p>Writers send a dictionary when it first appears, a delta batch when a later dictionary extends the previous one, and (streams only) a replacement when it otherwise differs. File writers reject replacements, which the file format cannot represent.</p>
+</section>
+<section id="compression">
+<h2>Compression</h2>
+<table>
+<thead><tr><th>Platform</th><th>LZ4_FRAME read</th><th>ZSTD read</th><th>Write</th></tr></thead>
+<tbody>
+<tr><td>Dart VM</td><td>yes (pure Dart <code>libcompress</code>)</td><td>yes (<code>libcompress</code>)</td><td>uncompressed</td></tr>
+<tr><td>Web (dart2js, tested in Firefox and Chrome)</td><td>yes (in-tree decoder)</td><td>explicitly unsupported</td><td>uncompressed</td></tr>
+</tbody>
+</table>
+<p>The web LZ4 decoder checks bounds, frame structure, back-references and declared sizes. It consumes but does not verify frame checksums; do not treat it as an integrity or authenticity check. External LZ4 dictionaries are unsupported. Decompressed sizes are bounded by the message-size limit.</p>
+</section>
+<section id="limits">
+<h2>Limits, errors and deliberate exclusions</h2>
+<ul>
+<li>Little-endian IPC only; big-endian input raises <code>UnsupportedError</code>.</li>
+<li><code>IpcLimits</code> bounds nesting depth, fields, rows, total decoded values, buffers, message bytes, dictionaries and batches. Defaults are conservative; pass raised limits for larger trusted input.</li>
+<li>Malformed input raises <code>FormatException</code>, never an out-of-bounds read. Unknown codecs or types raise <code>UnsupportedError</code>.</li>
+<li><code>bindingInt128()</code>/<code>bindingUint128()</code> are binding extensions with no standard encoding; writers reject them.</li>
+<li>A field has one extension annotation. Stacked extensions and dictionaries whose value type is an extension are rejected on write; use the canonical extension-over-dictionary form. Supply annotations through <code>ExtensionType</code>, not reserved <code>ARROW:extension:*</code> field metadata.</li>
+<li><code>ExtensionType.metadata</code> is a <code>String</code>, so non-UTF-8 extension metadata is rejected as malformed. Other metadata is preserved as raw bytes.</li>
+<li>This is not a claim of complete Apache Arrow specification conformance.</li>
+</ul>
+</section>
+<section id="verification">
+<h2>Independent verification against PyArrow 26</h2>
+<p><code>test/conformance/fixtures/arrow_ipc/</code> holds PyArrow 26.0.0 stream and file outputs for every family above, with a manifest and JSON expectations. Tests compare schema, metadata, nulls, batch boundaries, dictionary values and indices, exact floating bits, unscaled decimals and temporal counters. Ordinary Dart tests read these fixtures without Python.</p>
+<p>Dart reads all 90 fixture files; it rewrites 88, and PyArrow reads and validates all 88. The remaining two are the file and stream forms of the deliberately rejected non-UTF-8 extension metadata.</p>
+<pre><code>python3 -m venv .venv
+P=.venv/bin/python
+$P -m pip install -r tool/conformance/requirements.txt
+$P tool/conformance/arrow_ipc_interop.py check
+$P tool/conformance/arrow_ipc_interop.py verify --self-test
+dart run tool/conformance/arrow_ipc_interop.dart --out build/arrow_ipc_dart
+$P tool/conformance/arrow_ipc_interop.py verify --output build/arrow_ipc_dart</code></pre>
+<p>The final command reports the two non-UTF-8 extension metadata cases as <code>missing</code>, not failed. CI runs these steps and the IPC tests under dart2js.</p>
+</section>
+</main>
+</div>
+</body>
+</html>

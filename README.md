@@ -52,14 +52,27 @@ Slices share backing buffers. Read-only views cannot protect against mutation
 through the original borrowed allocation.
 
 Supported families include null, booleans, integers, floating-point raw bits,
-decimal128, UTF-8/binary with normal or large offsets, dates, times, timestamps,
-durations, lists, fixed-size lists, structs, dictionaries, and extension storage.
-`bindingInt128()`/`bindingUint128()` are binding extensions, not Apache Arrow integer datatypes.
-This is **not complete Arrow specification support**: maps, unions, intervals,
-fixed-size binary, list/string/binary views, large lists, and run-end encoding
-are unsupported. There is no Arrow IPC reader/writer or compute engine.
+decimal32/64/128/256 (including negative scales), UTF-8/binary with normal or
+large offsets or views, fixed-size binary, dates, times, timestamps, durations,
+intervals (year-month, day-time, month-day-nano), lists, large lists, list
+views, fixed-size lists, structs, maps, sparse and dense unions, run-end
+encoding, dictionaries (including nested), and extension storage.
+`bindingInt128()`/`bindingUint128()` are binding extensions, not Apache Arrow
+integer datatypes, and have no IPC encoding. There is no compute engine.
 Import `package:dartaframes_arrow/json.dart` for `OwnedBatchJsonCodec`, a custom
 logical JSON transport, not Arrow IPC; nested dictionary encoding is rejected.
+
+Import `package:dartaframes_arrow/ipc.dart` (as `ipc`) for standard Arrow IPC
+(format V5), shaped like `pyarrow.ipc`: `openStream`/`openFile` return
+`RecordBatchStreamReader`/`RecordBatchFileReader` (`schema`, `readNextBatch`,
+`numRecordBatches`, `getBatch`, `readAll`), and `newStream`/`newFile` return
+writers with `writeBatch`, `writeTable`, `write`, and `close` (in-memory bytes).
+Uncompressed bodies are read as zero-copy views; LZ4_FRAME and ZSTD bodies are
+decoded (LZ4 only on the web). Writers emit uncompressed little-endian output.
+Readers are bounded by `IpcLimits`; malformed input raises `FormatException`
+and unsupported features (big-endian, unknown codecs) raise `UnsupportedError`.
+Interoperability is checked against pyarrow 26 in both directions with
+`tool/conformance/arrow_ipc_interop.py` and `arrow_ipc_interop.dart`.
 
 Optional `package:dartaframes_arrow/arrow_c.dart` exposes standard Arrow C Data
 and C Stream ABI structs using `dart:ffi`. It does not allocate or release
@@ -75,6 +88,7 @@ dart format --output=none --set-exit-if-changed .
 dart analyze --fatal-infos
 dart test --coverage=coverage
 dart run example/arrow.dart
+dart run example/arrow_ipc.dart
 mkdir -p build
 dart compile exe example/arrow.dart -o build/arrow-example
 ./build/arrow-example
@@ -96,21 +110,34 @@ python3 -m venv .venv
 git diff --exit-code -- test/conformance/fixtures/pyarrow.json
 mkdir -p build
 dart run test/conformance/dart_probe.dart --output build/conformance.json
-# Optional strict inventory check: currently missing families make this fail.
+# Strict inventory check (CI): every fixture family must pass.
 dart run test/conformance/dart_probe.dart --require-full
 # Independently regenerate the public behavior oracle and compare exactly.
 .venv/bin/python tool/conformance/generate_api_fixtures.py --output /tmp/api_pyarrow.json
 cmp test/conformance/fixtures/api_pyarrow.json /tmp/api_pyarrow.json
 dart run test/conformance/api_probe.dart --output build/api-conformance.json
 dart test test/conformance/api_conformance_test.dart
+# Arrow IPC: regenerate/compare PyArrow fixtures, then PyArrow verifies Dart output.
+.venv/bin/python tool/conformance/arrow_ipc_interop.py check
+.venv/bin/python tool/conformance/arrow_ipc_interop.py verify --self-test
+dart run tool/conformance/arrow_ipc_interop.dart --out build/arrow_ipc_dart
+.venv/bin/python tool/conformance/arrow_ipc_interop.py verify --output build/arrow_ipc_dart
 ```
 
 PyArrow is pinned to 26.0.0. Committed fixtures are deterministic independent
 physical-layout and logical-value expectations. Legacy interval fixtures are
 explicit Arrow-format literals, not claimed PyArrow output. The report keeps
 `missing` distinct from `fail`: default mode fails actual assertion failures;
-`--require-full` also fails missing capabilities. A green supported-scope test
-run does not claim every Arrow datatype exists.
+`--require-full` also fails missing capabilities; every fixture family currently
+passes and CI enforces the strict mode. Passing fixtures cover the listed cases,
+not every possible producer of each datatype.
+
+The Arrow IPC fixtures (`test/conformance/fixtures/arrow_ipc/`) are PyArrow
+26.0.0 stream and file outputs for every supported family, including
+compression, dictionaries, deltas, metadata and empty/zero-column batches.
+Dart reads each one; Dart-written files are then read back by PyArrow. Binary
+(non-UTF-8) extension metadata is rejected as malformed, as in the original
+dartaframes implementation, and is reported as `missing` by the verifier.
 
 The public API oracle separately checks construction, scalar conversion, casts,
 metadata, masks, errors, and chunk/tabular behavior against PyArrow. It is not

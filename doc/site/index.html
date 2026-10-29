@@ -23,6 +23,7 @@
     <li><a href="#usage">Arrays, batches and JSON</a></li>
     <li><a href="#memory">Borrowing and slicing</a></li>
     <li><a href="#types">Supported scope</a></li>
+    <li><a href="ipc.html">Arrow IPC streams and files</a></li>
     <li><a href="#abi">Optional C ABI</a></li>
     <li><a href="#conformance">Conformance evidence</a></li>
     <li><a href="#release">Releases and provenance</a></li>
@@ -105,12 +106,14 @@ final last = borrowed.slice(1, 1);
 <h2>Supported scope, not the whole Arrow specification</h2>
 <ul>
 <li>Null, booleans; signed and unsigned integers at 8, 16, 32 and 64 bits; floating-point at 16, 32 and 64 bits.</li>
-<li>Decimal128 storage with precision 1–38 and signed 32-bit scale (including negative scales); normal and large UTF-8 and binary offsets.</li>
-<li>Dates, timestamps (including timezone metadata), durations and time values with the units represented by the API.</li>
-<li>Lists, fixed-size lists, structs, integer-indexed dictionaries and extension types backed by a supported storage type.</li>
+<li>Decimal32/64/128/256 storage (precision up to 9/18/38/76) with signed 32-bit scale, including negative scales.</li>
+<li>UTF-8 and binary with normal or large offsets or views (<code>stringView()</code>, <code>binaryView()</code>); fixed-size binary (<code>binary(n)</code>).</li>
+<li>Dates, timestamps (including timezone metadata), durations, time values, and year-month, day-time and month-day-nano intervals (exact <code>IntervalValue</code>).</li>
+<li>Lists, large lists, list views, fixed-size lists, structs, maps (<code>mapType</code>), sparse and dense unions, run-end encoding (<code>runEndEncoded</code>), integer-indexed dictionaries (including nested) and extension types backed by a supported storage type.</li>
 </ul>
+<p>Maps convert to ordered lists of Dart <code>(key, value)</code> records. Unions and run-end encoded arrays have no validity bitmap: <code>nullCount</code> is 0 as in PyArrow, while scalars and masks report the selected child's validity. Build them from child arrays with <code>Array.fromSparseUnion</code>, <code>Array.fromDenseUnion</code> and <code>Array.fromRunEnds</code>.</p>
 <p><code>bindingInt128()</code> and <code>bindingUint128()</code> expose binding extensions, <strong>not Apache Arrow integer types</strong>. Extension storage support does not implement arbitrary extension-specific semantics.</p>
-<p class="note">Unsupported families include maps, dense and sparse unions, intervals, fixed-size binary, string/binary/list views, large lists and run-end encoding. Decimal widths/precision outside the exposed decimal type are not supported. There is no Arrow IPC reader/writer, file/stream serialization engine, compute kernel layer or native runtime. No additional platform coverage is implied by extraction into this repository.</p>
+<p class="note">Standard Arrow IPC streams and files are available from the separate <code>ipc.dart</code> import; see the <a href="ipc.html">Arrow IPC guide</a>. There is no compute kernel layer, dataset layer or native runtime.</p>
 </section>
 <section id="abi">
 <h2>Optional Arrow C ABI declarations</h2>
@@ -120,13 +123,13 @@ final last = borrowed.slice(1, 1);
 </section>
 <section id="conformance">
 <h2>Conformance evidence: missing is not failing</h2>
-<p>The committed physical fixture at <code>test/conformance/fixtures/pyarrow.json</code> uses independent <strong>PyArrow 26.0.0</strong> expectations. Two legacy interval cases are explicitly labelled Arrow-format literals, not PyArrow-produced arrays; their per-case producer and specification source record this provenance. The fixture deliberately includes families outside this package's supported scope; the Dart implementation is not its oracle.</p>
+<p>The committed physical fixture at <code>test/conformance/fixtures/pyarrow.json</code> uses independent <strong>PyArrow 26.0.0</strong> expectations. Two legacy interval cases are explicitly labelled Arrow-format literals, not PyArrow-produced arrays; their per-case producer and specification source record this provenance. Every fixture family is now supported; the Dart implementation is not its oracle.</p>
 <pre><code>mkdir -p build
 dart run test/conformance/dart_probe.dart --output build/conformance.json</code></pre>
 <p>A <code>pass</code> is a successful probe; <code>missing</code> records an unsupported capability; <code>fail</code> records an actual mismatch or failure. A default successful report means no actual failures, <strong>not full Arrow support</strong>. Read status counts and individual results rather than treating process success as a blanket compatibility claim.</p>
 <p>Use the optional strict gate when your acceptance policy requires every fixture capability:</p>
 <pre><code>dart run test/conformance/dart_probe.dart --output build/conformance.json --require-full</code></pre>
-<p><code>--require-full</code> fails on missing capabilities as well as actual failures. It is intentionally stricter than the default supported-scope gate and can fail for the documented unsupported families.</p>
+<p><code>--require-full</code> fails on missing capabilities as well as actual failures. CI runs this strict mode; all 300 physical cases currently pass.</p>
 <h3>Regenerate fixtures independently</h3>
 <pre><code>python3 -m venv .venv
 .venv/bin/python -m pip install -r tool/conformance/requirements.txt

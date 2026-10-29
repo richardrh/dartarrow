@@ -1,10 +1,12 @@
 # PyArrow-shaped Dart interface: implemented scope
 
 Status: **approved breaking 0.2.0 interface; scoped independent API acceptance
-passed**, researched against Apache Arrow/PyArrow **26.0.0**. The 181 executable
+passed**, researched against Apache Arrow/PyArrow **26.0.0**. The 219 executable
 API cases pass; this establishes the tested scope, not complete PyArrow parity.
-This is not full PyArrow, complete Arrow type coverage, or IPC interoperability.
-The historical 0.1.0 tag/draft is unchanged.
+Every standard Arrow logical type family is implemented, and standard Arrow IPC
+streams/files interoperate with PyArrow 26 in both directions (see
+[Arrow IPC](#arrow-ipc)). This is still not full PyArrow (no compute, datasets or
+native runtime). The historical 0.1.0 tag/draft is unchanged.
 
 ## Current public interface
 
@@ -30,7 +32,10 @@ final table = pa.table({'values': pa.chunkedArray([a.slice(0, 1), a.slice(1)])})
 | --- | --- | --- |
 | `array`, `scalar` | `array`, `scalar` | Native-value inference or explicit dtype; typed null scalars. |
 | dtype factories | `int32()`, `int64()`, `float64()`, `string()`, etc. | Parameterized types retain units, timezone and child fields. |
-| keyword-conflicting factories | `boolType()`, `nullType()`, `listType(...)` | Single Dart spelling; no snake_case aliases. |
+| keyword-conflicting factories | `boolType()`, `nullType()`, `listType(...)`, `mapType(...)` | Single Dart spelling; no snake_case aliases. |
+| extended dtype factories | `binary(n)`, `stringView()`, `binaryView()`, `largeList`, `listView`, `largeListView`, `decimal32/64/128/256`, `mapType(key, item, keysSorted:)`, `union`/`sparseUnion`/`denseUnion(fields, typeCodes:)`, `monthDayNanoInterval()`, `runEndEncoded(runEndType, valueType)` | PyArrow child-field names (`item`, `key`/`value`, `entries`, `run_ends`/`values`); `IntervalType(IntervalUnit.yearMonth/dayTime)` for the intervals PyArrow cannot construct. |
+| `RunEndEncodedArray.from_arrays`, `UnionArray.from_sparse/from_dense` | `Array.fromRunEnds`, `Array.fromSparseUnion`, `Array.fromDenseUnion` | Share child arrays; validated like `fromBuffers`. |
+| `pyarrow.ipc` | separate `ipc.dart`: `openStream`, `openFile`, `newStream`, `newFile`, `RecordBatchStreamReader/Writer`, `RecordBatchFileReader/Writer`, `IpcLimits` | In-memory `Uint8List` in/out; `readAll()` returns a Table. |
 | `field`, `schema` | `field`, `schema` | Field objects or `(String, DataType)` records; ordered duplicate names. |
 | scalar indexing / conversion | `a[i]`, `.asDart()`, `.toDartList()` | Indexing returns Scalar, including invalid typed values. |
 | buffer import / access | `Array.fromBuffers(type, length, buffers, ...)`, `.buffers()` | Buffer objects, logical offset, children and dictionary. |
@@ -101,11 +106,51 @@ optional `json.dart` import. Owned JSON is custom transport, **not Arrow IPC**;
 binary metadata has explicit base64 encoding and legacy string metadata decodes.
 The separate `arrow_c.dart` import supplies ABI declarations, not a native runtime.
 
-No IPC reader/writer, dataset layer, or compute engine is implemented. Missing
-families include maps, unions, intervals, fixed-size binary, view types, large
-lists, and run-end encoding. `int128`/`uint128` are binding extensions, not standard
-Arrow integer datatypes. Do not infer support from a familiar factory name or a
-successful supported-scope fixture run. Unsupported capabilities stay explicit.
+No dataset layer or compute engine is implemented. `int128`/`uint128` are
+binding extensions, not standard Arrow integer datatypes, and have no IPC
+encoding. Do not infer support from a familiar factory name; unsupported
+capabilities stay explicit.
+
+### Extended logical types: Dart adaptations
+
+- Map scalars convert to an ordered `List<(key, value)>` of Dart records (PyArrow:
+  list of tuples); duplicate keys and entry order are preserved. Native input may
+  be a `Map`, records, `MapEntry` objects or two-element lists. Null keys fail.
+- Intervals convert to the exact `IntervalValue` (PyArrow `MonthDayNano` for
+  month-day-nano); nanoseconds are a `BigInt`. Native month-day-nano input may be
+  an `IntervalValue`, a `(months, days, nanoseconds)` record or a 3-element list.
+- Unions and run-end encoded arrays have no validity bitmap: `nullCount` is 0, as
+  in PyArrow, while scalars, `isValid()` and `isNull()` report the selected child's
+  validity. Union scalars convert to the selected child's value. As in PyArrow,
+  unions cannot be built from native values (use `fromSparseUnion`/
+  `fromDenseUnion`); value-level paths (owned JSON, `array(scalars)`) keep the
+  type code of valid slots but re-encode null slots under the first type code.
+- `binary(n)` returns `FixedSizeBinaryType` and `binary()` the variable-length
+  `BinaryType`, so its static return type is `DataType`, like `listType`.
+- Decimal values must fit both the declared precision and the storage width.
+
+## Arrow IPC
+
+`import 'package:dartaframes_arrow/ipc.dart' as ipc;` mirrors `pyarrow.ipc`:
+
+```dart
+final bytes = (ipc.newStream(table.schema)..writeTable(table)).close();
+final table2 = ipc.openStream(bytes).readAll();
+final file = (ipc.newFile(table.schema)..writeTable(table)).close();
+final reader = ipc.openFile(file); // numRecordBatches, getBatch(i), readAll()
+```
+
+Streams and files use format V5, little-endian only. Readers return zero-copy
+views over uncompressed bodies and decode LZ4_FRAME and ZSTD bodies (VM, pure
+Dart `libcompress`) or LZ4_FRAME (web). Writers emit uncompressed bodies directly
+from physical buffers, rebasing slices. Dictionaries may be nested or wrapped by
+extension types; readers apply stream replacements and deltas, writers emit
+deltas for extended dictionaries and (streams only) replacements otherwise. All decoding
+is bounded by `IpcLimits` (depth, fields, rows, values, buffers, message bytes,
+dictionaries, batches). Malformed input raises `FormatException`; unsupported
+features (big-endian, unknown codec or type) raise `UnsupportedError`; binding
+`int128`/`uint128` columns are rejected by writers. Non-UTF-8 extension metadata
+is rejected because `ExtensionType.metadata` is a `String`.
 
 ## Evidence and sources
 
@@ -114,8 +159,13 @@ pins PyArrow 26.0.0 and keeps missing inventory separate from failures. Human-re
 pretty-print output is not the contract. Physical layouts, native conversion,
 metadata, errors, chunk boundaries, and shared-storage slicing are separate checks.
 
-Observed final acceptance: `build/api-conformance.json` reports **181 passed,
-0 failed**. The throwaway corrupted-oracle CLI exits 1 and
+Observed acceptance after the extended types and IPC: `build/api-conformance.json`
+reports **219 passed, 0 failed** (181 earlier cases plus 38 extended-type cases);
+the physical pipeline reports **300 passed, 0 missing, 0 failed** with
+`--require-full`; the Arrow IPC verifier reads all 90 PyArrow fixture files and
+PyArrow verifies 88 Dart-written files (the 2 binary-extension-metadata cases are
+deliberately rejected). Earlier observed acceptance: `build/api-conformance.json`
+reported **181 passed, 0 failed**. The throwaway corrupted-oracle CLI exits 1 and
 `build/api-negative.json` reports **180 passed, 1 failed**, specifically the
 corrupted `infer.empty` expectation. The separate physical pipeline reports
 **238 passed, 18 explicitly missing, 0 failed**, versus the prior 237/19
