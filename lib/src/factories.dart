@@ -78,8 +78,7 @@ Array array(
         dtype is BooleanType ||
         dtype is IntegerType ||
         dtype is FloatingType ||
-        dtype is Utf8Type ||
-        dtype is BinaryType ||
+        (dtype is Utf8Type || dtype is BinaryType) && !_isView(dtype) ||
         dtype is DecimalType ||
         dtype is DateType ||
         dtype is TimeType ||
@@ -114,6 +113,9 @@ Scalar scalar(Object? value, {DataType? type}) {
     if (dtype is ListType ||
         dtype is FixedSizeListType ||
         dtype is StructType ||
+        dtype is MapType ||
+        dtype is UnionType ||
+        dtype is RunEndEncodedType ||
         dtype is DictionaryType ||
         dtype is ExtensionType) {
       // Nested/encoded scalars keep their child arrays and dictionary context.
@@ -258,10 +260,16 @@ class _NativeTypeInference {
       'duration' => DurationType(temporal!.unit),
       _ => TimestampType(temporal!.unit, timeZone: temporal!.timeZone),
     },
-    'decimal' => DecimalType(
-      integerDigits! + scale! < 1 ? 1 : integerDigits! + scale!,
-      scale!,
-    ),
+    'decimal' => () {
+      final precision = integerDigits! + scale! < 1
+          ? 1
+          : integerDigits! + scale!;
+      return DecimalType(
+        precision,
+        scale!,
+        bitWidth: precision > 38 ? 256 : 128,
+      );
+    }(),
     _ => throw StateError('Unknown inference kind'),
   };
 
@@ -328,7 +336,7 @@ Array _encodeNative(
         case 4:
           bytes.setInt32(start, native, Endian.little);
         case 8:
-          bytes.setInt64(start, native, Endian.little);
+          _setInt64(bytes, start, native);
       }
     } else if (type is BooleanType && native is bool) {
       if (native) data[i >> 3] |= 1 << (i & 7);
@@ -374,7 +382,7 @@ Array _encodeNative(
       if (width == 4) {
         bytes.setInt32((i + 1) * width, payload!.length, Endian.little);
       } else {
-        bytes.setInt64((i + 1) * width, payload!.length, Endian.little);
+        _setInt64(bytes, (i + 1) * width, payload!.length);
       }
     }
   }

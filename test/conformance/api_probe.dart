@@ -17,6 +17,18 @@ Map<String, Object?> describe(pa.DataType type) {
     if (result['kind'] == 'string') result['kind'] = 'utf8';
     if (result['kind'] == 'largeString') result['kind'] = 'largeUtf8';
     if (result['kind'] == 'datetime') result['kind'] = 'timestamp';
+    if (result['kind'] == 'stringView') result['kind'] = 'utf8View';
+    if (result['kind'] == 'map') result['item'] = result.remove('value');
+    if (result['kind'] == 'interval' && result['unit'] == 'monthDayNano') {
+      return {'kind': 'monthDayNanoInterval'};
+    }
+    if (result['kind'] == 'runEndEncoded') {
+      return {
+        'kind': 'runEndEncoded',
+        'runEndType': (result['runEnds'] as Map)['type'],
+        'valueType': (result['values'] as Map)['type'],
+      };
+    }
     if (result.containsKey('name') && result.containsKey('nullable')) {
       result.putIfAbsent('metadata', () => <String, Object?>{});
     }
@@ -46,6 +58,9 @@ pa.DataType dtype(Object? spec) {
       'binary' => pa.binary(),
       'date32' => pa.date32(),
       'date64' => pa.date64(),
+      'string_view' => pa.stringView(),
+      'binary_view' => pa.binaryView(),
+      'month_day_nano_interval' => pa.monthDayNanoInterval(),
       _ => throw StateError('Unknown fixture datatype $spec'),
     };
   }
@@ -75,6 +90,15 @@ pa.DataType dtype(Object? spec) {
     'time32' => pa.time32(args[1] as String),
     'time64' => pa.time64(args[1] as String),
     'decimal128' => pa.decimal128(args[1] as int, args[2] as int),
+    'decimal32' => pa.decimal32(args[1] as int, args[2] as int),
+    'decimal64' => pa.decimal64(args[1] as int, args[2] as int),
+    'decimal256' => pa.decimal256(args[1] as int, args[2] as int),
+    'binary' => pa.binary(args[1] as int),
+    'large_list' => pa.largeList(dtype(args[1])),
+    'list_view' => pa.listView(dtype(args[1])),
+    'large_list_view' => pa.largeListView(dtype(args[1])),
+    'map_' => pa.mapType(dtype(args[1]), dtype(args[2])),
+    'run_end_encoded' => pa.runEndEncoded(dtype(args[1]), dtype(args[2])),
     _ => throw StateError('Unknown fixture datatype $spec'),
   };
 }
@@ -108,6 +132,10 @@ Object? native(Object? value) {
       split.length == 1 ? 0 : split[1].length,
     );
   }
+  if (value.containsKey(r'$interval')) {
+    final c = (value[r'$interval'] as List).cast<int>();
+    return pa.IntervalValue.monthDayNano(c[0], c[1], c[2]);
+  }
   if (value.containsKey(r'$float')) {
     final bits = value[r'$float'] as String;
     final data = ByteData(8);
@@ -138,6 +166,13 @@ Object? normalized(Object? value) {
       'decimal': {'unscaled': '${value.unscaled}', 'scale': value.scale},
     };
   }
+  if (value is pa.IntervalValue) {
+    return {
+      'interval': [value.months, value.days, '${value.nanoseconds}'],
+    };
+  }
+  if (value is (Object?, Object?))
+    return [normalized(value.$1), normalized(value.$2)];
   if (value is List) return value.map(normalized).toList();
   if (value is Map)
     return {for (final e in value.entries) e.key: normalized(e.value)};

@@ -295,6 +295,45 @@ Object _valueToJson(DataType type, _Value value) {
       ];
     case DictionaryType():
       return (value as _DictionaryIndexValue).index.toString();
+    case FixedSizeBinaryType():
+      return {'base64': base64Encode((value as _BinaryValue).bytes)};
+    case final MapType map:
+      return [
+        for (final entry in (value as _MapValue).entries)
+          {
+            'key': _valueToJson(map.keyField.type, entry.key),
+            'value': entry.value == null
+                ? null
+                : _valueToJson(map.valueField.type, entry.value!),
+          },
+      ];
+    case final UnionType union:
+      final tagged = value as _UnionValue;
+      return {
+        'typeId': tagged.typeId,
+        'value': tagged.value == null
+            ? null
+            : _valueToJson(
+                union.fields[union.childIndexForTypeId(tagged.typeId)].type,
+                tagged.value!,
+              ),
+      };
+    case IntervalType():
+      final interval = (value as _IntervalValue).value;
+      return switch (interval.unit) {
+        IntervalUnit.yearMonth => {'months': interval.months},
+        IntervalUnit.dayTime => {
+          'days': interval.days,
+          'milliseconds': interval.milliseconds,
+        },
+        IntervalUnit.monthDayNano => {
+          'months': interval.months,
+          'days': interval.days,
+          'nanoseconds': interval.nanoseconds.toString(),
+        },
+      };
+    case final RunEndEncodedType ree:
+      return _valueToJson(ree.valuesField.type, value);
     case final ExtensionType extension:
       return {
         'storage': _valueToJson(
@@ -312,12 +351,6 @@ _Value _valueFromJson(DataType type, Object? json) {
     return json.cast<String, Object?>();
   }
 
-  String string() {
-    if (json is! String)
-      throw FormatException('Value for $type must be a string');
-    return json;
-  }
-
   switch (type) {
     case NullType():
       throw const FormatException('Null datatype cannot contain a valid value');
@@ -326,17 +359,19 @@ _Value _valueFromJson(DataType type, Object? json) {
         throw const FormatException('Boolean value must be a boolean');
       return _BooleanValue(json);
     case IntegerType():
-      return _IntegerValue(string());
+      return _IntegerValue(_canonicalInteger(json, 'Integer value'));
     case final FloatingType floating:
       final bits = object()['floatBits'];
       if (bits is! String)
         throw const FormatException('floatBits must be a string');
-      return _FloatingValue(floating.bitWidth, BigInt.parse(bits, radix: 16));
+      return _FloatingValue(
+        floating.bitWidth,
+        _floatBits(bits, floating.bitWidth),
+      );
     case DecimalType():
-      final unscaled = object()['unscaled'];
-      if (unscaled is! String)
-        throw const FormatException('unscaled must be a string');
-      return _DecimalValue(unscaled);
+      return _DecimalValue(
+        _canonicalInteger(object()['unscaled'], 'Decimal unscaled value'),
+      );
     case Utf8Type():
       if (json is! String)
         throw const FormatException('String value must be a string');
@@ -347,7 +382,7 @@ _Value _valueFromJson(DataType type, Object? json) {
         throw const FormatException('base64 must be a string');
       return _BinaryValue(base64Decode(encoded));
     case DateType() || TimestampType() || DurationType() || TimeType():
-      return _TemporalValue(string());
+      return _TemporalValue(_canonicalInteger(json, 'Temporal counter'));
     case final ListType list:
       if (json is! List)
         throw const FormatException('List value must be a list');
@@ -395,11 +430,106 @@ _Value _valueFromJson(DataType type, Object? json) {
           }(),
       ]);
     case DictionaryType():
-      return _DictionaryIndexValue(string());
+      return _DictionaryIndexValue(_canonicalInteger(json, 'Dictionary index'));
+    case FixedSizeBinaryType():
+      final encoded = object()['base64'];
+      if (encoded is! String)
+        throw const FormatException('base64 must be a string');
+      return _BinaryValue(base64Decode(encoded));
+    case final MapType map:
+      if (json is! List)
+        throw const FormatException('Map value must be a list');
+      return _MapValue([
+        for (final raw in json)
+          () {
+            if (raw is! Map)
+              throw const FormatException('Map entry must be an object');
+            final key = raw['key'];
+            if (key == null)
+              throw const FormatException('Map keys cannot be null');
+            final item = raw['value'];
+            return _MapEntry(
+              _valueFromJson(map.keyField.type, key),
+              item == null ? null : _valueFromJson(map.valueField.type, item),
+            );
+          }(),
+      ]);
+    case final UnionType union:
+      final tagged = object();
+      final typeId = tagged['typeId'];
+      if (typeId is! int)
+        throw const FormatException('typeId must be an integer');
+      final child = union.childIndexForTypeId(typeId);
+      if (child < 0) throw FormatException('Undeclared union type id $typeId');
+      final item = tagged['value'];
+      return _UnionValue(
+        typeId,
+        item == null ? null : _valueFromJson(union.fields[child].type, item),
+      );
+    case final IntervalType interval:
+      final parts = object();
+      int part(String name) {
+        final value = parts[name];
+        if (value is! int) throw FormatException('$name must be an integer');
+        return value;
+      }
+
+      return _IntervalValue(switch (interval.unit) {
+        IntervalUnit.yearMonth => IntervalValue.yearMonth(part('months')),
+        IntervalUnit.dayTime => IntervalValue.dayTime(
+          part('days'),
+          part('milliseconds'),
+        ),
+        IntervalUnit.monthDayNano => () {
+          return IntervalValue.monthDayNano(
+            part('months'),
+            part('days'),
+            _canonicalInteger(parts['nanoseconds'], 'nanoseconds'),
+          );
+        }(),
+      });
+    case final RunEndEncodedType ree:
+      return _valueFromJson(ree.valuesField.type, json);
     case final ExtensionType extension:
       final storage = object()['storage'];
       if (storage == null)
         throw const FormatException('Extension storage cannot be null');
       return _ExtensionValue(_valueFromJson(extension.storageType, storage));
   }
+}
+
+/// Longest accepted decimal integer string: a sign plus the 78 digits of the
+/// widest supported magnitude (2^256). Rejecting longer input before parsing
+/// bounds BigInt.parse, whose cost grows super-linearly with length.
+const int _maxIntegerStringLength = 79;
+
+final RegExp _canonicalIntegerPattern = RegExp(r'^-?(0|[1-9][0-9]*)$');
+final RegExp _hexPattern = RegExp(r'^[0-9a-fA-F]+$');
+
+/// Parses a canonical base-10 integer string: no whitespace, plus sign,
+/// leading zeros, radix prefix, or negative zero. Range checks against the
+/// declared datatype happen during value validation.
+BigInt _canonicalInteger(Object? json, String what) {
+  if (json is! String) {
+    throw FormatException('$what must be a decimal string');
+  }
+  if (json.length > _maxIntegerStringLength) {
+    throw FormatException('$what exceeds $_maxIntegerStringLength characters');
+  }
+  if (_canonicalIntegerPattern.firstMatch(json)?.end != json.length ||
+      json == '-0') {
+    throw FormatException('$what must be a canonical decimal integer: $json');
+  }
+  return BigInt.parse(json);
+}
+
+BigInt _floatBits(String bits, int bitWidth) {
+  final digits = bitWidth ~/ 4;
+  if (bits.length != digits ||
+      _hexPattern.firstMatch(bits)?.end != bits.length) {
+    throw FormatException(
+      'floatBits for float$bitWidth must be exactly $digits hexadecimal digits',
+    );
+  }
+  return BigInt.parse(bits, radix: 16);
 }

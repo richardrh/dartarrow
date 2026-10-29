@@ -160,8 +160,12 @@ final class ChunkedArray {
 ChunkedArray chunkedArray(Iterable<Object?> chunks, {DataType? type}) =>
     ChunkedArray(chunks, type: type);
 
+/// Signed 64-bit maximum, parsed at runtime because the literal cannot be
+/// represented on dart2js (where it rounds to 2^63, still a sound bound).
+final int _int64Max = int.parse('9223372036854775807');
+
 int _checkedLengthAdd(int total, int length) {
-  if (length > 0x7fffffffffffffff - total) {
+  if (length > _int64Max - total) {
     throw ArrowInvalid('Logical length exceeds signed 64-bit capacity');
   }
   return total + length;

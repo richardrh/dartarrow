@@ -67,6 +67,60 @@ final class Array {
     );
   }
 
+  /// Builds a run-end encoded array from non-null, strictly increasing
+  /// [runEnds] (int16, int32 or int64) and one [values] slot per run, as
+  /// PyArrow's `RunEndEncodedArray.from_arrays`. Children are shared.
+  factory Array.fromRunEnds(Array runEnds, Array values) {
+    final type = RunEndEncodedType(
+      Field('run_ends', runEnds.type, nullable: false),
+      Field('values', values.type),
+    );
+    if (runEnds.nullCount != 0) throw ArgumentError('Null run end');
+    final length = runEnds.length == 0
+        ? 0
+        : _runEndAt(runEnds, runEnds.length - 1, _runEndWidth(type));
+    return Array.fromBuffers(
+      type,
+      length,
+      const [null],
+      children: [runEnds, values],
+    );
+  }
+
+  /// Builds a sparse union from int8 [typeIds] and children at least as long,
+  /// as PyArrow's `UnionArray.from_sparse`. Field names default to `'0'`,
+  /// `'1'`, ...; [typeCodes] default to child positions.
+  factory Array.fromSparseUnion(
+    Array typeIds,
+    List<Array> children, {
+    List<String>? fieldNames,
+    List<int>? typeCodes,
+  }) => _unionFromArrays(
+    UnionMode.sparse,
+    typeIds,
+    null,
+    children,
+    fieldNames,
+    typeCodes,
+  );
+
+  /// Builds a dense union from int8 [typeIds], int32 [valueOffsets] into the
+  /// selected child, and [children], as PyArrow's `UnionArray.from_dense`.
+  factory Array.fromDenseUnion(
+    Array typeIds,
+    Array valueOffsets,
+    List<Array> children, {
+    List<String>? fieldNames,
+    List<int>? typeCodes,
+  }) => _unionFromArrays(
+    UnionMode.dense,
+    typeIds,
+    valueOffsets,
+    children,
+    fieldNames,
+    typeCodes,
+  );
+
   Array._(
     this.type,
     this.length,
@@ -122,6 +176,7 @@ final class Array {
   late final int nullCount = _countNulls();
   int _countNulls() {
     if (_storage is NullType) return length;
+    if (_hasLogicalValidity(_storage)) return 0;
     if (_physicalBuffers[0] == null) return 0;
     var count = 0;
     for (var i = 0; i < length; i++) {
@@ -132,9 +187,11 @@ final class Array {
 
   bool _isValid(int index) {
     RangeError.checkValidIndex(index, this, 'index', length);
-    if (_storage is NullType) return false;
-    final bits = _physicalBuffers[0];
+    final storage = _storage;
+    if (storage is NullType) return false;
     final i = offset + index;
+    if (_hasLogicalValidity(storage)) return _logicalValid(this, storage, i);
+    final bits = _physicalBuffers[0];
     return bits == null || bits[i >> 3] & (1 << (i & 7)) != 0;
   }
 
@@ -220,10 +277,8 @@ final class Array {
             indexType!.signed
                 ? data!.getInt32(start, Endian.little)
                 : data!.getUint32(start, Endian.little),
-          8 =>
-            indexType!.signed
-                ? data!.getInt64(start, Endian.little)
-                : data!.getUint64(start, Endian.little),
+          // Indices beyond 2^53 cannot address a dictionary on any platform.
+          8 => _int64At(data!, start),
           _ => throw StateError('Invalid dictionary index width'),
         };
         missing = dictionaryMask![index >> 3] & (1 << (index & 7)) != 0;
@@ -233,9 +288,12 @@ final class Array {
           2 => (data!.getUint16(start, Endian.little) & 0x7fff) > 0x7c00,
           4 =>
             (data!.getUint32(start, Endian.little) & 0x7fffffff) > 0x7f800000,
-          8 =>
-            (data!.getUint64(start, Endian.little) & 0x7fffffffffffffff) >
-                0x7ff0000000000000,
+          8 => switch (data!.getUint32(start + 4, Endian.little) & 0x7fffffff) {
+            final high =>
+              high > 0x7ff00000 ||
+                  high == 0x7ff00000 &&
+                      data.getUint32(start, Endian.little) != 0,
+          },
           _ => false,
         };
       }
@@ -315,7 +373,7 @@ final class Array {
     final data = _data;
     return _offsetSize(_storage) == 4
         ? data.getInt32(index * 4, Endian.little)
-        : data.getInt64(index * 8, Endian.little);
+        : _int64At(data, index * 8);
   }
 
   _Value? _rawValue(int index) {
@@ -345,8 +403,11 @@ final class Array {
           t.bitWidth,
           _readInteger(_data, i * (t.bitWidth ~/ 8), t.bitWidth ~/ 8, false),
         );
-      if (t is DecimalType)
-        return _DecimalValue(_readInteger(_data, i * 16, 16, true));
+      if (t is DecimalType) {
+        final width = t.bitWidth ~/ 8;
+        return _DecimalValue(_readInteger(_data, i * width, width, true));
+      }
+      if (_isExtendedStorage(t)) return _decodeExtended(this, t, i);
       if (t is Utf8Type || t is BinaryType) {
         final bytes = Uint8List.sublistView(
           _physicalBuffers[2]!,
@@ -387,12 +448,18 @@ final class Array {
     final bitmapBytes = end ~/ 8 + (end % 8 == 0 ? 0 : 1);
     final slots = t is NullType
         ? 0
-        : t is Utf8Type || t is BinaryType
+        : _isView(t)
+        ? 2
+        : t is Utf8Type || t is BinaryType || t is ListType && t.view
         ? 3
-        : t is StructType || t is FixedSizeListType
+        : t is StructType || t is FixedSizeListType || t is RunEndEncodedType
         ? 1
+        : t is UnionType && t.mode == UnionMode.dense
+        ? 3
         : 2;
-    if (_physicalBuffers.length != slots)
+    if (_isView(t)
+        ? _physicalBuffers.length < slots
+        : _physicalBuffers.length != slots)
       throw ArgumentError('Expected $slots _physicalBuffers for $type');
     if (slots > 0 &&
         _physicalBuffers[0] != null &&
@@ -404,20 +471,16 @@ final class Array {
         throw ArgumentError('Truncated buffer $slot');
     }
 
-    final fields = t is ListType
-        ? [t.field]
-        : t is FixedSizeListType
-        ? [t.field]
-        : t is StructType
-        ? t.fields
-        : <Field>[];
+    final fields = _childFields(t);
     if (children.length != fields.length)
       throw ArgumentError('Incorrect child count');
     for (var c = 0; c < fields.length; c++) {
       if (children[c].type != fields[c].type)
         throw ArgumentError('Child datatype mismatch');
     }
-    if (t is ListType || t is Utf8Type || t is BinaryType) {
+    if (_isExtendedStorage(t)) {
+      _validateExtended(this, t, end);
+    } else if (t is ListType || t is Utf8Type || t is BinaryType) {
       requireBuffer(1, 0);
       if (end >= _physicalBuffers[1]!.length ~/ _offsetSize(t)) {
         throw ArgumentError('Truncated offsets buffer');
@@ -509,14 +572,17 @@ DictionaryType? _dictionaryType(DataType t) =>
     : null;
 int _offsetSize(DataType t) =>
     (t is Utf8Type && t.offsetWidth == OffsetWidth.large ||
-        t is BinaryType && t.offsetWidth == OffsetWidth.large)
+        t is BinaryType && t.offsetWidth == OffsetWidth.large ||
+        t is ListType && t.offsetWidth == OffsetWidth.large)
     ? 8
     : 4;
 int _byteWidth(DataType t) {
   if (t is DictionaryType) return (t.indexType as IntegerType).bitWidth ~/ 8;
   if (t is IntegerType) return t.bitWidth ~/ 8;
   if (t is FloatingType) return t.bitWidth ~/ 8;
-  if (t is DecimalType) return 16;
+  if (t is DecimalType) return t.bitWidth ~/ 8;
+  if (t is FixedSizeBinaryType) return t.byteWidth;
+  if (t is IntervalType) return _intervalWidth(t);
   if (t is DateType) return t.unit == DateUnit.day ? 4 : 8;
   if (t is TimeType)
     return t.unit == TimeUnit.second || t.unit == TimeUnit.millisecond ? 4 : 8;
@@ -535,11 +601,17 @@ BigInt _readInteger(ByteData data, int start, int width, bool signed) {
         signed
             ? data.getInt32(start, Endian.little)
             : data.getUint32(start, Endian.little),
-      _ => data.getInt64(start, Endian.little),
+      // dart2js has no 64-bit ByteData accessors: combine exact halves.
+      _ =>
+        (BigInt.from(
+                  signed
+                      ? data.getInt32(start + 4, Endian.little)
+                      : data.getUint32(start + 4, Endian.little),
+                ) <<
+                32) |
+            BigInt.from(data.getUint32(start, Endian.little)),
     };
-    return !signed && value < 0
-        ? BigInt.from(value) + (BigInt.one << 64)
-        : BigInt.from(value);
+    return value is BigInt ? value : BigInt.from(value as int);
   }
   var value = BigInt.zero;
   for (var j = width - 1; j >= 0; j--) {
@@ -552,6 +624,18 @@ BigInt _readInteger(ByteData data, int start, int width, bool signed) {
 
 void _writeInteger(ByteData data, int start, int width, BigInt value) {
   if (width <= 8) {
+    if (width == 8) {
+      // Exact on dart2js, which lacks ByteData.setInt64.
+      final raw = value.toSigned(64);
+      data
+        ..setUint32(
+          start,
+          (raw & BigInt.from(0xffffffff)).toInt(),
+          Endian.little,
+        )
+        ..setInt32(start + 4, (raw >> 32).toInt(), Endian.little);
+      return;
+    }
     final raw = value.toSigned(width * 8).toInt();
     switch (width) {
       case 1:
@@ -560,8 +644,6 @@ void _writeInteger(ByteData data, int start, int width, BigInt value) {
         data.setInt16(start, raw, Endian.little);
       case 4:
         data.setInt32(start, raw, Endian.little);
-      case 8:
-        data.setInt64(start, raw, Endian.little);
     }
     return;
   }
@@ -591,6 +673,19 @@ Array _encode(DataType type, List<_Value?> input, Array? dictionary) {
   }
   final n = input.length;
   if (type is NullType) return Array._(type, n, 0, const [], const [], null);
+  if (_isExtendedStorage(type)) {
+    final encoded = _encodeExtended(type, input);
+    return dictionary == null
+        ? encoded
+        : Array._(
+            type,
+            n,
+            0,
+            encoded._physicalBuffers,
+            encoded.children,
+            dictionary,
+          );
+  }
   Uint8List? validity;
   if (input.contains(null)) {
     validity = Uint8List((n + 7) ~/ 8);
@@ -605,16 +700,17 @@ Array _encode(DataType type, List<_Value?> input, Array? dictionary) {
         ? type.field
         : (type as FixedSizeListType).field;
     final childValues = <_Value?>[];
-    final offsets = type is ListType ? Uint8List((n + 1) * 4) : null;
-    final offsetData = offsets == null ? null : ByteData.sublistView(offsets);
+    final offsets = type is ListType ? <int>[0] : null;
     for (var i = 0; i < n; i++) {
       final v = input[i] as _ListValue?;
       if (v != null) childValues.addAll(v.values);
       if (v == null && type is FixedSizeListType)
         childValues.addAll(List.filled(type.size, null));
-      offsetData?.setInt32((i + 1) * 4, childValues.length, Endian.little);
+      offsets?.add(childValues.length);
     }
-    if (type is ListType) _physicalBuffers.add(offsets);
+    if (offsets != null) {
+      _physicalBuffers.add(_offsetsBytes(offsets, _offsetSize(type)));
+    }
     children.add(Array._fromRaw(field.type, childValues));
   } else if (type is StructType) {
     for (var c = 0; c < type.fields.length; c++) {
@@ -637,7 +733,7 @@ Array _encode(DataType type, List<_Value?> input, Array? dictionary) {
       if (width == 4) {
         offsetData.setInt32((i + 1) * width, data.length, Endian.little);
       } else {
-        offsetData.setInt64((i + 1) * width, data.length, Endian.little);
+        _setInt64(offsetData, (i + 1) * width, data.length);
       }
     }
     _physicalBuffers.addAll([offsets, data.takeBytes()]);
@@ -696,6 +792,12 @@ void _validateRawValue(DataType type, _Value value, {String path = 'value'}) {
         mismatch();
     case final DecimalType decimal:
       if (value is! _DecimalValue) mismatch();
+      final limit = BigInt.one << (decimal.bitWidth - 1);
+      if (value.unscaled < -limit || value.unscaled >= limit) {
+        throw RangeError(
+          '$path does not fit a ${decimal.bitWidth}-bit decimal',
+        );
+      }
       final digits = value.unscaled.abs().toString().length;
       if (digits > decimal.precision) {
         throw RangeError(
@@ -706,6 +808,12 @@ void _validateRawValue(DataType type, _Value value, {String path = 'value'}) {
       if (value is! _StringValue) mismatch();
     case BinaryType():
       if (value is! _BinaryValue) mismatch();
+    case FixedSizeBinaryType() ||
+        MapType() ||
+        UnionType() ||
+        IntervalType() ||
+        RunEndEncodedType():
+      _validateExtendedValue(type, value, path, mismatch);
     case final DateType date:
       if (value is! _TemporalValue) mismatch();
       final width = date.unit == DateUnit.day ? 32 : 64;
@@ -860,6 +968,7 @@ Array concatArrays(List<Array> arrays) {
                 ),
     ], dictionary: dictionary);
   }
+  if (_isExtendedStorage(type)) return _concatExtended(arrays, type, length);
   if (type is ListType || type is FixedSizeListType || type is StructType) {
     final validity = Uint8List((length + 7) ~/ 8);
     var index = 0;
@@ -891,25 +1000,19 @@ Array concatArrays(List<Array> arrays) {
         ]),
       );
     } else {
-      final offsets = Uint8List((length + 1) * 4);
-      final data = ByteData.sublistView(offsets);
+      final offsets = <int>[0];
       final segments = <Array>[];
       var childLength = 0;
-      var row = 0;
       for (final a in arrays) {
         final start = a._offsetAt(a.offset);
         final end = a._offsetAt(a.offset + a.length);
         segments.add(a.children.single.slice(start, end - start));
         for (var i = 1; i <= a.length; i++) {
-          data.setInt32(
-            ++row * 4,
-            childLength + a._offsetAt(a.offset + i) - start,
-            Endian.little,
-          );
+          offsets.add(childLength + a._offsetAt(a.offset + i) - start);
         }
         childLength += end - start;
       }
-      buffers.add(offsets);
+      buffers.add(_offsetsBytes(offsets, _offsetSize(type)));
       children.add(concatArrays(segments));
     }
     return Array._(
@@ -964,7 +1067,7 @@ Array _concatLeaf(List<Array> arrays, DataType type, int length) {
         if (width == 4) {
           offsetData.setInt32(row * width, position, Endian.little);
         } else {
-          offsetData.setInt64(row * width, position, Endian.little);
+          _setInt64(offsetData, row * width, position);
         }
       }
       bytePosition += end - start;
@@ -1051,19 +1154,34 @@ bool _elementEquals(
     }
     return true;
   }
-  if (type is ListType || type is FixedSizeListType) {
-    final ls = type is ListType
-        ? left._offsetAt(left.offset + li)
-        : (left.offset + li) * (type as FixedSizeListType).size;
-    final rs = type is ListType
-        ? right._offsetAt(right.offset + ri)
-        : (right.offset + ri) * (type as FixedSizeListType).size;
-    final ln = type is ListType
-        ? left._offsetAt(left.offset + li + 1) - ls
-        : (type as FixedSizeListType).size;
-    final rn = type is ListType
-        ? right._offsetAt(right.offset + ri + 1) - rs
-        : (type as FixedSizeListType).size;
+  if (type is UnionType) {
+    final (lc, lp) = _unionSlot(left, type, left.offset + li);
+    final (rc, rp) = _unionSlot(right, type, right.offset + ri);
+    return lc == rc &&
+        _elementEquals(
+          left.children[lc],
+          lp,
+          right.children[rc],
+          rp,
+          dictionaries,
+        );
+  }
+  if (type is RunEndEncodedType) {
+    return _elementEquals(
+      left.children[1],
+      _runIndex(left, type, left.offset + li),
+      right.children[1],
+      _runIndex(right, type, right.offset + ri),
+      dictionaries,
+    );
+  }
+  if (type is ListType || type is FixedSizeListType || type is MapType) {
+    final (ls, ln) = type is FixedSizeListType
+        ? ((left.offset + li) * type.size, type.size)
+        : _listRange(left, left.offset + li);
+    final (rs, rn) = type is FixedSizeListType
+        ? ((right.offset + ri) * type.size, type.size)
+        : _listRange(right, right.offset + ri);
     if (ln != rn) return false;
     for (var i = 0; i < ln; i++) {
       if (!_elementEquals(
@@ -1089,6 +1207,34 @@ bool _rawEquals(DataType type, _Value? left, _Value? right) {
       left is _ExtensionValue &&
       right is _ExtensionValue) {
     return _rawEquals(type.storageType, left.storage, right.storage);
+  }
+  if (type is RunEndEncodedType) {
+    return _rawEquals(type.valuesField.type, left, right);
+  }
+  if (type is MapType && left is _MapValue && right is _MapValue) {
+    if (left.entries.length != right.entries.length) return false;
+    for (var i = 0; i < left.entries.length; i++) {
+      if (!_rawEquals(
+            type.keyField.type,
+            left.entries[i].key,
+            right.entries[i].key,
+          ) ||
+          !_rawEquals(
+            type.valueField.type,
+            left.entries[i].value,
+            right.entries[i].value,
+          ))
+        return false;
+    }
+    return true;
+  }
+  if (type is UnionType && left is _UnionValue && right is _UnionValue) {
+    return left.typeId == right.typeId &&
+        _rawEquals(
+          type.fields[type.childIndexForTypeId(left.typeId)].type,
+          left.value,
+          right.value,
+        );
   }
   if (left is _ListValue && right is _ListValue) {
     if (left.values.length != right.values.length) return false;

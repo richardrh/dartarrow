@@ -25,7 +25,16 @@ enum TimeUnit {
 
 enum DateUnit { day, millisecond }
 
-enum OffsetWidth { normal, large }
+/// Offset layout of variable-length strings and binaries. [view] selects the
+/// Arrow `Utf8View`/`BinaryView` layouts (16-byte views plus data buffers).
+enum OffsetWidth { normal, large, view }
+
+/// Physical layout of a union: sparse (children as long as the union) or
+/// dense (an int32 offsets buffer indexes into each child).
+enum UnionMode { sparse, dense }
+
+/// Calendar interval units of the Arrow `Interval` type.
+enum IntervalUnit { yearMonth, dayTime, monthDayNano }
 
 sealed class DataType {
   const DataType();
@@ -118,7 +127,15 @@ sealed class DataType {
       case 'float64':
         return FloatingType(64);
       case 'decimal':
-        return DecimalType(integer('precision'), integer('scale'));
+        final bitWidth = json['bitWidth'];
+        if (bitWidth != null && bitWidth is! int) {
+          throw const FormatException('dtype.bitWidth must be an integer');
+        }
+        return DecimalType(
+          integer('precision'),
+          integer('scale'),
+          bitWidth: (bitWidth as int?) ?? 128,
+        );
       case 'string':
       case 'utf8':
         return const Utf8Type();
@@ -179,16 +196,150 @@ sealed class DataType {
           metadata: optionalString('metadata'),
         );
       default:
+        return _extendedFromJson(kind, json, integer, string, object, boolean);
+    }
+  }
+
+  static DataType _extendedFromJson(
+    String kind,
+    Map<String, Object?> json,
+    int Function(String) integer,
+    String Function(String) string,
+    Map<String, Object?> Function(String) object,
+    bool Function(String, bool) boolean,
+  ) {
+    Field field(String name) => Field.fromJson(object(name));
+    switch (kind) {
+      case 'largeList':
+        return ListType(field('field'), offsetWidth: OffsetWidth.large);
+      case 'listView':
+        return ListType(field('field'), view: true);
+      case 'largeListView':
+        return ListType(
+          field('field'),
+          offsetWidth: OffsetWidth.large,
+          view: true,
+        );
+      case 'stringView':
+      case 'utf8View':
+        return const Utf8Type(OffsetWidth.view);
+      case 'binaryView':
+        return const BinaryType(OffsetWidth.view);
+      case 'fixedSizeBinary':
+        return FixedSizeBinaryType(integer('byteWidth'));
+      case 'map':
+        return MapType(
+          field('key'),
+          // `item` is PyArrow's spelling of the value field.
+          field(json.containsKey('item') ? 'item' : 'value'),
+          keysSorted: boolean('keysSorted', false),
+          entriesName: json.containsKey('entriesName')
+              ? string('entriesName')
+              : 'entries',
+          entriesMetadata: ByteMetadata.fromJson(json['entriesMetadata']),
+        );
+      case 'union' || 'sparseUnion' || 'denseUnion':
+        final fields = json['fields'];
+        // `typeCodes` is PyArrow's spelling of the child type ids.
+        final ids = json['typeIds'] ?? json['typeCodes'];
+        if (fields is! List) {
+          throw const FormatException('dtype.fields must be a list');
+        }
+        if (ids is! List || ids.any((id) => id is! int)) {
+          throw const FormatException('dtype.typeIds must be integers');
+        }
+        return UnionType(
+          [
+            for (final (i, f) in fields.indexed)
+              Field.fromJson(_stringObjectMap(f, 'dtype.fields[$i]')),
+          ],
+          mode: switch (kind == 'union' ? string('mode') : kind) {
+            'sparseUnion' => UnionMode.sparse,
+            'denseUnion' => UnionMode.dense,
+            'sparse' => UnionMode.sparse,
+            'dense' => UnionMode.dense,
+            final mode => throw FormatException('Unknown union mode: $mode'),
+          },
+          typeIds: ids.cast<int>(),
+        );
+      case 'interval':
+        final unit = string('unit');
+        return IntervalType(
+          IntervalUnit.values.firstWhere(
+            (u) => u.name == unit,
+            orElse: () => throw FormatException('Unknown interval unit: $unit'),
+          ),
+        );
+      case 'yearMonthInterval':
+        return const IntervalType(IntervalUnit.yearMonth);
+      case 'dayTimeInterval':
+        return const IntervalType(IntervalUnit.dayTime);
+      case 'monthDayNanoInterval':
+        return const IntervalType(IntervalUnit.monthDayNano);
+      case 'runEndEncoded':
+        if (json.containsKey('runEndType')) {
+          // PyArrow-style descriptor with the conventional child names.
+          return RunEndEncodedType(
+            Field(
+              'run_ends',
+              DataType.fromJson(object('runEndType')),
+              nullable: false,
+            ),
+            Field('values', DataType.fromJson(object('valueType'))),
+          );
+        }
+        return RunEndEncodedType(field('runEnds'), field('values'));
+      default:
         throw FormatException('Unknown Arrow datatype kind: $kind');
     }
   }
 
   bool equals(DataType other, {bool checkMetadata = false}) {
     if (this is ListType && other is ListType) {
-      return (this as ListType).field.equals(
-        other.field,
-        checkMetadata: checkMetadata,
-      );
+      final self = this as ListType;
+      return self.offsetWidth == other.offsetWidth &&
+          self.view == other.view &&
+          self.field.equals(other.field, checkMetadata: checkMetadata);
+    }
+    if (this is MapType && other is MapType) {
+      final self = this as MapType;
+      return self.keysSorted == other.keysSorted &&
+          self.entriesName == other.entriesName &&
+          (!checkMetadata ||
+              _metadataEquals(self.entriesMetadata, other.entriesMetadata)) &&
+          self.keyField.equals(other.keyField, checkMetadata: checkMetadata) &&
+          self.valueField.equals(
+            other.valueField,
+            checkMetadata: checkMetadata,
+          );
+    }
+    if (this is UnionType && other is UnionType) {
+      final self = this as UnionType;
+      if (self.mode != other.mode ||
+          !_listEquals(self.typeIds, other.typeIds) ||
+          self.fields.length != other.fields.length) {
+        return false;
+      }
+      for (var i = 0; i < self.fields.length; i++) {
+        if (!self.fields[i].equals(
+          other.fields[i],
+          checkMetadata: checkMetadata,
+        )) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (this is RunEndEncodedType && other is RunEndEncodedType) {
+      final self = this as RunEndEncodedType;
+      return self.runEndsField.equals(
+            other.runEndsField,
+            checkMetadata: checkMetadata,
+          ) &&
+          self.valuesField.equals(
+            other.valuesField,
+            checkMetadata: checkMetadata,
+          );
     }
     if (this is FixedSizeListType && other is FixedSizeListType) {
       final self = this as FixedSizeListType;
@@ -231,7 +382,30 @@ sealed class DataType {
 
   @override
   int get hashCode => switch (this) {
-    ListType type => Object.hash(ListType, type.field),
+    ListType type => Object.hash(
+      ListType,
+      type.offsetWidth,
+      type.view,
+      type.field,
+    ),
+    MapType type => Object.hash(
+      MapType,
+      type.keyField,
+      type.valueField,
+      type.keysSorted,
+      type.entriesName,
+    ),
+    UnionType type => Object.hash(
+      UnionType,
+      type.mode,
+      Object.hashAll(type.typeIds),
+      Object.hashAll(type.fields),
+    ),
+    RunEndEncodedType type => Object.hash(
+      RunEndEncodedType,
+      type.runEndsField,
+      type.valuesField,
+    ),
     FixedSizeListType type => Object.hash(
       FixedSizeListType,
       type.size,
@@ -305,9 +479,25 @@ final class FloatingType extends DataType {
 }
 
 final class DecimalType extends DataType {
-  DecimalType(this.precision, this.scale) {
-    if (precision < 1 || precision > 38) {
-      throw RangeError.range(precision, 1, 38, 'precision');
+  /// A decimal stored in [bitWidth] 32, 64, 128 (default), or 256 bits.
+  ///
+  /// Maximum precision is 9, 18, 38, or 76 respectively. [scale] may be any
+  /// signed 32-bit integer, including negative scales and scales above
+  /// [precision], as Arrow permits (value = unscaled * 10^-scale).
+  DecimalType(this.precision, this.scale, {this.bitWidth = 128}) {
+    final maxPrecision = switch (bitWidth) {
+      32 => 9,
+      64 => 18,
+      128 => 38,
+      256 => 76,
+      _ => throw ArgumentError.value(
+        bitWidth,
+        'bitWidth',
+        'must be 32, 64, 128, or 256',
+      ),
+    };
+    if (precision < 1 || precision > maxPrecision) {
+      throw RangeError.range(precision, 1, maxPrecision, 'precision');
     }
     if (scale < -2147483648 || scale > 2147483647) {
       throw RangeError.range(scale, -2147483648, 2147483647, 'scale');
@@ -315,11 +505,15 @@ final class DecimalType extends DataType {
   }
   final int precision;
   final int scale;
+
+  /// Storage width in bits.
+  final int bitWidth;
   @override
   Map<String, Object?> toJson() => {
     'kind': 'decimal',
     'precision': precision,
     'scale': scale,
+    if (bitWidth != 128) 'bitWidth': bitWidth,
   };
 }
 
@@ -328,7 +522,11 @@ final class Utf8Type extends DataType {
   final OffsetWidth offsetWidth;
   @override
   Map<String, Object?> toJson() => {
-    'kind': offsetWidth == OffsetWidth.large ? 'largeString' : 'string',
+    'kind': switch (offsetWidth) {
+      OffsetWidth.normal => 'string',
+      OffsetWidth.large => 'largeString',
+      OffsetWidth.view => 'stringView',
+    },
   };
 }
 
@@ -337,7 +535,26 @@ final class BinaryType extends DataType {
   final OffsetWidth offsetWidth;
   @override
   Map<String, Object?> toJson() => {
-    'kind': offsetWidth == OffsetWidth.large ? 'largeBinary' : 'binary',
+    'kind': switch (offsetWidth) {
+      OffsetWidth.normal => 'binary',
+      OffsetWidth.large => 'largeBinary',
+      OffsetWidth.view => 'binaryView',
+    },
+  };
+}
+
+/// Fixed-width binary: every value has exactly [byteWidth] bytes.
+final class FixedSizeBinaryType extends DataType {
+  FixedSizeBinaryType(this.byteWidth) {
+    if (byteWidth < 0) {
+      throw RangeError.value(byteWidth, 'byteWidth', 'must be non-negative');
+    }
+  }
+  final int byteWidth;
+  @override
+  Map<String, Object?> toJson() => {
+    'kind': 'fixedSizeBinary',
+    'byteWidth': byteWidth,
   };
 }
 
@@ -377,11 +594,35 @@ final class TimeType extends DataType {
   Map<String, Object?> toJson() => {'kind': 'time', 'unit': unit.jsonName};
 }
 
+/// Variable-length list. [offsetWidth] selects `List` (normal) or `LargeList`
+/// (large); [view] selects the `ListView`/`LargeListView` layouts.
 final class ListType extends DataType {
-  ListType(this.field);
+  ListType(
+    this.field, {
+    this.offsetWidth = OffsetWidth.normal,
+    this.view = false,
+  }) {
+    if (offsetWidth == OffsetWidth.view) {
+      throw ArgumentError.value(
+        offsetWidth,
+        'offsetWidth',
+        'use view: true for list views',
+      );
+    }
+  }
   final Field field;
+  final OffsetWidth offsetWidth;
+  final bool view;
   @override
-  Map<String, Object?> toJson() => {'kind': 'list', 'field': field.toJson()};
+  Map<String, Object?> toJson() => {
+    'kind': switch ((offsetWidth == OffsetWidth.large, view)) {
+      (false, false) => 'list',
+      (true, false) => 'largeList',
+      (false, true) => 'listView',
+      (true, true) => 'largeListView',
+    },
+    'field': field.toJson(),
+  };
 }
 
 final class FixedSizeListType extends DataType {
@@ -444,6 +685,127 @@ final class ExtensionType extends DataType {
     'name': name,
     'storageType': storageType.toJson(),
     if (metadata != null) 'metadata': metadata,
+  };
+}
+
+/// Arrow `Map`: a list of non-null `entries` structs of `<key, value>`.
+///
+/// The key field must be non-nullable. Entry order and duplicate keys are
+/// preserved; [keysSorted] only records the producer's claim.
+final class MapType extends DataType {
+  MapType(
+    this.keyField,
+    this.valueField, {
+    this.keysSorted = false,
+    this.entriesName = 'entries',
+    Map<Object, Object>? entriesMetadata,
+  }) : entriesMetadata = entriesMetadata == null
+           ? null
+           : entriesMetadata is ByteMetadata
+           ? entriesMetadata
+           : ByteMetadata(entriesMetadata) {
+    if (keyField.nullable) {
+      throw ArgumentError.value(keyField, 'keyField', 'must be non-nullable');
+    }
+  }
+  final Field keyField;
+  final Field valueField;
+  final bool keysSorted;
+  final String entriesName;
+
+  /// Metadata of the physical entries child field, preserved for fidelity.
+  final ByteMetadata? entriesMetadata;
+
+  /// The physical child field: a non-null struct of key and value.
+  Field get entriesField => Field(
+    entriesName,
+    StructType([keyField, valueField]),
+    nullable: false,
+    metadata: entriesMetadata,
+  );
+
+  /// The key datatype, as PyArrow's `MapType.key_type`.
+  DataType get keyType => keyField.type;
+
+  /// The item datatype, as PyArrow's `MapType.item_type`.
+  DataType get itemType => valueField.type;
+  @override
+  Map<String, Object?> toJson() => {
+    'kind': 'map',
+    'key': keyField.toJson(),
+    'value': valueField.toJson(),
+    'keysSorted': keysSorted,
+    if (entriesName != 'entries') 'entriesName': entriesName,
+    if (entriesMetadata != null) 'entriesMetadata': entriesMetadata!.toJson(),
+  };
+}
+
+/// Arrow sparse or dense union. Each child has a type id (default its index).
+final class UnionType extends DataType {
+  UnionType(
+    List<Field> fields, {
+    this.mode = UnionMode.sparse,
+    List<int>? typeIds,
+  }) : fields = List.unmodifiable(fields),
+       typeIds = List.unmodifiable(
+         typeIds ?? List.generate(fields.length, (i) => i),
+       ) {
+    if (this.typeIds.length != fields.length) {
+      throw ArgumentError('Union typeIds length must match field count');
+    }
+    final seen = <int>{};
+    for (final id in this.typeIds) {
+      if (id < 0 || id > 127) throw RangeError.range(id, 0, 127, 'typeId');
+      if (!seen.add(id)) throw ArgumentError('Duplicate union type id: $id');
+    }
+  }
+  final List<Field> fields;
+  final UnionMode mode;
+  final List<int> typeIds;
+
+  /// Child index for [typeId], or -1 when undeclared.
+  int childIndexForTypeId(int typeId) => typeIds.indexOf(typeId);
+  @override
+  Map<String, Object?> toJson() => {
+    'kind': 'union',
+    'mode': mode.name,
+    'typeIds': typeIds,
+    'fields': fields.map((f) => f.toJson()).toList(),
+  };
+}
+
+/// Calendar interval in the given [unit].
+final class IntervalType extends DataType {
+  const IntervalType(this.unit);
+  final IntervalUnit unit;
+  @override
+  Map<String, Object?> toJson() => {'kind': 'interval', 'unit': unit.name};
+}
+
+/// Run-end encoded data. [runEndsField] must be a non-nullable int16, int32,
+/// or int64 field.
+final class RunEndEncodedType extends DataType {
+  RunEndEncodedType(this.runEndsField, this.valuesField) {
+    final type = runEndsField.type;
+    if (type is! IntegerType ||
+        !type.signed ||
+        type.bitWidth < 16 ||
+        type.bitWidth > 64 ||
+        runEndsField.nullable) {
+      throw ArgumentError.value(
+        runEndsField,
+        'runEndsField',
+        'must be a non-nullable int16, int32, or int64 field',
+      );
+    }
+  }
+  final Field runEndsField;
+  final Field valuesField;
+  @override
+  Map<String, Object?> toJson() => {
+    'kind': 'runEndEncoded',
+    'runEnds': runEndsField.toJson(),
+    'values': valuesField.toJson(),
   };
 }
 

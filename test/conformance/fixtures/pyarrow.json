@@ -742,8 +742,7 @@
           "tag": "decimal",
           "value": "-99999999"
         }
-      ],
-      "missing": true
+      ]
     },
     {
       "id": "decimal64",
@@ -789,8 +788,7 @@
           "tag": "decimal",
           "value": "-99999999999999999"
         }
-      ],
-      "missing": true
+      ]
     },
     {
       "id": "decimal128",
@@ -834,8 +832,7 @@
           "tag": "decimal",
           "value": "-99999999999999999999999999999999999999"
         }
-      ],
-      "missing": false
+      ]
     },
     {
       "id": "decimal256",
@@ -881,8 +878,7 @@
           "tag": "decimal",
           "value": "-9999999999999999999999999999999999999999999999999999999999999999999999"
         }
-      ],
-      "missing": true
+      ]
     },
     {
       "id": "date32[day]",
@@ -1463,8 +1459,7 @@
           "tag": "string",
           "value": "\u03bb\u96ea"
         }
-      ],
-      "missing": false
+      ]
     },
     {
       "id": "largeUtf8",
@@ -1497,8 +1492,7 @@
           "tag": "string",
           "value": "\u03bb\u96ea"
         }
-      ],
-      "missing": false
+      ]
     },
     {
       "id": "binary",
@@ -1534,8 +1528,7 @@
             255
           ]
         }
-      ],
-      "missing": false
+      ]
     },
     {
       "id": "largeBinary",
@@ -1571,8 +1564,7 @@
             255
           ]
         }
-      ],
-      "missing": false
+      ]
     },
     {
       "id": "fixedSizeBinary",
@@ -1612,8 +1604,7 @@
             255
           ]
         }
-      ],
-      "missing": true
+      ]
     },
     {
       "id": "utf8View",
@@ -1646,8 +1637,7 @@
           "tag": "string",
           "value": "longer than twelve bytes"
         }
-      ],
-      "missing": true
+      ]
     },
     {
       "id": "binaryView",
@@ -1707,8 +1697,7 @@
             115
           ]
         }
-      ],
-      "missing": true
+      ]
     },
     {
       "id": "list",
@@ -1786,8 +1775,7 @@
             }
           ]
         }
-      ],
-      "missing": false
+      ]
     },
     {
       "id": "largeList",
@@ -1865,8 +1853,7 @@
             }
           ]
         }
-      ],
-      "missing": true
+      ]
     },
     {
       "id": "fixedSizeList",
@@ -1945,8 +1932,7 @@
             }
           ]
         }
-      ],
-      "missing": false
+      ]
     },
     {
       "id": "listView",
@@ -2025,8 +2011,7 @@
             }
           ]
         }
-      ],
-      "missing": true
+      ]
     },
     {
       "id": "largeListView",
@@ -2105,8 +2090,7 @@
             }
           ]
         }
-      ],
-      "missing": true
+      ]
     },
     {
       "id": "struct",
@@ -2276,12 +2260,12 @@
           },
           "keysSorted": false
         },
-        "length": 3,
+        "length": 4,
         "offset": 0,
         "nullCount": 1,
         "buffers": [
-          "BQ==",
-          "AAAAAAEAAAABAAAAAQAAAA=="
+          "DQ==",
+          "AAAAAAIAAAACAAAAAgAAAAMAAAA="
         ],
         "children": [
           {
@@ -2306,7 +2290,7 @@
                 }
               ]
             },
-            "length": 1,
+            "length": 3,
             "offset": 0,
             "nullCount": 0,
             "buffers": [
@@ -2317,13 +2301,13 @@
                 "descriptor": {
                   "kind": "utf8"
                 },
-                "length": 1,
+                "length": 3,
                 "offset": 0,
                 "nullCount": -1,
                 "buffers": [
                   null,
-                  "AAAAAAEAAAA=",
-                  "YQ=="
+                  "AAAAAAEAAAACAAAAAwAAAA==",
+                  "YWJh"
                 ],
                 "children": [],
                 "dictionary": null
@@ -2332,12 +2316,12 @@
                 "descriptor": {
                   "kind": "int32"
                 },
-                "length": 1,
+                "length": 3,
                 "offset": 0,
                 "nullCount": -1,
                 "buffers": [
-                  null,
-                  "AQAAAA=="
+                  "BQ==",
+                  "AQAAAAAAAAACAAAA"
                 ],
                 "children": [],
                 "dictionary": null
@@ -2350,16 +2334,48 @@
       },
       "expected": [
         {
-          "tag": "unsupported",
-          "value": "[('a', 1)]"
+          "tag": "map",
+          "entries": [
+            {
+              "key": {
+                "tag": "string",
+                "value": "a"
+              },
+              "value": {
+                "tag": "integer",
+                "value": "1"
+              }
+            },
+            {
+              "key": {
+                "tag": "string",
+                "value": "b"
+              },
+              "value": null
+            }
+          ]
         },
         null,
         {
-          "tag": "unsupported",
-          "value": "[]"
+          "tag": "map",
+          "entries": []
+        },
+        {
+          "tag": "map",
+          "entries": [
+            {
+              "key": {
+                "tag": "string",
+                "value": "a"
+              },
+              "value": {
+                "tag": "integer",
+                "value": "2"
+              }
+            }
+          ]
         }
-      ],
-      "missing": true
+      ]
     },
     {
       "id": "denseUnion",
@@ -2415,25 +2431,25 @@
             1
           ]
         },
-        "length": 3,
+        "length": 4,
         "offset": 0,
         "nullCount": 0,
         "buffers": [
           null,
-          "AAEA",
-          "AAAAAAEAAAACAAAA"
+          "AAEAAQ==",
+          "AAAAAAEAAAACAAAAAwAAAA=="
         ],
         "children": [
           {
             "descriptor": {
               "kind": "int64"
             },
-            "length": 3,
+            "length": 4,
             "offset": 0,
-            "nullCount": 0,
+            "nullCount": 1,
             "buffers": [
-              null,
-              "AQAAAAAAAAACAAAAAAAAAAMAAAAAAAAA"
+              "Bw==",
+              "AQAAAAAAAAACAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAA="
             ],
             "children": [],
             "dictionary": null
@@ -2442,12 +2458,12 @@
             "descriptor": {
               "kind": "utf8"
             },
-            "length": 3,
+            "length": 4,
             "offset": 0,
-            "nullCount": 0,
+            "nullCount": 1,
             "buffers": [
-              null,
-              "AAAAAAEAAAACAAAAAwAAAA==",
+              "Bw==",
+              "AAAAAAEAAAACAAAAAwAAAAMAAAA=",
               "YWJj"
             ],
             "children": [],
@@ -2458,19 +2474,31 @@
       },
       "expected": [
         {
-          "tag": "unsupported",
-          "value": "1"
+          "tag": "union",
+          "typeCode": 0,
+          "value": {
+            "tag": "integer",
+            "value": "1"
+          }
         },
         {
-          "tag": "unsupported",
-          "value": "b"
+          "tag": "union",
+          "typeCode": 1,
+          "value": {
+            "tag": "string",
+            "value": "b"
+          }
         },
         {
-          "tag": "unsupported",
-          "value": "3"
-        }
-      ],
-      "missing": true
+          "tag": "union",
+          "typeCode": 0,
+          "value": {
+            "tag": "integer",
+            "value": "3"
+          }
+        },
+        null
+      ]
     },
     {
       "id": "sparseUnion",
@@ -2526,24 +2554,24 @@
             1
           ]
         },
-        "length": 3,
+        "length": 4,
         "offset": 0,
         "nullCount": 0,
         "buffers": [
           null,
-          "AAEA"
+          "AAEAAQ=="
         ],
         "children": [
           {
             "descriptor": {
               "kind": "int64"
             },
-            "length": 3,
+            "length": 4,
             "offset": 0,
-            "nullCount": 0,
+            "nullCount": -1,
             "buffers": [
-              null,
-              "AQAAAAAAAAACAAAAAAAAAAMAAAAAAAAA"
+              "Bw==",
+              "AQAAAAAAAAACAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAA="
             ],
             "children": [],
             "dictionary": null
@@ -2552,12 +2580,12 @@
             "descriptor": {
               "kind": "utf8"
             },
-            "length": 3,
+            "length": 4,
             "offset": 0,
-            "nullCount": 0,
+            "nullCount": -1,
             "buffers": [
-              null,
-              "AAAAAAEAAAACAAAAAwAAAA==",
+              "Bw==",
+              "AAAAAAEAAAACAAAAAwAAAAMAAAA=",
               "YWJj"
             ],
             "children": [],
@@ -2568,19 +2596,31 @@
       },
       "expected": [
         {
-          "tag": "unsupported",
-          "value": "1"
+          "tag": "union",
+          "typeCode": 0,
+          "value": {
+            "tag": "integer",
+            "value": "1"
+          }
         },
         {
-          "tag": "unsupported",
-          "value": "b"
+          "tag": "union",
+          "typeCode": 1,
+          "value": {
+            "tag": "string",
+            "value": "b"
+          }
         },
         {
-          "tag": "unsupported",
-          "value": "3"
-        }
-      ],
-      "missing": true
+          "tag": "union",
+          "typeCode": 0,
+          "value": {
+            "tag": "integer",
+            "value": "3"
+          }
+        },
+        null
+      ]
     },
     {
       "id": "runEnd16",
@@ -2604,7 +2644,7 @@
             "kind": "int64"
           }
         },
-        "length": 4,
+        "length": 5,
         "offset": 0,
         "nullCount": 0,
         "buffers": [
@@ -2615,12 +2655,12 @@
             "descriptor": {
               "kind": "int16"
             },
-            "length": 2,
+            "length": 3,
             "offset": 0,
             "nullCount": 0,
             "buffers": [
               null,
-              "AgAEAA=="
+              "AgAEAAUA"
             ],
             "children": [],
             "dictionary": null
@@ -2629,12 +2669,12 @@
             "descriptor": {
               "kind": "int64"
             },
-            "length": 2,
+            "length": 3,
             "offset": 0,
             "nullCount": 1,
             "buffers": [
-              "AQ==",
-              "AQAAAAAAAAAAAAAAAAAAAA=="
+              "BQ==",
+              "AQAAAAAAAAAAAAAAAAAAAAMAAAAAAAAA"
             ],
             "children": [],
             "dictionary": null
@@ -2644,17 +2684,20 @@
       },
       "expected": [
         {
-          "tag": "unsupported",
+          "tag": "integer",
           "value": "1"
         },
         {
-          "tag": "unsupported",
+          "tag": "integer",
           "value": "1"
         },
         null,
-        null
-      ],
-      "missing": true
+        null,
+        {
+          "tag": "integer",
+          "value": "3"
+        }
+      ]
     },
     {
       "id": "runEnd32",
@@ -2678,7 +2721,7 @@
             "kind": "int64"
           }
         },
-        "length": 4,
+        "length": 5,
         "offset": 0,
         "nullCount": 0,
         "buffers": [
@@ -2689,12 +2732,12 @@
             "descriptor": {
               "kind": "int32"
             },
-            "length": 2,
+            "length": 3,
             "offset": 0,
             "nullCount": 0,
             "buffers": [
               null,
-              "AgAAAAQAAAA="
+              "AgAAAAQAAAAFAAAA"
             ],
             "children": [],
             "dictionary": null
@@ -2703,12 +2746,12 @@
             "descriptor": {
               "kind": "int64"
             },
-            "length": 2,
+            "length": 3,
             "offset": 0,
             "nullCount": 1,
             "buffers": [
-              "AQ==",
-              "AQAAAAAAAAAAAAAAAAAAAA=="
+              "BQ==",
+              "AQAAAAAAAAAAAAAAAAAAAAMAAAAAAAAA"
             ],
             "children": [],
             "dictionary": null
@@ -2718,17 +2761,20 @@
       },
       "expected": [
         {
-          "tag": "unsupported",
+          "tag": "integer",
           "value": "1"
         },
         {
-          "tag": "unsupported",
+          "tag": "integer",
           "value": "1"
         },
         null,
-        null
-      ],
-      "missing": true
+        null,
+        {
+          "tag": "integer",
+          "value": "3"
+        }
+      ]
     },
     {
       "id": "runEnd64",
@@ -2752,7 +2798,7 @@
             "kind": "int64"
           }
         },
-        "length": 4,
+        "length": 5,
         "offset": 0,
         "nullCount": 0,
         "buffers": [
@@ -2763,12 +2809,12 @@
             "descriptor": {
               "kind": "int64"
             },
-            "length": 2,
+            "length": 3,
             "offset": 0,
             "nullCount": 0,
             "buffers": [
               null,
-              "AgAAAAAAAAAEAAAAAAAAAA=="
+              "AgAAAAAAAAAEAAAAAAAAAAUAAAAAAAAA"
             ],
             "children": [],
             "dictionary": null
@@ -2777,12 +2823,12 @@
             "descriptor": {
               "kind": "int64"
             },
-            "length": 2,
+            "length": 3,
             "offset": 0,
             "nullCount": 1,
             "buffers": [
-              "AQ==",
-              "AQAAAAAAAAAAAAAAAAAAAA=="
+              "BQ==",
+              "AQAAAAAAAAAAAAAAAAAAAAMAAAAAAAAA"
             ],
             "children": [],
             "dictionary": null
@@ -2792,17 +2838,20 @@
       },
       "expected": [
         {
-          "tag": "unsupported",
+          "tag": "integer",
           "value": "1"
         },
         {
-          "tag": "unsupported",
+          "tag": "integer",
           "value": "1"
         },
         null,
-        null
-      ],
-      "missing": true
+        null,
+        {
+          "tag": "integer",
+          "value": "3"
+        }
+      ]
     },
     {
       "id": "monthDayNanoInterval",
@@ -2814,24 +2863,35 @@
         "descriptor": {
           "kind": "monthDayNanoInterval"
         },
-        "length": 2,
+        "length": 3,
         "offset": 0,
         "nullCount": 1,
         "buffers": [
-          "AQ==",
-          "AQAAAAIAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          "BQ==",
+          "AQAAAAIAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAADA"
         ],
         "children": [],
         "dictionary": null
       },
       "expected": [
         {
-          "tag": "unsupported",
-          "value": "MonthDayNano(months=1, days=2, nanoseconds=3)"
+          "tag": "interval",
+          "components": [
+            1,
+            2,
+            3
+          ]
         },
-        null
-      ],
-      "missing": true
+        null,
+        {
+          "tag": "interval",
+          "components": [
+            -1,
+            0,
+            -4611686018427387904
+          ]
+        }
+      ]
     },
     {
       "id": "dictionary.int8",
@@ -5096,6 +5156,146 @@
       ]
     },
     {
+      "id": "decimal32.empty",
+      "family": "decimal",
+      "descriptor": {
+        "kind": "decimal",
+        "precision": 8,
+        "scale": 2,
+        "bitWidth": 32
+      },
+      "array": {
+        "descriptor": {
+          "kind": "decimal",
+          "precision": 8,
+          "scale": 2,
+          "bitWidth": 32
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          "HQ==",
+          "0gQAAAAAAAD//////+D1BQEfCvo="
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "decimal32.slice",
+      "family": "decimal",
+      "descriptor": {
+        "kind": "decimal",
+        "precision": 8,
+        "scale": 2,
+        "bitWidth": 32
+      },
+      "array": {
+        "descriptor": {
+          "kind": "decimal",
+          "precision": 8,
+          "scale": 2,
+          "bitWidth": 32
+        },
+        "length": 4,
+        "offset": 1,
+        "nullCount": 1,
+        "buffers": [
+          "HQ==",
+          "0gQAAAAAAAD//////+D1BQEfCvo="
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": [
+        null,
+        {
+          "tag": "decimal",
+          "value": "-1"
+        },
+        {
+          "tag": "decimal",
+          "value": "99999999"
+        },
+        {
+          "tag": "decimal",
+          "value": "-99999999"
+        }
+      ]
+    },
+    {
+      "id": "decimal64.empty",
+      "family": "decimal",
+      "descriptor": {
+        "kind": "decimal",
+        "precision": 17,
+        "scale": 2,
+        "bitWidth": 64
+      },
+      "array": {
+        "descriptor": {
+          "kind": "decimal",
+          "precision": 17,
+          "scale": 2,
+          "bitWidth": 64
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          "HQ==",
+          "0gQAAAAAAAAAAAAAAAAAAP////////////+JXXhFYwEBAHaih7qc/g=="
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "decimal64.slice",
+      "family": "decimal",
+      "descriptor": {
+        "kind": "decimal",
+        "precision": 17,
+        "scale": 2,
+        "bitWidth": 64
+      },
+      "array": {
+        "descriptor": {
+          "kind": "decimal",
+          "precision": 17,
+          "scale": 2,
+          "bitWidth": 64
+        },
+        "length": 4,
+        "offset": 1,
+        "nullCount": 1,
+        "buffers": [
+          "HQ==",
+          "0gQAAAAAAAAAAAAAAAAAAP////////////+JXXhFYwEBAHaih7qc/g=="
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": [
+        null,
+        {
+          "tag": "decimal",
+          "value": "-1"
+        },
+        {
+          "tag": "decimal",
+          "value": "99999999999999999"
+        },
+        {
+          "tag": "decimal",
+          "value": "-99999999999999999"
+        }
+      ]
+    },
+    {
       "id": "decimal128.empty",
       "family": "decimal",
       "descriptor": {
@@ -5119,8 +5319,7 @@
         "children": [],
         "dictionary": null
       },
-      "expected": [],
-      "missing": false
+      "expected": []
     },
     {
       "id": "decimal128.slice",
@@ -5160,8 +5359,77 @@
           "tag": "decimal",
           "value": "-99999999999999999999999999999999999999"
         }
-      ],
-      "missing": false
+      ]
+    },
+    {
+      "id": "decimal256.empty",
+      "family": "decimal",
+      "descriptor": {
+        "kind": "decimal",
+        "precision": 70,
+        "scale": 2,
+        "bitWidth": 256
+      },
+      "array": {
+        "descriptor": {
+          "kind": "decimal",
+          "precision": 70,
+          "scale": 2,
+          "bitWidth": 256
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          "HQ==",
+          "0gQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////////////////////////////////////////////8/ApUHwYlWJByn+sVnbchz3G2t63IBAAABAAAAAAAAAMD9avg+dqnb41gFOpiSN4wjklIUjf7//w=="
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "decimal256.slice",
+      "family": "decimal",
+      "descriptor": {
+        "kind": "decimal",
+        "precision": 70,
+        "scale": 2,
+        "bitWidth": 256
+      },
+      "array": {
+        "descriptor": {
+          "kind": "decimal",
+          "precision": 70,
+          "scale": 2,
+          "bitWidth": 256
+        },
+        "length": 4,
+        "offset": 1,
+        "nullCount": 1,
+        "buffers": [
+          "HQ==",
+          "0gQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////////////////////////////////////////////8/ApUHwYlWJByn+sVnbchz3G2t63IBAAABAAAAAAAAAMD9avg+dqnb41gFOpiSN4wjklIUjf7//w=="
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": [
+        null,
+        {
+          "tag": "decimal",
+          "value": "-1"
+        },
+        {
+          "tag": "decimal",
+          "value": "9999999999999999999999999999999999999999999999999999999999999999999999"
+        },
+        {
+          "tag": "decimal",
+          "value": "-9999999999999999999999999999999999999999999999999999999999999999999999"
+        }
+      ]
     },
     {
       "id": "date32[day].empty",
@@ -6056,8 +6324,7 @@
         "children": [],
         "dictionary": null
       },
-      "expected": [],
-      "missing": false
+      "expected": []
     },
     {
       "id": "utf8.slice",
@@ -6086,8 +6353,7 @@
           "tag": "string",
           "value": "\u03bb\u96ea"
         }
-      ],
-      "missing": false
+      ]
     },
     {
       "id": "largeUtf8.empty",
@@ -6110,8 +6376,7 @@
         "children": [],
         "dictionary": null
       },
-      "expected": [],
-      "missing": false
+      "expected": []
     },
     {
       "id": "largeUtf8.slice",
@@ -6140,8 +6405,7 @@
           "tag": "string",
           "value": "\u03bb\u96ea"
         }
-      ],
-      "missing": false
+      ]
     },
     {
       "id": "binary.empty",
@@ -6164,8 +6428,7 @@
         "children": [],
         "dictionary": null
       },
-      "expected": [],
-      "missing": false
+      "expected": []
     },
     {
       "id": "binary.slice",
@@ -6197,8 +6460,7 @@
             255
           ]
         }
-      ],
-      "missing": false
+      ]
     },
     {
       "id": "largeBinary.empty",
@@ -6221,8 +6483,7 @@
         "children": [],
         "dictionary": null
       },
-      "expected": [],
-      "missing": false
+      "expected": []
     },
     {
       "id": "largeBinary.slice",
@@ -6254,8 +6515,193 @@
             255
           ]
         }
-      ],
-      "missing": false
+      ]
+    },
+    {
+      "id": "fixedSizeBinary.empty",
+      "family": "fixedSizeBinary",
+      "descriptor": {
+        "kind": "fixedSizeBinary",
+        "byteWidth": 2
+      },
+      "array": {
+        "descriptor": {
+          "kind": "fixedSizeBinary",
+          "byteWidth": 2
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          "BQ==",
+          "YWIAAAD/"
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "fixedSizeBinary.slice",
+      "family": "fixedSizeBinary",
+      "descriptor": {
+        "kind": "fixedSizeBinary",
+        "byteWidth": 2
+      },
+      "array": {
+        "descriptor": {
+          "kind": "fixedSizeBinary",
+          "byteWidth": 2
+        },
+        "length": 2,
+        "offset": 1,
+        "nullCount": 1,
+        "buffers": [
+          "BQ==",
+          "YWIAAAD/"
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": [
+        null,
+        {
+          "tag": "binary",
+          "value": [
+            0,
+            255
+          ]
+        }
+      ]
+    },
+    {
+      "id": "utf8View.empty",
+      "family": "utf8View",
+      "descriptor": {
+        "kind": "utf8View"
+      },
+      "array": {
+        "descriptor": {
+          "kind": "utf8View"
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          "BQ==",
+          "BQAAAHNob3J0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAbG9uZwAAAAAAAAAA",
+          "bG9uZ2VyIHRoYW4gdHdlbHZlIGJ5dGVz"
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "utf8View.slice",
+      "family": "utf8View",
+      "descriptor": {
+        "kind": "utf8View"
+      },
+      "array": {
+        "descriptor": {
+          "kind": "utf8View"
+        },
+        "length": 2,
+        "offset": 1,
+        "nullCount": 1,
+        "buffers": [
+          "BQ==",
+          "BQAAAHNob3J0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAbG9uZwAAAAAAAAAA",
+          "bG9uZ2VyIHRoYW4gdHdlbHZlIGJ5dGVz"
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": [
+        null,
+        {
+          "tag": "string",
+          "value": "longer than twelve bytes"
+        }
+      ]
+    },
+    {
+      "id": "binaryView.empty",
+      "family": "binaryView",
+      "descriptor": {
+        "kind": "binaryView"
+      },
+      "array": {
+        "descriptor": {
+          "kind": "binaryView"
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          "BQ==",
+          "AQAAAHgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAbG9uZwAAAAAAAAAA",
+          "bG9uZ2VyIHRoYW4gdHdlbHZlIGJ5dGVz"
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "binaryView.slice",
+      "family": "binaryView",
+      "descriptor": {
+        "kind": "binaryView"
+      },
+      "array": {
+        "descriptor": {
+          "kind": "binaryView"
+        },
+        "length": 2,
+        "offset": 1,
+        "nullCount": 1,
+        "buffers": [
+          "BQ==",
+          "AQAAAHgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAbG9uZwAAAAAAAAAA",
+          "bG9uZ2VyIHRoYW4gdHdlbHZlIGJ5dGVz"
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": [
+        null,
+        {
+          "tag": "binary",
+          "value": [
+            108,
+            111,
+            110,
+            103,
+            101,
+            114,
+            32,
+            116,
+            104,
+            97,
+            110,
+            32,
+            116,
+            119,
+            101,
+            108,
+            118,
+            101,
+            32,
+            98,
+            121,
+            116,
+            101,
+            115
+          ]
+        }
+      ]
     },
     {
       "id": "list.empty",
@@ -6308,8 +6754,7 @@
         ],
         "dictionary": null
       },
-      "expected": [],
-      "missing": false
+      "expected": []
     },
     {
       "id": "list.slice",
@@ -6377,8 +6822,128 @@
             }
           ]
         }
-      ],
-      "missing": false
+      ]
+    },
+    {
+      "id": "largeList.empty",
+      "family": "largeList",
+      "descriptor": {
+        "kind": "largeList",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "int32"
+          },
+          "nullable": true,
+          "metadata": {}
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "largeList",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "int32"
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          "BQ==",
+          "AAAAAAAAAAACAAAAAAAAAAIAAAAAAAAABAAAAAAAAAA="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int32"
+            },
+            "length": 4,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "DQ==",
+              "AQAAAAAAAAADAAAABAAAAA=="
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "largeList.slice",
+      "family": "largeList",
+      "descriptor": {
+        "kind": "largeList",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "int32"
+          },
+          "nullable": true,
+          "metadata": {}
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "largeList",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "int32"
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        },
+        "length": 2,
+        "offset": 1,
+        "nullCount": 1,
+        "buffers": [
+          "BQ==",
+          "AAAAAAAAAAACAAAAAAAAAAIAAAAAAAAABAAAAAAAAAA="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int32"
+            },
+            "length": 4,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "DQ==",
+              "AQAAAAAAAAADAAAABAAAAA=="
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        null,
+        {
+          "tag": "list",
+          "values": [
+            {
+              "tag": "integer",
+              "value": "3"
+            },
+            {
+              "tag": "integer",
+              "value": "4"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "fixedSizeList.empty",
@@ -6432,8 +6997,7 @@
         ],
         "dictionary": null
       },
-      "expected": [],
-      "missing": false
+      "expected": []
     },
     {
       "id": "fixedSizeList.slice",
@@ -6502,8 +7066,253 @@
             }
           ]
         }
-      ],
-      "missing": false
+      ]
+    },
+    {
+      "id": "listView.empty",
+      "family": "listView",
+      "descriptor": {
+        "kind": "listView",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "int32"
+          },
+          "nullable": true,
+          "metadata": {}
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "listView",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "int32"
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          "BQ==",
+          "AAAAAAIAAAACAAAA",
+          "AgAAAAAAAAACAAAA"
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int32"
+            },
+            "length": 4,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "DQ==",
+              "AQAAAAAAAAADAAAABAAAAA=="
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "listView.slice",
+      "family": "listView",
+      "descriptor": {
+        "kind": "listView",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "int32"
+          },
+          "nullable": true,
+          "metadata": {}
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "listView",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "int32"
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        },
+        "length": 2,
+        "offset": 1,
+        "nullCount": 1,
+        "buffers": [
+          "BQ==",
+          "AAAAAAIAAAACAAAA",
+          "AgAAAAAAAAACAAAA"
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int32"
+            },
+            "length": 4,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "DQ==",
+              "AQAAAAAAAAADAAAABAAAAA=="
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        null,
+        {
+          "tag": "list",
+          "values": [
+            {
+              "tag": "integer",
+              "value": "3"
+            },
+            {
+              "tag": "integer",
+              "value": "4"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "largeListView.empty",
+      "family": "largeListView",
+      "descriptor": {
+        "kind": "largeListView",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "int32"
+          },
+          "nullable": true,
+          "metadata": {}
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "largeListView",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "int32"
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          "BQ==",
+          "AAAAAAAAAAACAAAAAAAAAAIAAAAAAAAA",
+          "AgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAA"
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int32"
+            },
+            "length": 4,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "DQ==",
+              "AQAAAAAAAAADAAAABAAAAA=="
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "largeListView.slice",
+      "family": "largeListView",
+      "descriptor": {
+        "kind": "largeListView",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "int32"
+          },
+          "nullable": true,
+          "metadata": {}
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "largeListView",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "int32"
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        },
+        "length": 2,
+        "offset": 1,
+        "nullCount": 1,
+        "buffers": [
+          "BQ==",
+          "AAAAAAAAAAACAAAAAAAAAAIAAAAAAAAA",
+          "AgAAAAAAAAAAAAAAAAAAAAIAAAAAAAAA"
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int32"
+            },
+            "length": 4,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "DQ==",
+              "AQAAAAAAAAADAAAABAAAAA=="
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        null,
+        {
+          "tag": "list",
+          "values": [
+            {
+              "tag": "integer",
+              "value": "3"
+            },
+            {
+              "tag": "integer",
+              "value": "4"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "struct.empty",
@@ -6693,6 +7502,1144 @@
                 "value": ""
               }
             }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "map.empty",
+      "family": "map",
+      "descriptor": {
+        "kind": "map",
+        "key": {
+          "name": "key",
+          "type": {
+            "kind": "utf8"
+          },
+          "nullable": false,
+          "metadata": {}
+        },
+        "item": {
+          "name": "value",
+          "type": {
+            "kind": "int32"
+          },
+          "nullable": true,
+          "metadata": {}
+        },
+        "keysSorted": false
+      },
+      "array": {
+        "descriptor": {
+          "kind": "map",
+          "key": {
+            "name": "key",
+            "type": {
+              "kind": "utf8"
+            },
+            "nullable": false,
+            "metadata": {}
+          },
+          "item": {
+            "name": "value",
+            "type": {
+              "kind": "int32"
+            },
+            "nullable": true,
+            "metadata": {}
+          },
+          "keysSorted": false
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          "DQ==",
+          "AAAAAAIAAAACAAAAAgAAAAMAAAA="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "struct",
+              "fields": [
+                {
+                  "name": "key",
+                  "type": {
+                    "kind": "utf8"
+                  },
+                  "nullable": false,
+                  "metadata": {}
+                },
+                {
+                  "name": "value",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              ]
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 0,
+            "buffers": [
+              null
+            ],
+            "children": [
+              {
+                "descriptor": {
+                  "kind": "utf8"
+                },
+                "length": 3,
+                "offset": 0,
+                "nullCount": -1,
+                "buffers": [
+                  null,
+                  "AAAAAAEAAAACAAAAAwAAAA==",
+                  "YWJh"
+                ],
+                "children": [],
+                "dictionary": null
+              },
+              {
+                "descriptor": {
+                  "kind": "int32"
+                },
+                "length": 3,
+                "offset": 0,
+                "nullCount": -1,
+                "buffers": [
+                  "BQ==",
+                  "AQAAAAAAAAACAAAA"
+                ],
+                "children": [],
+                "dictionary": null
+              }
+            ],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "map.slice",
+      "family": "map",
+      "descriptor": {
+        "kind": "map",
+        "key": {
+          "name": "key",
+          "type": {
+            "kind": "utf8"
+          },
+          "nullable": false,
+          "metadata": {}
+        },
+        "item": {
+          "name": "value",
+          "type": {
+            "kind": "int32"
+          },
+          "nullable": true,
+          "metadata": {}
+        },
+        "keysSorted": false
+      },
+      "array": {
+        "descriptor": {
+          "kind": "map",
+          "key": {
+            "name": "key",
+            "type": {
+              "kind": "utf8"
+            },
+            "nullable": false,
+            "metadata": {}
+          },
+          "item": {
+            "name": "value",
+            "type": {
+              "kind": "int32"
+            },
+            "nullable": true,
+            "metadata": {}
+          },
+          "keysSorted": false
+        },
+        "length": 3,
+        "offset": 1,
+        "nullCount": 1,
+        "buffers": [
+          "DQ==",
+          "AAAAAAIAAAACAAAAAgAAAAMAAAA="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "struct",
+              "fields": [
+                {
+                  "name": "key",
+                  "type": {
+                    "kind": "utf8"
+                  },
+                  "nullable": false,
+                  "metadata": {}
+                },
+                {
+                  "name": "value",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              ]
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 0,
+            "buffers": [
+              null
+            ],
+            "children": [
+              {
+                "descriptor": {
+                  "kind": "utf8"
+                },
+                "length": 3,
+                "offset": 0,
+                "nullCount": -1,
+                "buffers": [
+                  null,
+                  "AAAAAAEAAAACAAAAAwAAAA==",
+                  "YWJh"
+                ],
+                "children": [],
+                "dictionary": null
+              },
+              {
+                "descriptor": {
+                  "kind": "int32"
+                },
+                "length": 3,
+                "offset": 0,
+                "nullCount": -1,
+                "buffers": [
+                  "BQ==",
+                  "AQAAAAAAAAACAAAA"
+                ],
+                "children": [],
+                "dictionary": null
+              }
+            ],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        null,
+        {
+          "tag": "map",
+          "entries": []
+        },
+        {
+          "tag": "map",
+          "entries": [
+            {
+              "key": {
+                "tag": "string",
+                "value": "a"
+              },
+              "value": {
+                "tag": "integer",
+                "value": "2"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "denseUnion.empty",
+      "family": "denseUnion",
+      "descriptor": {
+        "kind": "denseUnion",
+        "fields": [
+          {
+            "name": "0",
+            "type": {
+              "kind": "int64"
+            },
+            "nullable": true,
+            "metadata": {}
+          },
+          {
+            "name": "1",
+            "type": {
+              "kind": "utf8"
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        ],
+        "typeCodes": [
+          0,
+          1
+        ]
+      },
+      "array": {
+        "descriptor": {
+          "kind": "denseUnion",
+          "fields": [
+            {
+              "name": "0",
+              "type": {
+                "kind": "int64"
+              },
+              "nullable": true,
+              "metadata": {}
+            },
+            {
+              "name": "1",
+              "type": {
+                "kind": "utf8"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          ],
+          "typeCodes": [
+            0,
+            1
+          ]
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          null,
+          "AAEAAQ==",
+          "AAAAAAEAAAACAAAAAwAAAA=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int64"
+            },
+            "length": 4,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "Bw==",
+              "AQAAAAAAAAACAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAA="
+            ],
+            "children": [],
+            "dictionary": null
+          },
+          {
+            "descriptor": {
+              "kind": "utf8"
+            },
+            "length": 4,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "Bw==",
+              "AAAAAAEAAAACAAAAAwAAAAMAAAA=",
+              "YWJj"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "denseUnion.slice",
+      "family": "denseUnion",
+      "descriptor": {
+        "kind": "denseUnion",
+        "fields": [
+          {
+            "name": "0",
+            "type": {
+              "kind": "int64"
+            },
+            "nullable": true,
+            "metadata": {}
+          },
+          {
+            "name": "1",
+            "type": {
+              "kind": "utf8"
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        ],
+        "typeCodes": [
+          0,
+          1
+        ]
+      },
+      "array": {
+        "descriptor": {
+          "kind": "denseUnion",
+          "fields": [
+            {
+              "name": "0",
+              "type": {
+                "kind": "int64"
+              },
+              "nullable": true,
+              "metadata": {}
+            },
+            {
+              "name": "1",
+              "type": {
+                "kind": "utf8"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          ],
+          "typeCodes": [
+            0,
+            1
+          ]
+        },
+        "length": 3,
+        "offset": 1,
+        "nullCount": 0,
+        "buffers": [
+          null,
+          "AAEAAQ==",
+          "AAAAAAEAAAACAAAAAwAAAA=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int64"
+            },
+            "length": 4,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "Bw==",
+              "AQAAAAAAAAACAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAA="
+            ],
+            "children": [],
+            "dictionary": null
+          },
+          {
+            "descriptor": {
+              "kind": "utf8"
+            },
+            "length": 4,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "Bw==",
+              "AAAAAAEAAAACAAAAAwAAAAMAAAA=",
+              "YWJj"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "union",
+          "typeCode": 1,
+          "value": {
+            "tag": "string",
+            "value": "b"
+          }
+        },
+        {
+          "tag": "union",
+          "typeCode": 0,
+          "value": {
+            "tag": "integer",
+            "value": "3"
+          }
+        },
+        null
+      ]
+    },
+    {
+      "id": "sparseUnion.empty",
+      "family": "sparseUnion",
+      "descriptor": {
+        "kind": "sparseUnion",
+        "fields": [
+          {
+            "name": "0",
+            "type": {
+              "kind": "int64"
+            },
+            "nullable": true,
+            "metadata": {}
+          },
+          {
+            "name": "1",
+            "type": {
+              "kind": "utf8"
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        ],
+        "typeCodes": [
+          0,
+          1
+        ]
+      },
+      "array": {
+        "descriptor": {
+          "kind": "sparseUnion",
+          "fields": [
+            {
+              "name": "0",
+              "type": {
+                "kind": "int64"
+              },
+              "nullable": true,
+              "metadata": {}
+            },
+            {
+              "name": "1",
+              "type": {
+                "kind": "utf8"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          ],
+          "typeCodes": [
+            0,
+            1
+          ]
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          null,
+          "AAEAAQ=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int64"
+            },
+            "length": 0,
+            "offset": 0,
+            "nullCount": -1,
+            "buffers": [
+              "Bw==",
+              "AQAAAAAAAAACAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAA="
+            ],
+            "children": [],
+            "dictionary": null
+          },
+          {
+            "descriptor": {
+              "kind": "utf8"
+            },
+            "length": 0,
+            "offset": 0,
+            "nullCount": -1,
+            "buffers": [
+              "Bw==",
+              "AAAAAAEAAAACAAAAAwAAAAMAAAA=",
+              "YWJj"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "sparseUnion.slice",
+      "family": "sparseUnion",
+      "descriptor": {
+        "kind": "sparseUnion",
+        "fields": [
+          {
+            "name": "0",
+            "type": {
+              "kind": "int64"
+            },
+            "nullable": true,
+            "metadata": {}
+          },
+          {
+            "name": "1",
+            "type": {
+              "kind": "utf8"
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        ],
+        "typeCodes": [
+          0,
+          1
+        ]
+      },
+      "array": {
+        "descriptor": {
+          "kind": "sparseUnion",
+          "fields": [
+            {
+              "name": "0",
+              "type": {
+                "kind": "int64"
+              },
+              "nullable": true,
+              "metadata": {}
+            },
+            {
+              "name": "1",
+              "type": {
+                "kind": "utf8"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          ],
+          "typeCodes": [
+            0,
+            1
+          ]
+        },
+        "length": 3,
+        "offset": 1,
+        "nullCount": 0,
+        "buffers": [
+          null,
+          "AAEAAQ=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int64"
+            },
+            "length": 4,
+            "offset": 0,
+            "nullCount": -1,
+            "buffers": [
+              "Bw==",
+              "AQAAAAAAAAACAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAA="
+            ],
+            "children": [],
+            "dictionary": null
+          },
+          {
+            "descriptor": {
+              "kind": "utf8"
+            },
+            "length": 4,
+            "offset": 0,
+            "nullCount": -1,
+            "buffers": [
+              "Bw==",
+              "AAAAAAEAAAACAAAAAwAAAAMAAAA=",
+              "YWJj"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "union",
+          "typeCode": 1,
+          "value": {
+            "tag": "string",
+            "value": "b"
+          }
+        },
+        {
+          "tag": "union",
+          "typeCode": 0,
+          "value": {
+            "tag": "integer",
+            "value": "3"
+          }
+        },
+        null
+      ]
+    },
+    {
+      "id": "runEnd16.empty",
+      "family": "runEndEncoded",
+      "descriptor": {
+        "kind": "runEndEncoded",
+        "runEndType": {
+          "kind": "int16"
+        },
+        "valueType": {
+          "kind": "int64"
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "runEndEncoded",
+          "runEndType": {
+            "kind": "int16"
+          },
+          "valueType": {
+            "kind": "int64"
+          }
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          null
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int16"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 0,
+            "buffers": [
+              null,
+              "AgAEAAUA"
+            ],
+            "children": [],
+            "dictionary": null
+          },
+          {
+            "descriptor": {
+              "kind": "int64"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "BQ==",
+              "AQAAAAAAAAAAAAAAAAAAAAMAAAAAAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "runEnd16.slice",
+      "family": "runEndEncoded",
+      "descriptor": {
+        "kind": "runEndEncoded",
+        "runEndType": {
+          "kind": "int16"
+        },
+        "valueType": {
+          "kind": "int64"
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "runEndEncoded",
+          "runEndType": {
+            "kind": "int16"
+          },
+          "valueType": {
+            "kind": "int64"
+          }
+        },
+        "length": 4,
+        "offset": 1,
+        "nullCount": 0,
+        "buffers": [
+          null
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int16"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 0,
+            "buffers": [
+              null,
+              "AgAEAAUA"
+            ],
+            "children": [],
+            "dictionary": null
+          },
+          {
+            "descriptor": {
+              "kind": "int64"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "BQ==",
+              "AQAAAAAAAAAAAAAAAAAAAAMAAAAAAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "integer",
+          "value": "1"
+        },
+        null,
+        null,
+        {
+          "tag": "integer",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "id": "runEnd32.empty",
+      "family": "runEndEncoded",
+      "descriptor": {
+        "kind": "runEndEncoded",
+        "runEndType": {
+          "kind": "int32"
+        },
+        "valueType": {
+          "kind": "int64"
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "runEndEncoded",
+          "runEndType": {
+            "kind": "int32"
+          },
+          "valueType": {
+            "kind": "int64"
+          }
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          null
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int32"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 0,
+            "buffers": [
+              null,
+              "AgAAAAQAAAAFAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          },
+          {
+            "descriptor": {
+              "kind": "int64"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "BQ==",
+              "AQAAAAAAAAAAAAAAAAAAAAMAAAAAAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "runEnd32.slice",
+      "family": "runEndEncoded",
+      "descriptor": {
+        "kind": "runEndEncoded",
+        "runEndType": {
+          "kind": "int32"
+        },
+        "valueType": {
+          "kind": "int64"
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "runEndEncoded",
+          "runEndType": {
+            "kind": "int32"
+          },
+          "valueType": {
+            "kind": "int64"
+          }
+        },
+        "length": 4,
+        "offset": 1,
+        "nullCount": 0,
+        "buffers": [
+          null
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int32"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 0,
+            "buffers": [
+              null,
+              "AgAAAAQAAAAFAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          },
+          {
+            "descriptor": {
+              "kind": "int64"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "BQ==",
+              "AQAAAAAAAAAAAAAAAAAAAAMAAAAAAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "integer",
+          "value": "1"
+        },
+        null,
+        null,
+        {
+          "tag": "integer",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "id": "runEnd64.empty",
+      "family": "runEndEncoded",
+      "descriptor": {
+        "kind": "runEndEncoded",
+        "runEndType": {
+          "kind": "int64"
+        },
+        "valueType": {
+          "kind": "int64"
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "runEndEncoded",
+          "runEndType": {
+            "kind": "int64"
+          },
+          "valueType": {
+            "kind": "int64"
+          }
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          null
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int64"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 0,
+            "buffers": [
+              null,
+              "AgAAAAAAAAAEAAAAAAAAAAUAAAAAAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          },
+          {
+            "descriptor": {
+              "kind": "int64"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "BQ==",
+              "AQAAAAAAAAAAAAAAAAAAAAMAAAAAAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "runEnd64.slice",
+      "family": "runEndEncoded",
+      "descriptor": {
+        "kind": "runEndEncoded",
+        "runEndType": {
+          "kind": "int64"
+        },
+        "valueType": {
+          "kind": "int64"
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "runEndEncoded",
+          "runEndType": {
+            "kind": "int64"
+          },
+          "valueType": {
+            "kind": "int64"
+          }
+        },
+        "length": 4,
+        "offset": 1,
+        "nullCount": 0,
+        "buffers": [
+          null
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "int64"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 0,
+            "buffers": [
+              null,
+              "AgAAAAAAAAAEAAAAAAAAAAUAAAAAAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          },
+          {
+            "descriptor": {
+              "kind": "int64"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": 1,
+            "buffers": [
+              "BQ==",
+              "AQAAAAAAAAAAAAAAAAAAAAMAAAAAAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "integer",
+          "value": "1"
+        },
+        null,
+        null,
+        {
+          "tag": "integer",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "id": "monthDayNanoInterval.empty",
+      "family": "monthDayNanoInterval",
+      "descriptor": {
+        "kind": "monthDayNanoInterval"
+      },
+      "array": {
+        "descriptor": {
+          "kind": "monthDayNanoInterval"
+        },
+        "length": 0,
+        "offset": 0,
+        "nullCount": 0,
+        "buffers": [
+          "BQ==",
+          "AQAAAAIAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAADA"
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": []
+    },
+    {
+      "id": "monthDayNanoInterval.slice",
+      "family": "monthDayNanoInterval",
+      "descriptor": {
+        "kind": "monthDayNanoInterval"
+      },
+      "array": {
+        "descriptor": {
+          "kind": "monthDayNanoInterval"
+        },
+        "length": 2,
+        "offset": 1,
+        "nullCount": 1,
+        "buffers": [
+          "BQ==",
+          "AQAAAAIAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAADA"
+        ],
+        "children": [],
+        "dictionary": null
+      },
+      "expected": [
+        null,
+        {
+          "tag": "interval",
+          "components": [
+            -1,
+            0,
+            -4611686018427387904
           ]
         }
       ]
@@ -10475,6 +12422,520 @@
       ]
     },
     {
+      "id": "nested.list.decimal32",
+      "family": "list",
+      "descriptor": {
+        "kind": "list",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "decimal",
+            "precision": 8,
+            "scale": 2,
+            "bitWidth": 32
+          },
+          "nullable": true,
+          "metadata": {}
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "list",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "decimal",
+              "precision": 8,
+              "scale": 2,
+              "bitWidth": 32
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        },
+        "length": 3,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "BQ==",
+          "AAAAAAIAAAAEAAAABgAAAA=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "decimal",
+              "precision": 8,
+              "scale": 2,
+              "bitWidth": 32
+            },
+            "length": 6,
+            "offset": 0,
+            "nullCount": 2,
+            "buffers": [
+              "LQ==",
+              "0gQAAAAAAAABHwr60gQAAAAAAAABHwr6"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "list",
+          "values": [
+            {
+              "tag": "decimal",
+              "value": "1234"
+            },
+            null
+          ]
+        },
+        null,
+        {
+          "tag": "list",
+          "values": [
+            null,
+            {
+              "tag": "decimal",
+              "value": "-99999999"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nested.fixedSizeList.decimal32",
+      "family": "fixedSizeList",
+      "descriptor": {
+        "kind": "fixedSizeList",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "decimal",
+            "precision": 8,
+            "scale": 2,
+            "bitWidth": 32
+          },
+          "nullable": true,
+          "metadata": {}
+        },
+        "size": 2
+      },
+      "array": {
+        "descriptor": {
+          "kind": "fixedSizeList",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "decimal",
+              "precision": 8,
+              "scale": 2,
+              "bitWidth": 32
+            },
+            "nullable": true,
+            "metadata": {}
+          },
+          "size": 2
+        },
+        "length": 3,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "BQ=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "decimal",
+              "precision": 8,
+              "scale": 2,
+              "bitWidth": 32
+            },
+            "length": 6,
+            "offset": 0,
+            "nullCount": 2,
+            "buffers": [
+              "LQ==",
+              "0gQAAAAAAAABHwr60gQAAAAAAAABHwr6"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "list",
+          "values": [
+            {
+              "tag": "decimal",
+              "value": "1234"
+            },
+            null
+          ]
+        },
+        null,
+        {
+          "tag": "list",
+          "values": [
+            null,
+            {
+              "tag": "decimal",
+              "value": "-99999999"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nested.struct.decimal32",
+      "family": "struct",
+      "descriptor": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "value",
+            "type": {
+              "kind": "decimal",
+              "precision": 8,
+              "scale": 2,
+              "bitWidth": 32
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        ]
+      },
+      "array": {
+        "descriptor": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "value",
+              "type": {
+                "kind": "decimal",
+                "precision": 8,
+                "scale": 2,
+                "bitWidth": 32
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          ]
+        },
+        "length": 3,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "Aw=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "decimal",
+              "precision": 8,
+              "scale": 2,
+              "bitWidth": 32
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": -1,
+            "buffers": [
+              "BQ==",
+              "AR8K+gAAAADSBAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "struct",
+          "fields": [
+            {
+              "name": "value",
+              "value": {
+                "tag": "decimal",
+                "value": "-99999999"
+              }
+            }
+          ]
+        },
+        {
+          "tag": "struct",
+          "fields": [
+            {
+              "name": "value",
+              "value": null
+            }
+          ]
+        },
+        null
+      ]
+    },
+    {
+      "id": "nested.list.decimal64",
+      "family": "list",
+      "descriptor": {
+        "kind": "list",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "decimal",
+            "precision": 17,
+            "scale": 2,
+            "bitWidth": 64
+          },
+          "nullable": true,
+          "metadata": {}
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "list",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "decimal",
+              "precision": 17,
+              "scale": 2,
+              "bitWidth": 64
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        },
+        "length": 3,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "BQ==",
+          "AAAAAAIAAAAEAAAABgAAAA=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "decimal",
+              "precision": 17,
+              "scale": 2,
+              "bitWidth": 64
+            },
+            "length": 6,
+            "offset": 0,
+            "nullCount": 2,
+            "buffers": [
+              "LQ==",
+              "0gQAAAAAAAAAAAAAAAAAAAEAdqKHupz+0gQAAAAAAAAAAAAAAAAAAAEAdqKHupz+"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "list",
+          "values": [
+            {
+              "tag": "decimal",
+              "value": "1234"
+            },
+            null
+          ]
+        },
+        null,
+        {
+          "tag": "list",
+          "values": [
+            null,
+            {
+              "tag": "decimal",
+              "value": "-99999999999999999"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nested.fixedSizeList.decimal64",
+      "family": "fixedSizeList",
+      "descriptor": {
+        "kind": "fixedSizeList",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "decimal",
+            "precision": 17,
+            "scale": 2,
+            "bitWidth": 64
+          },
+          "nullable": true,
+          "metadata": {}
+        },
+        "size": 2
+      },
+      "array": {
+        "descriptor": {
+          "kind": "fixedSizeList",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "decimal",
+              "precision": 17,
+              "scale": 2,
+              "bitWidth": 64
+            },
+            "nullable": true,
+            "metadata": {}
+          },
+          "size": 2
+        },
+        "length": 3,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "BQ=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "decimal",
+              "precision": 17,
+              "scale": 2,
+              "bitWidth": 64
+            },
+            "length": 6,
+            "offset": 0,
+            "nullCount": 2,
+            "buffers": [
+              "LQ==",
+              "0gQAAAAAAAAAAAAAAAAAAAEAdqKHupz+0gQAAAAAAAAAAAAAAAAAAAEAdqKHupz+"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "list",
+          "values": [
+            {
+              "tag": "decimal",
+              "value": "1234"
+            },
+            null
+          ]
+        },
+        null,
+        {
+          "tag": "list",
+          "values": [
+            null,
+            {
+              "tag": "decimal",
+              "value": "-99999999999999999"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nested.struct.decimal64",
+      "family": "struct",
+      "descriptor": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "value",
+            "type": {
+              "kind": "decimal",
+              "precision": 17,
+              "scale": 2,
+              "bitWidth": 64
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        ]
+      },
+      "array": {
+        "descriptor": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "value",
+              "type": {
+                "kind": "decimal",
+                "precision": 17,
+                "scale": 2,
+                "bitWidth": 64
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          ]
+        },
+        "length": 3,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "Aw=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "decimal",
+              "precision": 17,
+              "scale": 2,
+              "bitWidth": 64
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": -1,
+            "buffers": [
+              "BQ==",
+              "AQB2ooe6nP4AAAAAAAAAANIEAAAAAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "struct",
+          "fields": [
+            {
+              "name": "value",
+              "value": {
+                "tag": "decimal",
+                "value": "-99999999999999999"
+              }
+            }
+          ]
+        },
+        {
+          "tag": "struct",
+          "fields": [
+            {
+              "name": "value",
+              "value": null
+            }
+          ]
+        },
+        null
+      ]
+    },
+    {
       "id": "nested.list.decimal128",
       "family": "list",
       "descriptor": {
@@ -10706,6 +13167,263 @@
               "value": {
                 "tag": "decimal",
                 "value": "-99999999999999999999999999999999999999"
+              }
+            }
+          ]
+        },
+        {
+          "tag": "struct",
+          "fields": [
+            {
+              "name": "value",
+              "value": null
+            }
+          ]
+        },
+        null
+      ]
+    },
+    {
+      "id": "nested.list.decimal256",
+      "family": "list",
+      "descriptor": {
+        "kind": "list",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "decimal",
+            "precision": 70,
+            "scale": 2,
+            "bitWidth": 256
+          },
+          "nullable": true,
+          "metadata": {}
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "list",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "decimal",
+              "precision": 70,
+              "scale": 2,
+              "bitWidth": 256
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        },
+        "length": 3,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "BQ==",
+          "AAAAAAIAAAAEAAAABgAAAA=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "decimal",
+              "precision": 70,
+              "scale": 2,
+              "bitWidth": 256
+            },
+            "length": 6,
+            "offset": 0,
+            "nullCount": 2,
+            "buffers": [
+              "LQ==",
+              "0gQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAwP1q+D52qdvjWAU6mJI3jCOSUhSN/v//0gQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAwP1q+D52qdvjWAU6mJI3jCOSUhSN/v//"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "list",
+          "values": [
+            {
+              "tag": "decimal",
+              "value": "1234"
+            },
+            null
+          ]
+        },
+        null,
+        {
+          "tag": "list",
+          "values": [
+            null,
+            {
+              "tag": "decimal",
+              "value": "-9999999999999999999999999999999999999999999999999999999999999999999999"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nested.fixedSizeList.decimal256",
+      "family": "fixedSizeList",
+      "descriptor": {
+        "kind": "fixedSizeList",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "decimal",
+            "precision": 70,
+            "scale": 2,
+            "bitWidth": 256
+          },
+          "nullable": true,
+          "metadata": {}
+        },
+        "size": 2
+      },
+      "array": {
+        "descriptor": {
+          "kind": "fixedSizeList",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "decimal",
+              "precision": 70,
+              "scale": 2,
+              "bitWidth": 256
+            },
+            "nullable": true,
+            "metadata": {}
+          },
+          "size": 2
+        },
+        "length": 3,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "BQ=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "decimal",
+              "precision": 70,
+              "scale": 2,
+              "bitWidth": 256
+            },
+            "length": 6,
+            "offset": 0,
+            "nullCount": 2,
+            "buffers": [
+              "LQ==",
+              "0gQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAwP1q+D52qdvjWAU6mJI3jCOSUhSN/v//0gQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAwP1q+D52qdvjWAU6mJI3jCOSUhSN/v//"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "list",
+          "values": [
+            {
+              "tag": "decimal",
+              "value": "1234"
+            },
+            null
+          ]
+        },
+        null,
+        {
+          "tag": "list",
+          "values": [
+            null,
+            {
+              "tag": "decimal",
+              "value": "-9999999999999999999999999999999999999999999999999999999999999999999999"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nested.struct.decimal256",
+      "family": "struct",
+      "descriptor": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "value",
+            "type": {
+              "kind": "decimal",
+              "precision": 70,
+              "scale": 2,
+              "bitWidth": 256
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        ]
+      },
+      "array": {
+        "descriptor": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "value",
+              "type": {
+                "kind": "decimal",
+                "precision": 70,
+                "scale": 2,
+                "bitWidth": 256
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          ]
+        },
+        "length": 3,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "Aw=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "decimal",
+              "precision": 70,
+              "scale": 2,
+              "bitWidth": 256
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": -1,
+            "buffers": [
+              "BQ==",
+              "AQAAAAAAAADA/Wr4Pnap2+NYBTqYkjeMI5JSFI3+//8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANIEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "struct",
+          "fields": [
+            {
+              "name": "value",
+              "value": {
+                "tag": "decimal",
+                "value": "-9999999999999999999999999999999999999999999999999999999999999999999999"
               }
             }
           ]
@@ -15515,6 +18233,256 @@
       ]
     },
     {
+      "id": "nested.list.monthDayNanoInterval",
+      "family": "list",
+      "descriptor": {
+        "kind": "list",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "monthDayNanoInterval"
+          },
+          "nullable": true,
+          "metadata": {}
+        }
+      },
+      "array": {
+        "descriptor": {
+          "kind": "list",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "monthDayNanoInterval"
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        },
+        "length": 3,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "BQ==",
+          "AAAAAAIAAAAEAAAABgAAAA=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "monthDayNanoInterval"
+            },
+            "length": 6,
+            "offset": 0,
+            "nullCount": 2,
+            "buffers": [
+              "LQ==",
+              "AQAAAAIAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAADAAQAAAAIAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAADA"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "list",
+          "values": [
+            {
+              "tag": "interval",
+              "components": [
+                1,
+                2,
+                3
+              ]
+            },
+            null
+          ]
+        },
+        null,
+        {
+          "tag": "list",
+          "values": [
+            null,
+            {
+              "tag": "interval",
+              "components": [
+                -1,
+                0,
+                -4611686018427387904
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nested.fixedSizeList.monthDayNanoInterval",
+      "family": "fixedSizeList",
+      "descriptor": {
+        "kind": "fixedSizeList",
+        "field": {
+          "name": "item",
+          "type": {
+            "kind": "monthDayNanoInterval"
+          },
+          "nullable": true,
+          "metadata": {}
+        },
+        "size": 2
+      },
+      "array": {
+        "descriptor": {
+          "kind": "fixedSizeList",
+          "field": {
+            "name": "item",
+            "type": {
+              "kind": "monthDayNanoInterval"
+            },
+            "nullable": true,
+            "metadata": {}
+          },
+          "size": 2
+        },
+        "length": 3,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "BQ=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "monthDayNanoInterval"
+            },
+            "length": 6,
+            "offset": 0,
+            "nullCount": 2,
+            "buffers": [
+              "LQ==",
+              "AQAAAAIAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAADAAQAAAAIAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAADA"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "list",
+          "values": [
+            {
+              "tag": "interval",
+              "components": [
+                1,
+                2,
+                3
+              ]
+            },
+            null
+          ]
+        },
+        null,
+        {
+          "tag": "list",
+          "values": [
+            null,
+            {
+              "tag": "interval",
+              "components": [
+                -1,
+                0,
+                -4611686018427387904
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nested.struct.monthDayNanoInterval",
+      "family": "struct",
+      "descriptor": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "value",
+            "type": {
+              "kind": "monthDayNanoInterval"
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        ]
+      },
+      "array": {
+        "descriptor": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "value",
+              "type": {
+                "kind": "monthDayNanoInterval"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          ]
+        },
+        "length": 3,
+        "offset": 0,
+        "nullCount": 1,
+        "buffers": [
+          "Aw=="
+        ],
+        "children": [
+          {
+            "descriptor": {
+              "kind": "monthDayNanoInterval"
+            },
+            "length": 3,
+            "offset": 0,
+            "nullCount": -1,
+            "buffers": [
+              "BQ==",
+              "/////wAAAAAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAAAABAAAAAgAAAAMAAAAAAAAA"
+            ],
+            "children": [],
+            "dictionary": null
+          }
+        ],
+        "dictionary": null
+      },
+      "expected": [
+        {
+          "tag": "struct",
+          "fields": [
+            {
+              "name": "value",
+              "value": {
+                "tag": "interval",
+                "components": [
+                  -1,
+                  0,
+                  -4611686018427387904
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "tag": "struct",
+          "fields": [
+            {
+              "name": "value",
+              "value": null
+            }
+          ]
+        },
+        null
+      ]
+    },
+    {
       "id": "decimal128.negativeScale",
       "family": "decimal",
       "descriptor": {
@@ -15552,7 +18520,6 @@
       "descriptor": {
         "kind": "yearMonthInterval"
       },
-      "missing": true,
       "producer": {
         "name": "Arrow format literal",
         "version": "1.5"
@@ -15594,7 +18561,6 @@
       "descriptor": {
         "kind": "dayTimeInterval"
       },
-      "missing": true,
       "producer": {
         "name": "Arrow format literal",
         "version": "1.5"

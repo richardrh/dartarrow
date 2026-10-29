@@ -6,6 +6,7 @@ import json
 from decimal import Decimal, localcontext
 from pathlib import Path
 import pyarrow as pa
+import pyarrow.compute as pc
 
 UNITS = {'s':'seconds','ms':'milliseconds','us':'microseconds','ns':'nanoseconds'}
 
@@ -54,9 +55,9 @@ def physical(a):
     if pa.types.is_struct(t) or pa.types.is_union(t): children=[physical(a.field(i)) for i in range(t.num_fields)]
     elif pa.types.is_list(t) or pa.types.is_large_list(t) or pa.types.is_fixed_size_list(t) or pa.types.is_list_view(t) or pa.types.is_large_list_view(t) or pa.types.is_map(t): children=[physical(a.values)]
     elif pa.types.is_run_end_encoded(t): children=[physical(a.run_ends),physical(a.values)]
-    if pa.types.is_struct(t):
-        # PyArrow field() exposes a logical slice; Arrow physical struct children
-        # cover the parent's full offset+length extent instead.
+    if pa.types.is_struct(t) or (pa.types.is_union(t) and t.mode=='sparse'):
+        # PyArrow field() exposes a logical slice; Arrow physical struct and
+        # sparse union children cover the parent's full offset+length extent.
         for child in children:
             child['length'] += child['offset']
             child['offset'] = 0
@@ -82,9 +83,17 @@ def reconstruct(a, p):
     elif p['children']: children=[reconstruct(a.values,p['children'][0])]
     return pa.Array.from_buffers(t,p['length'],buffers,children=children,**kwargs)
 
+def physical_child(a, i):
+    """Union child storage in physical positions (sparse field() is sliced)."""
+    child=a.field(i)
+    if a.type.mode=='sparse' and a.offset:
+        return pa.concat_arrays([pa.nulls(a.offset,child.type),child])
+    return child
+
 def expected(a):
     t=a.type
     if isinstance(t,pa.ExtensionType): return [None if v is None else {'tag':'extension','storage':v} for v in expected(a.storage)]
+    if pa.types.is_run_end_encoded(t): return expected(pc.run_end_decode(a))
     out=[]
     for i,s in enumerate(a):
         if not s.is_valid: out.append(None); continue
@@ -103,6 +112,12 @@ def expected(a):
         if pa.types.is_binary(t) or pa.types.is_large_binary(t) or pa.types.is_fixed_size_binary(t) or pa.types.is_binary_view(t): out.append({'tag':'binary','value':list(s.as_py())}); continue
         if pa.types.is_struct(t): out.append({'tag':'struct','fields':[{'name':f.name,'value':expected(a.field(j).slice(i,1))[0]} for j,f in enumerate(t)]}); continue
         if pa.types.is_list(t) or pa.types.is_large_list(t) or pa.types.is_fixed_size_list(t) or pa.types.is_list_view(t) or pa.types.is_large_list_view(t): out.append({'tag':'list','values':expected(s.values)}); continue
+        if pa.types.is_map(t): out.append({'tag':'map','entries':[{'key':k,'value':v} for k,v in zip(expected(s.values.field(0)),expected(s.values.field(1)))]}); continue
+        if pa.types.is_union(t):
+            child=t.type_codes.index(s.type_code)
+            position=a.offset+i if t.mode=='sparse' else int.from_bytes(a.buffers()[2].to_pybytes()[(a.offset+i)*4:(a.offset+i+1)*4],'little',signed=True)
+            out.append({'tag':'union','typeCode':s.type_code,'value':expected(physical_child(a,child).slice(position,1))[0]}); continue
+        if pa.types.is_interval(t): v=s.as_py(); out.append({'tag':'interval','components':[v.months,v.days,v.nanoseconds]}); continue
         out.append({'tag':'unsupported','value':str(s.as_py())})
     return out
 
@@ -126,22 +141,22 @@ def cases():
         with localcontext() as ctx:
             ctx.prec=100
             boundary=Decimal('9'*precision).scaleb(-2)
-            add(f'decimal{width}',pa.array([Decimal('12.34'),None,Decimal('-0.01'),boundary,-boundary],type=getattr(pa,f'decimal{width}')(precision,2)),missing=width!=128)
+            add(f'decimal{width}',pa.array([Decimal('12.34'),None,Decimal('-0.01'),boundary,-boundary],type=getattr(pa,f'decimal{width}')(precision,2)))
     for t in [pa.date32(),pa.date64(),pa.time32('s'),pa.time32('ms'),pa.time64('us'),pa.time64('ns')]+[x(u) for x in [pa.timestamp,pa.duration] for u in UNITS]+[pa.timestamp('ns',tz='UTC'),pa.timestamp('us',tz='America/New_York')]:
         end=86400000 if pa.types.is_date64(t) else (86400*{'s':1,'ms':1000,'us':1000000,'ns':1000000000}[t.unit]-1 if pa.types.is_time(t) else 1)
         add(str(t),pa.array([0,None,end],type=t))
     for t,vals in [(pa.string(),['',None,'λ雪']),(pa.large_string(),['',None,'λ雪']),(pa.binary(),[b'',None,b'\x00\xff']),(pa.large_binary(),[b'',None,b'\x00\xff']),(pa.binary(2),[b'ab',None,b'\x00\xff']),(pa.string_view(),['short',None,'longer than twelve bytes']),(pa.binary_view(),[b'x',None,b'longer than twelve bytes'])]:
-        add(descriptor(t)['kind'],pa.array(vals,type=t),missing=pa.types.is_fixed_size_binary(t) or pa.types.is_string_view(t) or pa.types.is_binary_view(t))
+        add(descriptor(t)['kind'],pa.array(vals,type=t))
     for t in [pa.list_(pa.int32()),pa.large_list(pa.int32()),pa.list_(pa.int32(),2),pa.list_view(pa.int32()),pa.large_list_view(pa.int32())]:
-        add(descriptor(t)['kind'],pa.array([[1,None],None,[3,4]],type=t),missing=pa.types.is_large_list(t) or pa.types.is_list_view(t) or pa.types.is_large_list_view(t))
+        add(descriptor(t)['kind'],pa.array([[1,None],None,[3,4]],type=t))
     add('struct',pa.array([{'a':1,'b':'x'},None,{'a':None,'b':''}],type=pa.struct([('a',pa.int32()),('b',pa.string())])))
-    add('map',pa.array([[('a',1)],None,[]],type=pa.map_(pa.string(),pa.int32())),missing=True)
+    add('map',pa.array([[('a',1),('b',None)],None,[],[('a',2)]],type=pa.map_(pa.string(),pa.int32())))
     for mode in ['dense','sparse']:
-        ids=pa.array([0,1,0],type=pa.int8()); children=[pa.array([1,2,3]),pa.array(['a','b','c'])]
-        a=pa.UnionArray.from_dense(ids,pa.array([0,1,2],type=pa.int32()),children) if mode=='dense' else pa.UnionArray.from_sparse(ids,children)
-        add(mode+'Union',a,missing=True)
-    for width in [16,32,64]: add(f'runEnd{width}',pa.RunEndEncodedArray.from_arrays(pa.array([2,4],type=getattr(pa,f'int{width}')()),pa.array([1,None])),missing=True)
-    add('monthDayNanoInterval',pa.array([(1,2,3),None],type=pa.month_day_nano_interval()),missing=True)
+        ids=pa.array([0,1,0,1],type=pa.int8()); children=[pa.array([1,2,3,None]),pa.array(['a','b','c',None])]
+        a=pa.UnionArray.from_dense(ids,pa.array([0,1,2,3],type=pa.int32()),children) if mode=='dense' else pa.UnionArray.from_sparse(ids,children)
+        add(mode+'Union',a)
+    for width in [16,32,64]: add(f'runEnd{width}',pa.RunEndEncodedArray.from_arrays(pa.array([2,4,5],type=getattr(pa,f'int{width}')()),pa.array([1,None,3])))
+    add('monthDayNanoInterval',pa.array([(1,2,3),None,(-1,0,-(1<<62))],type=pa.month_day_nano_interval()))
     for t in [pa.int8(),pa.int16(),pa.int32(),pa.int64()]:
         add('dictionary.'+str(t),pa.DictionaryArray.from_arrays(pa.array([0,None,1,2],type=t),pa.array(['x',None,'z'])))
     add('dictionary.nested',pa.DictionaryArray.from_arrays(pa.array([0,1,None],type=pa.int8()),pa.array([[1,None],[2]],type=pa.list_(pa.int32()))))
@@ -186,6 +201,6 @@ def main():
     for id,kind,counts in [('interval.yearMonth','yearMonthInterval',[12,0,-1]),('interval.dayTime','dayTimeInterval',[1,2,0,0,-1,3])]:
         d={'kind':kind}
         data=b''.join(n.to_bytes(4,'little',signed=True) for n in counts)
-        payload['cases'].append({'id':id,'family':'interval','descriptor':d,'missing':True,'producer':{'name':'Arrow format literal','version':'1.5'},'source':'https://github.com/apache/arrow/blob/apache-arrow-26.0.0/format/Schema.fbs','array':{'descriptor':d,'length':3,'offset':0,'nullCount':1,'buffers':[base64.b64encode(bytes([5])).decode(),base64.b64encode(data).decode()],'children':[],'dictionary':None},'expected':[{'tag':'interval','components':counts[:len(counts)//3]},None,{'tag':'interval','components':counts[-len(counts)//3:]}]})
+        payload['cases'].append({'id':id,'family':'interval','descriptor':d,'producer':{'name':'Arrow format literal','version':'1.5'},'source':'https://github.com/apache/arrow/blob/apache-arrow-26.0.0/format/Schema.fbs','array':{'descriptor':d,'length':3,'offset':0,'nullCount':1,'buffers':[base64.b64encode(bytes([5])).decode(),base64.b64encode(data).decode()],'children':[],'dictionary':None},'expected':[{'tag':'interval','components':counts[:len(counts)//3]},None,{'tag':'interval','components':counts[-len(counts)//3:]}]})
     target=Path(args.output); target.parent.mkdir(parents=True,exist_ok=True); target.write_text(json.dumps(payload,indent=2)+'\n')
 if __name__=='__main__': main()

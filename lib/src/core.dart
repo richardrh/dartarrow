@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 part 'array.dart';
+part 'array_extended.dart';
 part 'batch.dart';
 part 'buffer.dart';
 part 'chunked_array.dart';

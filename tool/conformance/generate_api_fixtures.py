@@ -28,6 +28,12 @@ def dtype(spec):
         return pa.struct([pa.field(f[0],dtype(f[1]),nullable=f[2] if len(f)>2 else True) for f in args[0]])
     if name == 'dictionary':
         return pa.dictionary(dtype(args[0]), dtype(args[1]))
+    if name in ('large_list', 'list_view', 'large_list_view'):
+        return getattr(pa, name)(dtype(args[0]))
+    if name == 'map_':
+        return pa.map_(dtype(args[0]), dtype(args[1]))
+    if name == 'run_end_encoded':
+        return pa.run_end_encoded(dtype(args[0]), dtype(args[1]))
     return getattr(pa, name)(*args)
 
 
@@ -50,6 +56,8 @@ def native(value):
         return datetime.datetime.fromisoformat(value['$datetime'])
     if '$float' in value:
         return struct.unpack('>d', bytes.fromhex(value['$float']))[0]
+    if '$interval' in value:
+        return pa.MonthDayNano(value['$interval'])
     return {k: native(v) for k, v in value.items()}
 
 
@@ -66,7 +74,9 @@ def normalized(value):
         return {'decimal': str(value)}
     if isinstance(value, (datetime.datetime, datetime.date, datetime.time, datetime.timedelta)):
         return {'temporal': str(value)}
-    if isinstance(value, list):
+    if isinstance(value, pa.MonthDayNano):
+        return {'interval': [value.months, value.days, str(value.nanoseconds)]}
+    if isinstance(value, (list, tuple)):
         return [normalized(v) for v in value]
     if isinstance(value, dict):
         return {k: normalized(v) for k, v in value.items()}
@@ -308,6 +318,29 @@ def cases():
     for label,t in [('date32','date32'),('date64','date64'),('time32',['time32','s']),('time64',['time64','us']),('timestamp',['timestamp','ns']),('duration',['duration','ns'])]:
         add('scalar.value.'+label,unary('scalarValue',scalar(1,t)))
     add('scalar.value.typedNull',unary('scalarValue',scalar(None,['timestamp','ns'])))
+    # Extended logical types: PyArrow factory spellings, native construction,
+    # scalar conversion, slicing and invalid-width rejection.
+    long='a string longer than twelve bytes'
+    for label,t,values in [
+        ('stringView','string_view',['short',None,long,'']),
+        ('binaryView','binary_view',[{'$bytes':[0,255]},None,{'$bytes':list(range(20))}]),
+        ('fixedSizeBinary',['binary',2],[{'$bytes':[1,2]},None]),
+        ('largeList',['large_list','int16'],[[1,None],None,[]]),
+        ('listView',['list_view','int16'],[[1,None],None,[]]),
+        ('largeListView',['large_list_view','string'],[['x'],None,[]]),
+        ('decimal32',['decimal32',5,2],[{'$decimal':'1.25'},None,{'$decimal':'-999.99'}]),
+        ('decimal64',['decimal64',18,3],[{'$decimal':'1.250'},None]),
+        ('decimal256',['decimal256',60,-2],[{'$decimal':'1200'},None]),
+        ('map',['map_','string','int32'],[{'a':1,'b':None},None,{}]),
+        ('monthDayNanoInterval','month_day_nano_interval',[{'$interval':[1,-2,3]},None]),
+        ('runEndEncoded',['run_end_encoded','int32','int64'],[1,1,None,2]),
+    ]:
+        a=arr(values,t)
+        add('extended.'+label,a)
+        add('extended.'+label+'.slice',unary('slice',a,offset=1))
+        add('extended.'+label+'.scalar',unary('index',a,index=0))
+    add('extended.fixedSizeBinary.wrongWidth',arr([{'$bytes':[1]}],['binary',2]))
+    add('extended.decimal32.overflow',arr([{'$decimal':'123456.78'}],['decimal32',5,2]))
     def parent(children,names,mask): return {'op':'maskedStruct','children':children,'names':names,'mask':mask}
     add('batch.structParent.maskedChild',unary('fromStructBatch',parent([arr([99,1],'int32')],['x'],[True,False])))
     add('batch.structParent.childNullIntersection',unary('fromStructBatch',parent([arr([99,None,2],'int32')],['x'],[True,False,False])))

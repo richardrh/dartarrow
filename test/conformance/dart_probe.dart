@@ -61,7 +61,38 @@ void check(bool condition, String message) {
 Object? oracle(Object? raw, DataType type, {Array? context}) {
   if (raw == null) return null;
   final v = object(raw);
+  if (type is RunEndEncodedType) {
+    return oracle(raw, type.valuesField.type, context: context?.children[1]);
+  }
   switch (v['tag']) {
+    case 'interval':
+      final c = (v['components'] as List).cast<int>();
+      return switch ((type as IntervalType).unit) {
+        IntervalUnit.yearMonth => IntervalValue.yearMonth(c[0]),
+        IntervalUnit.dayTime => IntervalValue.dayTime(c[0], c[1]),
+        IntervalUnit.monthDayNano => IntervalValue.monthDayNano(
+          c[0],
+          c[1],
+          c[2],
+        ),
+      };
+    case 'map':
+      final map = type as MapType;
+      return [
+        for (final e in v['entries'] as List)
+          (
+            oracle(object(e)['key'], map.keyField.type),
+            oracle(object(e)['value'], map.valueField.type),
+          ),
+      ];
+    case 'union':
+      final union = type as UnionType;
+      final child = union.typeIds.indexOf(v['typeCode'] as int);
+      return oracle(
+        v['value'],
+        union.fields[child].type,
+        context: context?.children[child],
+      );
     case 'integer':
       return BigInt.parse(v['value'] as String);
     case 'decimal':
@@ -144,6 +175,9 @@ bool equalValue(Object? actual, Object? expected) {
       return actual.isNegative == expected.isNegative;
     return actual == expected;
   }
+  if (actual is (Object?, Object?) && expected is (Object?, Object?))
+    return equalValue(actual.$1, expected.$1) &&
+        equalValue(actual.$2, expected.$2);
   if (actual is List && expected is List)
     return actual.length == expected.length &&
         List.generate(
@@ -160,8 +194,16 @@ bool equalValue(Object? actual, Object? expected) {
 
 void checkValues(Array a, List expected, String label) {
   check(a.length == expected.length, '$label length');
+  // Unions and run-end encoded arrays have no validity bitmap: PyArrow
+  // reports a zero null count while scalars expose child validity.
+  final storage = a.type is ExtensionType
+      ? (a.type as ExtensionType).storageType
+      : a.type;
   check(
-    a.nullCount == expected.where((v) => v == null).length,
+    a.nullCount ==
+        (storage is UnionType || storage is RunEndEncodedType
+            ? 0
+            : expected.where((v) => v == null).length),
     '$label null count',
   );
   for (var i = 0; i < expected.length; i++) {

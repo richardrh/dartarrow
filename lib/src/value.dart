@@ -42,10 +42,11 @@ final class _FloatingValue extends _Value {
   }
   factory _FloatingValue.float64(double value) {
     final data = ByteData(8)..setFloat64(0, value, Endian.little);
-    final rawBits = data.getInt64(0, Endian.little);
+    // Exact halves: dart2js has no ByteData.getInt64.
     return _FloatingValue(
       64,
-      rawBits < 0 ? BigInt.from(rawBits) + (BigInt.one << 64) : rawBits,
+      (BigInt.from(data.getUint32(4, Endian.little)) << 32) |
+          BigInt.from(data.getUint32(0, Endian.little)),
     );
   }
   final int bitWidth;
@@ -153,6 +154,51 @@ final class _ExtensionValue extends _Value {
       other is _ExtensionValue && storage == other.storage;
   @override
   int get hashCode => storage.hashCode;
+}
+
+/// One key/value pair of a map row. Keys are never null.
+final class _MapEntry {
+  const _MapEntry(this.key, this.value);
+  final _Value key;
+  final _Value? value;
+  @override
+  bool operator ==(Object other) =>
+      other is _MapEntry && key == other.key && value == other.value;
+  @override
+  int get hashCode => Object.hash(key, value);
+}
+
+/// A map row. Entry order is preserved and duplicate keys are retained.
+final class _MapValue extends _Value {
+  _MapValue(List<_MapEntry> entries) : entries = List.unmodifiable(entries);
+  final List<_MapEntry> entries;
+  @override
+  bool operator ==(Object other) =>
+      other is _MapValue && _listEquals(entries, other.entries);
+  @override
+  int get hashCode => Object.hashAll(entries);
+}
+
+/// A union row tagged with its child [typeId]; [value] is the child's value.
+final class _UnionValue extends _Value {
+  const _UnionValue(this.typeId, this.value);
+  final int typeId;
+  final _Value? value;
+  @override
+  bool operator ==(Object other) =>
+      other is _UnionValue && typeId == other.typeId && value == other.value;
+  @override
+  int get hashCode => Object.hash(typeId, value);
+}
+
+final class _IntervalValue extends _Value {
+  const _IntervalValue(this.value);
+  final IntervalValue value;
+  @override
+  bool operator ==(Object other) =>
+      other is _IntervalValue && value == other.value;
+  @override
+  int get hashCode => value.hashCode;
 }
 
 BigInt _bigInt(Object value) {

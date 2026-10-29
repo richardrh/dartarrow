@@ -67,6 +67,66 @@ final class TemporalValue {
       'TemporalValue($counter, ${unit.name}, kind: $kind, timeZone: $timeZone)';
 }
 
+/// An exact Arrow calendar interval. Only the components of [unit] are
+/// meaningful: yearMonth uses [months]; dayTime uses [days] and
+/// [milliseconds]; monthDayNano uses [months], [days], and [nanoseconds]
+/// (PyArrow's `MonthDayNano`).
+final class IntervalValue {
+  IntervalValue.yearMonth(this.months)
+    : unit = IntervalUnit.yearMonth,
+      days = 0,
+      milliseconds = 0,
+      nanoseconds = BigInt.zero {
+    _checkInt32(months, 'months');
+  }
+  IntervalValue.dayTime(this.days, this.milliseconds)
+    : unit = IntervalUnit.dayTime,
+      months = 0,
+      nanoseconds = BigInt.zero {
+    _checkInt32(days, 'days');
+    _checkInt32(milliseconds, 'milliseconds');
+  }
+  IntervalValue.monthDayNano(this.months, this.days, Object nanoseconds)
+    : unit = IntervalUnit.monthDayNano,
+      milliseconds = 0,
+      nanoseconds = _integer(nanoseconds) {
+    _checkInt32(months, 'months');
+    _checkInt32(days, 'days');
+    if (this.nanoseconds < _minInt || this.nanoseconds > _maxInt) {
+      throw RangeError('nanoseconds does not fit int64');
+    }
+  }
+  final IntervalUnit unit;
+  final int months;
+  final int days;
+  final int milliseconds;
+  final BigInt nanoseconds;
+  @override
+  bool operator ==(Object other) =>
+      other is IntervalValue &&
+      unit == other.unit &&
+      months == other.months &&
+      days == other.days &&
+      milliseconds == other.milliseconds &&
+      nanoseconds == other.nanoseconds;
+  @override
+  int get hashCode =>
+      Object.hash(unit, months, days, milliseconds, nanoseconds);
+  @override
+  String toString() => switch (unit) {
+    IntervalUnit.yearMonth => 'IntervalValue.yearMonth($months)',
+    IntervalUnit.dayTime => 'IntervalValue.dayTime($days, $milliseconds)',
+    IntervalUnit.monthDayNano =>
+      'IntervalValue.monthDayNano($months, $days, $nanoseconds)',
+  };
+}
+
+void _checkInt32(int value, String name) {
+  if (value < -0x80000000 || value > 0x7fffffff) {
+    throw RangeError.range(value, -0x80000000, 0x7fffffff, name);
+  }
+}
+
 /// A typed scalar; validity is independent of floating-point NaN values.
 class Scalar {
   Scalar._(
@@ -113,6 +173,60 @@ class Scalar {
         ? physical * storage.size
         : source._offsetAt(physical);
     return source.children.single[start + childIndex];
+  }
+
+  /// The child scalar selected by a union or run-end encoded scalar.
+  Scalar _selected() {
+    final storage = type;
+    final source = _source;
+    if (storage is RunEndEncodedType) {
+      if (source != null) {
+        return source.children[1][_runIndex(
+          source,
+          storage,
+          source.offset + _index!,
+        )];
+      }
+      return Scalar._fromRaw(storage.valuesField.type, _rawValue);
+    }
+    final union = storage as UnionType;
+    if (source != null) {
+      final (child, position) = _unionSlot(
+        source,
+        union,
+        source.offset + _index!,
+      );
+      return source.children[child][position];
+    }
+    final raw = _rawValue as _UnionValue;
+    return Scalar._fromRaw(
+      union.fields[union.childIndexForTypeId(raw.typeId)].type,
+      raw.value,
+    );
+  }
+
+  /// Key and item scalars of a valid map scalar, in entry order.
+  List<(Scalar, Scalar)> _mapEntries() {
+    final map = type as MapType;
+    final source = _source;
+    if (source != null) {
+      final (start, size) = _listRange(source, source.offset + _index!);
+      final entries = source.children.single;
+      return [
+        for (var j = start; j < start + size; j++)
+          (
+            entries.children[0][entries.offset + j],
+            entries.children[1][entries.offset + j],
+          ),
+      ];
+    }
+    return [
+      for (final entry in (_rawValue as _MapValue).entries)
+        (
+          Scalar._fromRaw(map.keyField.type, entry.key),
+          Scalar._fromRaw(map.valueField.type, entry.value),
+        ),
+    ];
   }
 
   bool equals(Scalar other) {
@@ -266,6 +380,15 @@ class Scalar {
   Object? get value {
     if (!isValid) return null;
     final raw = _rawValue!;
+    if (type is UnionType || type is RunEndEncodedType) {
+      return _selected().value;
+    }
+    if (raw is _MapValue) {
+      return List<(Object?, Object?)>.unmodifiable([
+        for (final (key, item) in _mapEntries()) (key.value, item.value),
+      ]);
+    }
+    if (raw is _IntervalValue) return raw.value;
     if (raw is _TemporalValue) return _nativeInteger(raw.value);
     if (raw is _ListValue) {
       final childType = switch (type) {
@@ -305,6 +428,15 @@ class Scalar {
   Object? asDart() {
     if (!isValid) return null;
     final raw = _rawValue!;
+    if (type is UnionType || type is RunEndEncodedType) {
+      return _selected().asDart();
+    }
+    if (raw is _MapValue) {
+      return List<(Object?, Object?)>.unmodifiable([
+        for (final (key, item) in _mapEntries()) (key.asDart(), item.asDart()),
+      ]);
+    }
+    if (raw is _IntervalValue) return raw.value;
     if (raw is _BooleanValue) return raw.value;
     if (raw is _IntegerValue) return _nativeInteger(raw.value);
     if (raw is _FloatingValue) return _floating(raw);
