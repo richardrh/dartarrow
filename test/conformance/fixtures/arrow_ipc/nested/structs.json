@@ -1,0 +1,128 @@
+{
+ "family": "nested",
+ "name": "structs",
+ "description": "struct with null rows/children and nested struct",
+ "files": {
+  "file": "structs.arrow",
+  "stream": "structs.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "point",
+    "nullable": true,
+    "type": {
+     "id": "struct",
+     "children": [
+      {
+       "name": "x",
+       "nullable": true,
+       "type": {
+        "id": "int32"
+       }
+      },
+      {
+       "name": "label",
+       "nullable": true,
+       "type": {
+        "id": "utf8"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "name": "outer",
+    "nullable": true,
+    "type": {
+     "id": "struct",
+     "children": [
+      {
+       "name": "inner",
+       "nullable": true,
+       "type": {
+        "id": "struct",
+        "children": [
+         {
+          "name": "v",
+          "nullable": true,
+          "type": {
+           "id": "float64"
+          }
+         }
+        ]
+       }
+      },
+      {
+       "name": "flag",
+       "nullable": true,
+       "type": {
+        "id": "bool"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "num_rows": 5,
+ "batch_row_counts": [
+  5
+ ],
+ "columns": [
+  {
+   "name": "point",
+   "null_count": 1,
+   "values": [
+    {
+     "x": 1,
+     "label": "a"
+    },
+    {
+     "x": null,
+     "label": "b"
+    },
+    {
+     "x": 3,
+     "label": null
+    },
+    null,
+    {
+     "x": 5,
+     "label": "é"
+    }
+   ]
+  },
+  {
+   "name": "outer",
+   "null_count": 1,
+   "values": [
+    {
+     "inner": {
+      "v": "0x3ff8000000000000"
+     },
+     "flag": true
+    },
+    null,
+    {
+     "inner": null,
+     "flag": false
+    },
+    {
+     "inner": {
+      "v": null
+     },
+     "flag": null
+    },
+    {
+     "inner": {
+      "v": "0x8000000000000000"
+     },
+     "flag": true
+    }
+   ]
+  }
+ ]
+}

@@ -5,6 +5,8 @@ repository: https://github.com/richardrh/dartarrow
 issue_tracker: https://github.com/richardrh/dartarrow/issues
 environment:
   sdk: ^3.13.0
+dependencies:
+  libcompress: ^1.2.1
 dev_dependencies:
   test: 1.32.0
   coverage: 1.15.1

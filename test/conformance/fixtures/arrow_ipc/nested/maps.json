@@ -1,0 +1,151 @@
+{
+ "family": "nested",
+ "name": "maps",
+ "description": "map<utf8,int64> with null rows, empty maps and null values",
+ "files": {
+  "file": "maps.arrow",
+  "stream": "maps.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "map",
+    "nullable": true,
+    "type": {
+     "id": "map",
+     "keys_sorted": false,
+     "children": [
+      {
+       "name": "entries",
+       "nullable": false,
+       "type": {
+        "id": "struct",
+        "children": [
+         {
+          "name": "key",
+          "nullable": false,
+          "type": {
+           "id": "utf8"
+          }
+         },
+         {
+          "name": "value",
+          "nullable": true,
+          "type": {
+           "id": "int64"
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   },
+   {
+    "name": "map_sorted",
+    "nullable": true,
+    "type": {
+     "id": "map",
+     "keys_sorted": true,
+     "children": [
+      {
+       "name": "entries",
+       "nullable": false,
+       "type": {
+        "id": "struct",
+        "children": [
+         {
+          "name": "key",
+          "nullable": false,
+          "type": {
+           "id": "int32"
+          }
+         },
+         {
+          "name": "value",
+          "nullable": true,
+          "type": {
+           "id": "utf8"
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "num_rows": 5,
+ "batch_row_counts": [
+  5
+ ],
+ "columns": [
+  {
+   "name": "map",
+   "null_count": 1,
+   "values": [
+    [
+     [
+      "a",
+      "1"
+     ],
+     [
+      "b",
+      null
+     ]
+    ],
+    null,
+    [],
+    [
+     [
+      "c",
+      "3"
+     ]
+    ],
+    [
+     [
+      "é",
+      "-1"
+     ],
+     [
+      "z",
+      "26"
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "map_sorted",
+   "null_count": 1,
+   "values": [
+    [
+     [
+      1,
+      "one"
+     ],
+     [
+      2,
+      "two"
+     ]
+    ],
+    [],
+    null,
+    [
+     [
+      3,
+      null
+     ]
+    ],
+    [
+     [
+      4,
+      "four"
+     ]
+    ]
+   ]
+  }
+ ]
+}

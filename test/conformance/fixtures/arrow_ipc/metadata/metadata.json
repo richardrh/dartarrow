@@ -1,0 +1,113 @@
+{
+ "family": "metadata",
+ "name": "metadata",
+ "description": "schema/field metadata, non-nullable fields, Unicode and empty names",
+ "files": {
+  "file": "metadata.arrow",
+  "stream": "metadata.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "required",
+    "nullable": false,
+    "type": {
+     "id": "int32"
+    },
+    "metadata": {
+     "role": "id",
+     "ünïcode": "välue"
+    }
+   },
+   {
+    "name": "nested",
+    "nullable": true,
+    "type": {
+     "id": "struct",
+     "children": [
+      {
+       "name": "child",
+       "nullable": false,
+       "type": {
+        "id": "utf8"
+       },
+       "metadata": {
+        "k": "v"
+       }
+      }
+     ]
+    },
+    "metadata": {
+     "level": "1"
+    }
+   },
+   {
+    "name": "名前",
+    "nullable": true,
+    "type": {
+     "id": "utf8"
+    }
+   },
+   {
+    "name": "",
+    "nullable": true,
+    "type": {
+     "id": "int8"
+    }
+   }
+  ],
+  "metadata": {
+   "empty": "",
+   "json": "{\"a\": [1, 2]}",
+   "origin": "pyarrow-oracle"
+  }
+ },
+ "num_rows": 3,
+ "batch_row_counts": [
+  3
+ ],
+ "columns": [
+  {
+   "name": "required",
+   "null_count": 0,
+   "values": [
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "name": "nested",
+   "null_count": 1,
+   "values": [
+    {
+     "child": "a"
+    },
+    null,
+    {
+     "child": "c"
+    }
+   ]
+  },
+  {
+   "name": "名前",
+   "null_count": 1,
+   "values": [
+    "x",
+    null,
+    "z"
+   ]
+  },
+  {
+   "name": "",
+   "null_count": 1,
+   "values": [
+    1,
+    2,
+    null
+   ]
+  }
+ ]
+}

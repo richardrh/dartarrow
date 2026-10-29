@@ -1,0 +1,63 @@
+{
+ "family": "extension",
+ "name": "dictionary",
+ "description": "extension annotation over dictionary storage",
+ "files": {
+  "file": "dictionary.arrow",
+  "stream": "dictionary.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "encoded",
+    "nullable": true,
+    "type": {
+     "id": "dictionary",
+     "index": {
+      "id": "int8"
+     },
+     "value": {
+      "id": "utf8"
+     },
+     "ordered": false
+    },
+    "metadata": {
+     "ARROW:extension:metadata": "{\"kind\":\"label\"}",
+     "ARROW:extension:name": "dartaframes.test.dictionary"
+    }
+   }
+  ]
+ },
+ "num_rows": 4,
+ "batch_row_counts": [
+  4
+ ],
+ "columns": [
+  {
+   "name": "encoded",
+   "null_count": 1,
+   "values": [
+    "red",
+    null,
+    "blue",
+    "red"
+   ],
+   "dictionary": [
+    {
+     "indices": [
+      0,
+      null,
+      1,
+      0
+     ],
+     "values": [
+      "red",
+      "blue"
+     ]
+    }
+   ]
+  }
+ ]
+}

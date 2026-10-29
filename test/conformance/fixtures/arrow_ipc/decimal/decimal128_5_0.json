@@ -1,0 +1,42 @@
+{
+ "family": "decimal",
+ "name": "decimal128_5_0",
+ "description": "decimal128(5, 0) precision extrema, zero, null",
+ "files": {
+  "file": "decimal128_5_0.arrow",
+  "stream": "decimal128_5_0.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "d128_5_0",
+    "nullable": true,
+    "type": {
+     "id": "decimal128",
+     "precision": 5,
+     "scale": 0
+    }
+   }
+  ]
+ },
+ "num_rows": 6,
+ "batch_row_counts": [
+  6
+ ],
+ "columns": [
+  {
+   "name": "d128_5_0",
+   "null_count": 1,
+   "values": [
+    "99999",
+    "-99999",
+    "0",
+    null,
+    "1",
+    "-1"
+   ]
+  }
+ ]
+}

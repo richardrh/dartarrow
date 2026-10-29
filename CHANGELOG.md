@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+- Add the remaining standard Arrow logical types with PyArrow-style factories:
+  fixed-size binary (`binary(n)`), `stringView`/`binaryView`, `largeList`,
+  `listView`/`largeListView`, `decimal32`/`decimal64`/`decimal256` (any signed
+  32-bit scale), `mapType`, `sparseUnion`/`denseUnion`/`union`, intervals
+  (`IntervalType`, `monthDayNanoInterval`, exact `IntervalValue`), and
+  `runEndEncoded`. All are buffer-backed: `Array.fromBuffers` validation,
+  scalars, zero-copy slices, concatenation, equality, owned JSON, casts and
+  native construction where PyArrow supports it. New `Array.fromRunEnds`,
+  `Array.fromSparseUnion` and `Array.fromDenseUnion` build encoded arrays from
+  child arrays. Decimal inference widens to `decimal256` beyond 38 digits.
+- Add standard Arrow IPC V5 streams and files in the separate `ipc.dart` import,
+  shaped like `pyarrow.ipc` (`openStream`, `openFile`, `newStream`, `newFile`,
+  `RecordBatchStream/FileReader/Writer`, `IpcLimits`): zero-copy reads of
+  uncompressed bodies, writes directly from physical buffers (slices rebased),
+  LZ4_FRAME/ZSTD decompression on the VM via pure Dart `libcompress` and LZ4_FRAME
+  on the web, nested and extension dictionaries, stream dictionary replacement
+  and deltas, schema/field/custom metadata as bytes, bounded decoding, and
+  PyArrow 26 fixtures verified in both directions. Core 64-bit buffer access is
+  now dart2js-safe.
+- Owned JSON decoding now requires canonical decimal-integer strings and
+  exact-width `floatBits`, bounding hostile input before parsing.
+- Every physical PyArrow 26 fixture family is now supported; CI runs the
+  conformance probe with `--require-full`.
+
 ## 0.2.0
 
 - Breaking clean cutover to a PyArrow-shaped Dart interface: `DataType`, `Array`,

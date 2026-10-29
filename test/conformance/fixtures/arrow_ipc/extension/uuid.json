@@ -1,0 +1,42 @@
+{
+ "family": "extension",
+ "name": "uuid",
+ "description": "arrow.uuid over fixed_size_binary(16)",
+ "files": {
+  "file": "uuid.arrow",
+  "stream": "uuid.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "uuid",
+    "nullable": true,
+    "type": {
+     "id": "fixed_size_binary",
+     "byte_width": 16
+    },
+    "metadata": {
+     "ARROW:extension:metadata": "",
+     "ARROW:extension:name": "arrow.uuid"
+    }
+   }
+  ]
+ },
+ "num_rows": 3,
+ "batch_row_counts": [
+  3
+ ],
+ "columns": [
+  {
+   "name": "uuid",
+   "null_count": 1,
+   "values": [
+    "000102030405060708090a0b0c0d0e0f",
+    null,
+    "ffffffffffffffffffffffffffffffff"
+   ]
+  }
+ ]
+}

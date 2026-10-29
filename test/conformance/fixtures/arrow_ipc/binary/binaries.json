@@ -1,0 +1,59 @@
+{
+ "family": "binary",
+ "name": "binaries",
+ "description": "binary/large_binary",
+ "files": {
+  "file": "binaries.arrow",
+  "stream": "binaries.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "binary",
+    "nullable": true,
+    "type": {
+     "id": "binary"
+    }
+   },
+   {
+    "name": "large_binary",
+    "nullable": true,
+    "type": {
+     "id": "large_binary"
+    }
+   }
+  ]
+ },
+ "num_rows": 6,
+ "batch_row_counts": [
+  6
+ ],
+ "columns": [
+  {
+   "name": "binary",
+   "null_count": 1,
+   "values": [
+    "",
+    "0001ff",
+    null,
+    "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "73686f7274",
+    "3031323334353637383961626364656658595a"
+   ]
+  },
+  {
+   "name": "large_binary",
+   "null_count": 1,
+   "values": [
+    "",
+    "0001ff",
+    null,
+    "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "73686f7274",
+    "3031323334353637383961626364656658595a"
+   ]
+  }
+ ]
+}

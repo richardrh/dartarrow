@@ -1,0 +1,20 @@
+{
+ "family": "structure",
+ "name": "zero_columns",
+ "description": "zero columns with three rows",
+ "files": {
+  "file": "zero_columns.arrow",
+  "stream": "zero_columns.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "notes": "Dart may currently reject empty schemas; positive row count must round-trip",
+ "schema": {
+  "fields": []
+ },
+ "num_rows": 3,
+ "batch_row_counts": [
+  3
+ ],
+ "columns": []
+}

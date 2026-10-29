@@ -10834,6 +10834,2547 @@
       }
     },
     {
+      "id": "extended.stringView",
+      "input": {
+        "op": "array",
+        "values": [
+          "short",
+          null,
+          "a string longer than twelve bytes",
+          ""
+        ],
+        "type": "string_view"
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "utf8View"
+          },
+          "length": 4,
+          "nullCount": 1,
+          "values": [
+            "short",
+            null,
+            "a string longer than twelve bytes",
+            ""
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "utf8View"
+              },
+              "isValid": true,
+              "value": "short"
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "utf8View"
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "utf8View"
+              },
+              "isValid": true,
+              "value": "a string longer than twelve bytes"
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "utf8View"
+              },
+              "isValid": true,
+              "value": ""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.stringView.slice",
+      "input": {
+        "op": "slice",
+        "source": {
+          "op": "array",
+          "values": [
+            "short",
+            null,
+            "a string longer than twelve bytes",
+            ""
+          ],
+          "type": "string_view"
+        },
+        "offset": 1
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "utf8View"
+          },
+          "length": 3,
+          "nullCount": 1,
+          "values": [
+            null,
+            "a string longer than twelve bytes",
+            ""
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "utf8View"
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "utf8View"
+              },
+              "isValid": true,
+              "value": "a string longer than twelve bytes"
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "utf8View"
+              },
+              "isValid": true,
+              "value": ""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.stringView.scalar",
+      "input": {
+        "op": "index",
+        "source": {
+          "op": "array",
+          "values": [
+            "short",
+            null,
+            "a string longer than twelve bytes",
+            ""
+          ],
+          "type": "string_view"
+        },
+        "index": 0
+      },
+      "expected": {
+        "ok": {
+          "kind": "Scalar",
+          "type": {
+            "kind": "utf8View"
+          },
+          "isValid": true,
+          "value": "short"
+        }
+      }
+    },
+    {
+      "id": "extended.binaryView",
+      "input": {
+        "op": "array",
+        "values": [
+          {
+            "$bytes": [
+              0,
+              255
+            ]
+          },
+          null,
+          {
+            "$bytes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19
+            ]
+          }
+        ],
+        "type": "binary_view"
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "binaryView"
+          },
+          "length": 3,
+          "nullCount": 1,
+          "values": [
+            {
+              "bytes": [
+                0,
+                255
+              ]
+            },
+            null,
+            {
+              "bytes": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19
+              ]
+            }
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "binaryView"
+              },
+              "isValid": true,
+              "value": {
+                "bytes": [
+                  0,
+                  255
+                ]
+              }
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "binaryView"
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "binaryView"
+              },
+              "isValid": true,
+              "value": {
+                "bytes": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.binaryView.slice",
+      "input": {
+        "op": "slice",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "$bytes": [
+                0,
+                255
+              ]
+            },
+            null,
+            {
+              "$bytes": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19
+              ]
+            }
+          ],
+          "type": "binary_view"
+        },
+        "offset": 1
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "binaryView"
+          },
+          "length": 2,
+          "nullCount": 1,
+          "values": [
+            null,
+            {
+              "bytes": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19
+              ]
+            }
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "binaryView"
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "binaryView"
+              },
+              "isValid": true,
+              "value": {
+                "bytes": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.binaryView.scalar",
+      "input": {
+        "op": "index",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "$bytes": [
+                0,
+                255
+              ]
+            },
+            null,
+            {
+              "$bytes": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19
+              ]
+            }
+          ],
+          "type": "binary_view"
+        },
+        "index": 0
+      },
+      "expected": {
+        "ok": {
+          "kind": "Scalar",
+          "type": {
+            "kind": "binaryView"
+          },
+          "isValid": true,
+          "value": {
+            "bytes": [
+              0,
+              255
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "extended.fixedSizeBinary",
+      "input": {
+        "op": "array",
+        "values": [
+          {
+            "$bytes": [
+              1,
+              2
+            ]
+          },
+          null
+        ],
+        "type": [
+          "binary",
+          2
+        ]
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "fixedSizeBinary",
+            "byteWidth": 2
+          },
+          "length": 2,
+          "nullCount": 1,
+          "values": [
+            {
+              "bytes": [
+                1,
+                2
+              ]
+            },
+            null
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "fixedSizeBinary",
+                "byteWidth": 2
+              },
+              "isValid": true,
+              "value": {
+                "bytes": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "fixedSizeBinary",
+                "byteWidth": 2
+              },
+              "isValid": false,
+              "value": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.fixedSizeBinary.slice",
+      "input": {
+        "op": "slice",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "$bytes": [
+                1,
+                2
+              ]
+            },
+            null
+          ],
+          "type": [
+            "binary",
+            2
+          ]
+        },
+        "offset": 1
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "fixedSizeBinary",
+            "byteWidth": 2
+          },
+          "length": 1,
+          "nullCount": 1,
+          "values": [
+            null
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "fixedSizeBinary",
+                "byteWidth": 2
+              },
+              "isValid": false,
+              "value": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.fixedSizeBinary.scalar",
+      "input": {
+        "op": "index",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "$bytes": [
+                1,
+                2
+              ]
+            },
+            null
+          ],
+          "type": [
+            "binary",
+            2
+          ]
+        },
+        "index": 0
+      },
+      "expected": {
+        "ok": {
+          "kind": "Scalar",
+          "type": {
+            "kind": "fixedSizeBinary",
+            "byteWidth": 2
+          },
+          "isValid": true,
+          "value": {
+            "bytes": [
+              1,
+              2
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "extended.largeList",
+      "input": {
+        "op": "array",
+        "values": [
+          [
+            1,
+            null
+          ],
+          null,
+          []
+        ],
+        "type": [
+          "large_list",
+          "int16"
+        ]
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "largeList",
+            "field": {
+              "name": "item",
+              "type": {
+                "kind": "int16"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          },
+          "length": 3,
+          "nullCount": 1,
+          "values": [
+            [
+              {
+                "integer": "1"
+              },
+              null
+            ],
+            null,
+            []
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "largeList",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "int16"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": true,
+              "value": [
+                {
+                  "integer": "1"
+                },
+                null
+              ]
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "largeList",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "int16"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "largeList",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "int16"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": true,
+              "value": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.largeList.slice",
+      "input": {
+        "op": "slice",
+        "source": {
+          "op": "array",
+          "values": [
+            [
+              1,
+              null
+            ],
+            null,
+            []
+          ],
+          "type": [
+            "large_list",
+            "int16"
+          ]
+        },
+        "offset": 1
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "largeList",
+            "field": {
+              "name": "item",
+              "type": {
+                "kind": "int16"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          },
+          "length": 2,
+          "nullCount": 1,
+          "values": [
+            null,
+            []
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "largeList",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "int16"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "largeList",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "int16"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": true,
+              "value": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.largeList.scalar",
+      "input": {
+        "op": "index",
+        "source": {
+          "op": "array",
+          "values": [
+            [
+              1,
+              null
+            ],
+            null,
+            []
+          ],
+          "type": [
+            "large_list",
+            "int16"
+          ]
+        },
+        "index": 0
+      },
+      "expected": {
+        "ok": {
+          "kind": "Scalar",
+          "type": {
+            "kind": "largeList",
+            "field": {
+              "name": "item",
+              "type": {
+                "kind": "int16"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          },
+          "isValid": true,
+          "value": [
+            {
+              "integer": "1"
+            },
+            null
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.listView",
+      "input": {
+        "op": "array",
+        "values": [
+          [
+            1,
+            null
+          ],
+          null,
+          []
+        ],
+        "type": [
+          "list_view",
+          "int16"
+        ]
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "listView",
+            "field": {
+              "name": "item",
+              "type": {
+                "kind": "int16"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          },
+          "length": 3,
+          "nullCount": 1,
+          "values": [
+            [
+              {
+                "integer": "1"
+              },
+              null
+            ],
+            null,
+            []
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "listView",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "int16"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": true,
+              "value": [
+                {
+                  "integer": "1"
+                },
+                null
+              ]
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "listView",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "int16"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "listView",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "int16"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": true,
+              "value": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.listView.slice",
+      "input": {
+        "op": "slice",
+        "source": {
+          "op": "array",
+          "values": [
+            [
+              1,
+              null
+            ],
+            null,
+            []
+          ],
+          "type": [
+            "list_view",
+            "int16"
+          ]
+        },
+        "offset": 1
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "listView",
+            "field": {
+              "name": "item",
+              "type": {
+                "kind": "int16"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          },
+          "length": 2,
+          "nullCount": 1,
+          "values": [
+            null,
+            []
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "listView",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "int16"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "listView",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "int16"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": true,
+              "value": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.listView.scalar",
+      "input": {
+        "op": "index",
+        "source": {
+          "op": "array",
+          "values": [
+            [
+              1,
+              null
+            ],
+            null,
+            []
+          ],
+          "type": [
+            "list_view",
+            "int16"
+          ]
+        },
+        "index": 0
+      },
+      "expected": {
+        "ok": {
+          "kind": "Scalar",
+          "type": {
+            "kind": "listView",
+            "field": {
+              "name": "item",
+              "type": {
+                "kind": "int16"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          },
+          "isValid": true,
+          "value": [
+            {
+              "integer": "1"
+            },
+            null
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.largeListView",
+      "input": {
+        "op": "array",
+        "values": [
+          [
+            "x"
+          ],
+          null,
+          []
+        ],
+        "type": [
+          "large_list_view",
+          "string"
+        ]
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "largeListView",
+            "field": {
+              "name": "item",
+              "type": {
+                "kind": "utf8"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          },
+          "length": 3,
+          "nullCount": 1,
+          "values": [
+            [
+              "x"
+            ],
+            null,
+            []
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "largeListView",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "utf8"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": true,
+              "value": [
+                "x"
+              ]
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "largeListView",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "utf8"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "largeListView",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "utf8"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": true,
+              "value": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.largeListView.slice",
+      "input": {
+        "op": "slice",
+        "source": {
+          "op": "array",
+          "values": [
+            [
+              "x"
+            ],
+            null,
+            []
+          ],
+          "type": [
+            "large_list_view",
+            "string"
+          ]
+        },
+        "offset": 1
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "largeListView",
+            "field": {
+              "name": "item",
+              "type": {
+                "kind": "utf8"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          },
+          "length": 2,
+          "nullCount": 1,
+          "values": [
+            null,
+            []
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "largeListView",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "utf8"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "largeListView",
+                "field": {
+                  "name": "item",
+                  "type": {
+                    "kind": "utf8"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                }
+              },
+              "isValid": true,
+              "value": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.largeListView.scalar",
+      "input": {
+        "op": "index",
+        "source": {
+          "op": "array",
+          "values": [
+            [
+              "x"
+            ],
+            null,
+            []
+          ],
+          "type": [
+            "large_list_view",
+            "string"
+          ]
+        },
+        "index": 0
+      },
+      "expected": {
+        "ok": {
+          "kind": "Scalar",
+          "type": {
+            "kind": "largeListView",
+            "field": {
+              "name": "item",
+              "type": {
+                "kind": "utf8"
+              },
+              "nullable": true,
+              "metadata": {}
+            }
+          },
+          "isValid": true,
+          "value": [
+            "x"
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.decimal32",
+      "input": {
+        "op": "array",
+        "values": [
+          {
+            "$decimal": "1.25"
+          },
+          null,
+          {
+            "$decimal": "-999.99"
+          }
+        ],
+        "type": [
+          "decimal32",
+          5,
+          2
+        ]
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "decimal",
+            "precision": 5,
+            "scale": 2,
+            "bitWidth": 32
+          },
+          "length": 3,
+          "nullCount": 1,
+          "values": [
+            {
+              "decimal": {
+                "unscaled": "125",
+                "scale": 2
+              }
+            },
+            null,
+            {
+              "decimal": {
+                "unscaled": "-99999",
+                "scale": 2
+              }
+            }
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "decimal",
+                "precision": 5,
+                "scale": 2,
+                "bitWidth": 32
+              },
+              "isValid": true,
+              "value": {
+                "decimal": {
+                  "unscaled": "125",
+                  "scale": 2
+                }
+              }
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "decimal",
+                "precision": 5,
+                "scale": 2,
+                "bitWidth": 32
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "decimal",
+                "precision": 5,
+                "scale": 2,
+                "bitWidth": 32
+              },
+              "isValid": true,
+              "value": {
+                "decimal": {
+                  "unscaled": "-99999",
+                  "scale": 2
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.decimal32.slice",
+      "input": {
+        "op": "slice",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "$decimal": "1.25"
+            },
+            null,
+            {
+              "$decimal": "-999.99"
+            }
+          ],
+          "type": [
+            "decimal32",
+            5,
+            2
+          ]
+        },
+        "offset": 1
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "decimal",
+            "precision": 5,
+            "scale": 2,
+            "bitWidth": 32
+          },
+          "length": 2,
+          "nullCount": 1,
+          "values": [
+            null,
+            {
+              "decimal": {
+                "unscaled": "-99999",
+                "scale": 2
+              }
+            }
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "decimal",
+                "precision": 5,
+                "scale": 2,
+                "bitWidth": 32
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "decimal",
+                "precision": 5,
+                "scale": 2,
+                "bitWidth": 32
+              },
+              "isValid": true,
+              "value": {
+                "decimal": {
+                  "unscaled": "-99999",
+                  "scale": 2
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.decimal32.scalar",
+      "input": {
+        "op": "index",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "$decimal": "1.25"
+            },
+            null,
+            {
+              "$decimal": "-999.99"
+            }
+          ],
+          "type": [
+            "decimal32",
+            5,
+            2
+          ]
+        },
+        "index": 0
+      },
+      "expected": {
+        "ok": {
+          "kind": "Scalar",
+          "type": {
+            "kind": "decimal",
+            "precision": 5,
+            "scale": 2,
+            "bitWidth": 32
+          },
+          "isValid": true,
+          "value": {
+            "decimal": {
+              "unscaled": "125",
+              "scale": 2
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "extended.decimal64",
+      "input": {
+        "op": "array",
+        "values": [
+          {
+            "$decimal": "1.250"
+          },
+          null
+        ],
+        "type": [
+          "decimal64",
+          18,
+          3
+        ]
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "decimal",
+            "precision": 18,
+            "scale": 3,
+            "bitWidth": 64
+          },
+          "length": 2,
+          "nullCount": 1,
+          "values": [
+            {
+              "decimal": {
+                "unscaled": "1250",
+                "scale": 3
+              }
+            },
+            null
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "decimal",
+                "precision": 18,
+                "scale": 3,
+                "bitWidth": 64
+              },
+              "isValid": true,
+              "value": {
+                "decimal": {
+                  "unscaled": "1250",
+                  "scale": 3
+                }
+              }
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "decimal",
+                "precision": 18,
+                "scale": 3,
+                "bitWidth": 64
+              },
+              "isValid": false,
+              "value": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.decimal64.slice",
+      "input": {
+        "op": "slice",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "$decimal": "1.250"
+            },
+            null
+          ],
+          "type": [
+            "decimal64",
+            18,
+            3
+          ]
+        },
+        "offset": 1
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "decimal",
+            "precision": 18,
+            "scale": 3,
+            "bitWidth": 64
+          },
+          "length": 1,
+          "nullCount": 1,
+          "values": [
+            null
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "decimal",
+                "precision": 18,
+                "scale": 3,
+                "bitWidth": 64
+              },
+              "isValid": false,
+              "value": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.decimal64.scalar",
+      "input": {
+        "op": "index",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "$decimal": "1.250"
+            },
+            null
+          ],
+          "type": [
+            "decimal64",
+            18,
+            3
+          ]
+        },
+        "index": 0
+      },
+      "expected": {
+        "ok": {
+          "kind": "Scalar",
+          "type": {
+            "kind": "decimal",
+            "precision": 18,
+            "scale": 3,
+            "bitWidth": 64
+          },
+          "isValid": true,
+          "value": {
+            "decimal": {
+              "unscaled": "1250",
+              "scale": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "extended.decimal256",
+      "input": {
+        "op": "array",
+        "values": [
+          {
+            "$decimal": "1200"
+          },
+          null
+        ],
+        "type": [
+          "decimal256",
+          60,
+          -2
+        ]
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "decimal",
+            "precision": 60,
+            "scale": -2,
+            "bitWidth": 256
+          },
+          "length": 2,
+          "nullCount": 1,
+          "values": [
+            {
+              "decimal": {
+                "unscaled": "12",
+                "scale": -2
+              }
+            },
+            null
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "decimal",
+                "precision": 60,
+                "scale": -2,
+                "bitWidth": 256
+              },
+              "isValid": true,
+              "value": {
+                "decimal": {
+                  "unscaled": "12",
+                  "scale": -2
+                }
+              }
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "decimal",
+                "precision": 60,
+                "scale": -2,
+                "bitWidth": 256
+              },
+              "isValid": false,
+              "value": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.decimal256.slice",
+      "input": {
+        "op": "slice",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "$decimal": "1200"
+            },
+            null
+          ],
+          "type": [
+            "decimal256",
+            60,
+            -2
+          ]
+        },
+        "offset": 1
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "decimal",
+            "precision": 60,
+            "scale": -2,
+            "bitWidth": 256
+          },
+          "length": 1,
+          "nullCount": 1,
+          "values": [
+            null
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "decimal",
+                "precision": 60,
+                "scale": -2,
+                "bitWidth": 256
+              },
+              "isValid": false,
+              "value": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.decimal256.scalar",
+      "input": {
+        "op": "index",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "$decimal": "1200"
+            },
+            null
+          ],
+          "type": [
+            "decimal256",
+            60,
+            -2
+          ]
+        },
+        "index": 0
+      },
+      "expected": {
+        "ok": {
+          "kind": "Scalar",
+          "type": {
+            "kind": "decimal",
+            "precision": 60,
+            "scale": -2,
+            "bitWidth": 256
+          },
+          "isValid": true,
+          "value": {
+            "decimal": {
+              "unscaled": "12",
+              "scale": -2
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "extended.map",
+      "input": {
+        "op": "array",
+        "values": [
+          {
+            "a": 1,
+            "b": null
+          },
+          null,
+          {}
+        ],
+        "type": [
+          "map_",
+          "string",
+          "int32"
+        ]
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "map",
+            "key": {
+              "name": "key",
+              "type": {
+                "kind": "utf8"
+              },
+              "nullable": false,
+              "metadata": {}
+            },
+            "item": {
+              "name": "value",
+              "type": {
+                "kind": "int32"
+              },
+              "nullable": true,
+              "metadata": {}
+            },
+            "keysSorted": false
+          },
+          "length": 3,
+          "nullCount": 1,
+          "values": [
+            [
+              [
+                "a",
+                {
+                  "integer": "1"
+                }
+              ],
+              [
+                "b",
+                null
+              ]
+            ],
+            null,
+            []
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "map",
+                "key": {
+                  "name": "key",
+                  "type": {
+                    "kind": "utf8"
+                  },
+                  "nullable": false,
+                  "metadata": {}
+                },
+                "item": {
+                  "name": "value",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                },
+                "keysSorted": false
+              },
+              "isValid": true,
+              "value": [
+                [
+                  "a",
+                  {
+                    "integer": "1"
+                  }
+                ],
+                [
+                  "b",
+                  null
+                ]
+              ]
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "map",
+                "key": {
+                  "name": "key",
+                  "type": {
+                    "kind": "utf8"
+                  },
+                  "nullable": false,
+                  "metadata": {}
+                },
+                "item": {
+                  "name": "value",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                },
+                "keysSorted": false
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "map",
+                "key": {
+                  "name": "key",
+                  "type": {
+                    "kind": "utf8"
+                  },
+                  "nullable": false,
+                  "metadata": {}
+                },
+                "item": {
+                  "name": "value",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                },
+                "keysSorted": false
+              },
+              "isValid": true,
+              "value": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.map.slice",
+      "input": {
+        "op": "slice",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "a": 1,
+              "b": null
+            },
+            null,
+            {}
+          ],
+          "type": [
+            "map_",
+            "string",
+            "int32"
+          ]
+        },
+        "offset": 1
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "map",
+            "key": {
+              "name": "key",
+              "type": {
+                "kind": "utf8"
+              },
+              "nullable": false,
+              "metadata": {}
+            },
+            "item": {
+              "name": "value",
+              "type": {
+                "kind": "int32"
+              },
+              "nullable": true,
+              "metadata": {}
+            },
+            "keysSorted": false
+          },
+          "length": 2,
+          "nullCount": 1,
+          "values": [
+            null,
+            []
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "map",
+                "key": {
+                  "name": "key",
+                  "type": {
+                    "kind": "utf8"
+                  },
+                  "nullable": false,
+                  "metadata": {}
+                },
+                "item": {
+                  "name": "value",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                },
+                "keysSorted": false
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "map",
+                "key": {
+                  "name": "key",
+                  "type": {
+                    "kind": "utf8"
+                  },
+                  "nullable": false,
+                  "metadata": {}
+                },
+                "item": {
+                  "name": "value",
+                  "type": {
+                    "kind": "int32"
+                  },
+                  "nullable": true,
+                  "metadata": {}
+                },
+                "keysSorted": false
+              },
+              "isValid": true,
+              "value": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.map.scalar",
+      "input": {
+        "op": "index",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "a": 1,
+              "b": null
+            },
+            null,
+            {}
+          ],
+          "type": [
+            "map_",
+            "string",
+            "int32"
+          ]
+        },
+        "index": 0
+      },
+      "expected": {
+        "ok": {
+          "kind": "Scalar",
+          "type": {
+            "kind": "map",
+            "key": {
+              "name": "key",
+              "type": {
+                "kind": "utf8"
+              },
+              "nullable": false,
+              "metadata": {}
+            },
+            "item": {
+              "name": "value",
+              "type": {
+                "kind": "int32"
+              },
+              "nullable": true,
+              "metadata": {}
+            },
+            "keysSorted": false
+          },
+          "isValid": true,
+          "value": [
+            [
+              "a",
+              {
+                "integer": "1"
+              }
+            ],
+            [
+              "b",
+              null
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.monthDayNanoInterval",
+      "input": {
+        "op": "array",
+        "values": [
+          {
+            "$interval": [
+              1,
+              -2,
+              3
+            ]
+          },
+          null
+        ],
+        "type": "month_day_nano_interval"
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "monthDayNanoInterval"
+          },
+          "length": 2,
+          "nullCount": 1,
+          "values": [
+            {
+              "interval": [
+                1,
+                -2,
+                "3"
+              ]
+            },
+            null
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "monthDayNanoInterval"
+              },
+              "isValid": true,
+              "value": {
+                "interval": [
+                  1,
+                  -2,
+                  "3"
+                ]
+              }
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "monthDayNanoInterval"
+              },
+              "isValid": false,
+              "value": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.monthDayNanoInterval.slice",
+      "input": {
+        "op": "slice",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "$interval": [
+                1,
+                -2,
+                3
+              ]
+            },
+            null
+          ],
+          "type": "month_day_nano_interval"
+        },
+        "offset": 1
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "monthDayNanoInterval"
+          },
+          "length": 1,
+          "nullCount": 1,
+          "values": [
+            null
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "monthDayNanoInterval"
+              },
+              "isValid": false,
+              "value": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.monthDayNanoInterval.scalar",
+      "input": {
+        "op": "index",
+        "source": {
+          "op": "array",
+          "values": [
+            {
+              "$interval": [
+                1,
+                -2,
+                3
+              ]
+            },
+            null
+          ],
+          "type": "month_day_nano_interval"
+        },
+        "index": 0
+      },
+      "expected": {
+        "ok": {
+          "kind": "Scalar",
+          "type": {
+            "kind": "monthDayNanoInterval"
+          },
+          "isValid": true,
+          "value": {
+            "interval": [
+              1,
+              -2,
+              "3"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "extended.runEndEncoded",
+      "input": {
+        "op": "array",
+        "values": [
+          1,
+          1,
+          null,
+          2
+        ],
+        "type": [
+          "run_end_encoded",
+          "int32",
+          "int64"
+        ]
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "runEndEncoded",
+            "runEndType": {
+              "kind": "int32"
+            },
+            "valueType": {
+              "kind": "int64"
+            }
+          },
+          "length": 4,
+          "nullCount": 0,
+          "values": [
+            {
+              "integer": "1"
+            },
+            {
+              "integer": "1"
+            },
+            null,
+            {
+              "integer": "2"
+            }
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "runEndEncoded",
+                "runEndType": {
+                  "kind": "int32"
+                },
+                "valueType": {
+                  "kind": "int64"
+                }
+              },
+              "isValid": true,
+              "value": {
+                "integer": "1"
+              }
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "runEndEncoded",
+                "runEndType": {
+                  "kind": "int32"
+                },
+                "valueType": {
+                  "kind": "int64"
+                }
+              },
+              "isValid": true,
+              "value": {
+                "integer": "1"
+              }
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "runEndEncoded",
+                "runEndType": {
+                  "kind": "int32"
+                },
+                "valueType": {
+                  "kind": "int64"
+                }
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "runEndEncoded",
+                "runEndType": {
+                  "kind": "int32"
+                },
+                "valueType": {
+                  "kind": "int64"
+                }
+              },
+              "isValid": true,
+              "value": {
+                "integer": "2"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.runEndEncoded.slice",
+      "input": {
+        "op": "slice",
+        "source": {
+          "op": "array",
+          "values": [
+            1,
+            1,
+            null,
+            2
+          ],
+          "type": [
+            "run_end_encoded",
+            "int32",
+            "int64"
+          ]
+        },
+        "offset": 1
+      },
+      "expected": {
+        "ok": {
+          "kind": "Array",
+          "type": {
+            "kind": "runEndEncoded",
+            "runEndType": {
+              "kind": "int32"
+            },
+            "valueType": {
+              "kind": "int64"
+            }
+          },
+          "length": 3,
+          "nullCount": 0,
+          "values": [
+            {
+              "integer": "1"
+            },
+            null,
+            {
+              "integer": "2"
+            }
+          ],
+          "scalars": [
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "runEndEncoded",
+                "runEndType": {
+                  "kind": "int32"
+                },
+                "valueType": {
+                  "kind": "int64"
+                }
+              },
+              "isValid": true,
+              "value": {
+                "integer": "1"
+              }
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "runEndEncoded",
+                "runEndType": {
+                  "kind": "int32"
+                },
+                "valueType": {
+                  "kind": "int64"
+                }
+              },
+              "isValid": false,
+              "value": null
+            },
+            {
+              "kind": "Scalar",
+              "type": {
+                "kind": "runEndEncoded",
+                "runEndType": {
+                  "kind": "int32"
+                },
+                "valueType": {
+                  "kind": "int64"
+                }
+              },
+              "isValid": true,
+              "value": {
+                "integer": "2"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "extended.runEndEncoded.scalar",
+      "input": {
+        "op": "index",
+        "source": {
+          "op": "array",
+          "values": [
+            1,
+            1,
+            null,
+            2
+          ],
+          "type": [
+            "run_end_encoded",
+            "int32",
+            "int64"
+          ]
+        },
+        "index": 0
+      },
+      "expected": {
+        "ok": {
+          "kind": "Scalar",
+          "type": {
+            "kind": "runEndEncoded",
+            "runEndType": {
+              "kind": "int32"
+            },
+            "valueType": {
+              "kind": "int64"
+            }
+          },
+          "isValid": true,
+          "value": {
+            "integer": "1"
+          }
+        }
+      }
+    },
+    {
+      "id": "extended.fixedSizeBinary.wrongWidth",
+      "input": {
+        "op": "array",
+        "values": [
+          {
+            "$bytes": [
+              1
+            ]
+          }
+        ],
+        "type": [
+          "binary",
+          2
+        ]
+      },
+      "expected": {
+        "error": "conversion"
+      }
+    },
+    {
+      "id": "extended.decimal32.overflow",
+      "input": {
+        "op": "array",
+        "values": [
+          {
+            "$decimal": "123456.78"
+          }
+        ],
+        "type": [
+          "decimal32",
+          5,
+          2
+        ]
+      },
+      "expected": {
+        "error": "conversion"
+      }
+    },
+    {
       "id": "batch.structParent.maskedChild",
       "input": {
         "op": "fromStructBatch",

@@ -1,0 +1,466 @@
+{
+ "format_version": 1,
+ "generator": "tool/conformance/arrow_ipc_interop.py",
+ "pyarrow_version": "26.0.0",
+ "value_encoding": "see tool/conformance/arrow_ipc_interop.py module docstring",
+ "fixtures": [
+  {
+   "family": "primitive",
+   "name": "integers",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "primitive/integers.json",
+   "optional": false
+  },
+  {
+   "family": "primitive",
+   "name": "floats",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "primitive/floats.json",
+   "optional": false
+  },
+  {
+   "family": "primitive",
+   "name": "booleans",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "primitive/booleans.json",
+   "optional": false
+  },
+  {
+   "family": "primitive",
+   "name": "nulls",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "primitive/nulls.json",
+   "optional": false
+  },
+  {
+   "family": "binary",
+   "name": "strings",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "binary/strings.json",
+   "optional": false
+  },
+  {
+   "family": "binary",
+   "name": "string_view",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "binary/string_view.json",
+   "optional": false
+  },
+  {
+   "family": "binary",
+   "name": "binaries",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "binary/binaries.json",
+   "optional": false
+  },
+  {
+   "family": "binary",
+   "name": "binary_view",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "binary/binary_view.json",
+   "optional": false
+  },
+  {
+   "family": "binary",
+   "name": "fixed_size_binary",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "binary/fixed_size_binary.json",
+   "optional": false
+  },
+  {
+   "family": "binary",
+   "name": "sliced_strings",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "binary/sliced_strings.json",
+   "optional": false
+  },
+  {
+   "family": "temporal",
+   "name": "temporals",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "temporal/temporals.json",
+   "optional": false
+  },
+  {
+   "family": "temporal",
+   "name": "interval_month_day_nano",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "temporal/interval_month_day_nano.json",
+   "optional": false
+  },
+  {
+   "family": "decimal",
+   "name": "decimal32_9_2",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "decimal/decimal32_9_2.json",
+   "optional": false
+  },
+  {
+   "family": "decimal",
+   "name": "decimal64_18_4",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "decimal/decimal64_18_4.json",
+   "optional": false
+  },
+  {
+   "family": "decimal",
+   "name": "decimal128_38_10",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "decimal/decimal128_38_10.json",
+   "optional": false
+  },
+  {
+   "family": "decimal",
+   "name": "decimal128_5_0",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "decimal/decimal128_5_0.json",
+   "optional": false
+  },
+  {
+   "family": "decimal",
+   "name": "decimal256_76_20",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "decimal/decimal256_76_20.json",
+   "optional": false
+  },
+  {
+   "family": "decimal",
+   "name": "negative_scale",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "decimal/negative_scale.json",
+   "optional": false
+  },
+  {
+   "family": "nested",
+   "name": "lists",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "nested/lists.json",
+   "optional": false
+  },
+  {
+   "family": "nested",
+   "name": "nested_lists",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "nested/nested_lists.json",
+   "optional": false
+  },
+  {
+   "family": "nested",
+   "name": "structs",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "nested/structs.json",
+   "optional": false
+  },
+  {
+   "family": "nested",
+   "name": "maps",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "nested/maps.json",
+   "optional": false
+  },
+  {
+   "family": "nested",
+   "name": "list_views",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "nested/list_views.json",
+   "optional": false
+  },
+  {
+   "family": "nested",
+   "name": "sliced_list",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "nested/sliced_list.json",
+   "optional": false
+  },
+  {
+   "family": "dictionary",
+   "name": "dictionaries",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "dictionary/dictionaries.json",
+   "optional": false
+  },
+  {
+   "family": "dictionary",
+   "name": "nested_dictionary",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "dictionary/nested_dictionary.json",
+   "optional": false
+  },
+  {
+   "family": "dictionary",
+   "name": "shared_across_batches",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "dictionary/shared_across_batches.json",
+   "optional": false
+  },
+  {
+   "family": "dictionary",
+   "name": "replacement",
+   "formats": [
+    "stream"
+   ],
+   "expectation": "dictionary/replacement.json",
+   "optional": false
+  },
+  {
+   "family": "dictionary",
+   "name": "delta",
+   "formats": [
+    "stream"
+   ],
+   "expectation": "dictionary/delta.json",
+   "optional": false
+  },
+  {
+   "family": "union",
+   "name": "sparse",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "union/sparse.json",
+   "optional": false
+  },
+  {
+   "family": "union",
+   "name": "dense",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "union/dense.json",
+   "optional": false
+  },
+  {
+   "family": "ree",
+   "name": "ree16_i32",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "ree/ree16_i32.json",
+   "optional": false
+  },
+  {
+   "family": "ree",
+   "name": "ree32_utf8",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "ree/ree32_utf8.json",
+   "optional": false
+  },
+  {
+   "family": "ree",
+   "name": "ree64_f64",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "ree/ree64_f64.json",
+   "optional": false
+  },
+  {
+   "family": "extension",
+   "name": "dictionary",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "extension/dictionary.json",
+   "optional": false
+  },
+  {
+   "family": "extension",
+   "name": "extensions",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "extension/extensions.json",
+   "optional": false
+  },
+  {
+   "family": "extension",
+   "name": "uuid",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "extension/uuid.json",
+   "optional": false
+  },
+  {
+   "family": "extension",
+   "name": "binary_metadata",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "extension/binary_metadata.json",
+   "optional": false
+  },
+  {
+   "family": "metadata",
+   "name": "metadata",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "metadata/metadata.json",
+   "optional": false
+  },
+  {
+   "family": "structure",
+   "name": "multi_batch",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "structure/multi_batch.json",
+   "optional": false
+  },
+  {
+   "family": "structure",
+   "name": "no_batches",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "structure/no_batches.json",
+   "optional": false
+  },
+  {
+   "family": "structure",
+   "name": "zero_rows",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "structure/zero_rows.json",
+   "optional": false
+  },
+  {
+   "family": "structure",
+   "name": "zero_columns",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "structure/zero_columns.json",
+   "optional": false
+  },
+  {
+   "family": "structure",
+   "name": "thousand_rows",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "structure/thousand_rows.json",
+   "optional": false
+  },
+  {
+   "family": "compression",
+   "name": "lz4",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "compression/lz4.json",
+   "optional": true
+  },
+  {
+   "family": "compression",
+   "name": "zstd",
+   "formats": [
+    "file",
+    "stream"
+   ],
+   "expectation": "compression/zstd.json",
+   "optional": true
+  }
+ ]
+}

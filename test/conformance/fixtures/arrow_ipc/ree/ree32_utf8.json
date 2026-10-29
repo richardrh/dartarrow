@@ -1,0 +1,56 @@
+{
+ "family": "ree",
+ "name": "ree32_utf8",
+ "description": "run-end encoded run_end_encoded<run_ends: int32, values: string> with null runs",
+ "files": {
+  "file": "ree32_utf8.arrow",
+  "stream": "ree32_utf8.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "ree32_utf8",
+    "nullable": true,
+    "type": {
+     "id": "run_end_encoded",
+     "children": [
+      {
+       "name": "run_ends",
+       "nullable": false,
+       "type": {
+        "id": "int32"
+       }
+      },
+      {
+       "name": "values",
+       "nullable": true,
+       "type": {
+        "id": "utf8"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "num_rows": 6,
+ "batch_row_counts": [
+  6
+ ],
+ "columns": [
+  {
+   "name": "ree32_utf8",
+   "null_count": 0,
+   "values": [
+    "a",
+    null,
+    null,
+    null,
+    "日本",
+    "日本"
+   ]
+  }
+ ]
+}

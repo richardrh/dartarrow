@@ -1,0 +1,75 @@
+{
+ "family": "primitive",
+ "name": "nulls",
+ "description": "Null type column and all-null typed columns",
+ "files": {
+  "file": "nulls.arrow",
+  "stream": "nulls.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "null",
+    "nullable": true,
+    "type": {
+     "id": "null"
+    }
+   },
+   {
+    "name": "i32_all_null",
+    "nullable": true,
+    "type": {
+     "id": "int32"
+    }
+   },
+   {
+    "name": "utf8_all_null",
+    "nullable": true,
+    "type": {
+     "id": "utf8"
+    }
+   }
+  ]
+ },
+ "num_rows": 5,
+ "batch_row_counts": [
+  5
+ ],
+ "columns": [
+  {
+   "name": "null",
+   "null_count": 5,
+   "values": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "name": "i32_all_null",
+   "null_count": 5,
+   "values": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "name": "utf8_all_null",
+   "null_count": 5,
+   "values": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ]
+}

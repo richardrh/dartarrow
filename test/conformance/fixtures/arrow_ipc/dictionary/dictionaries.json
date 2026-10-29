@@ -1,0 +1,238 @@
+{
+ "family": "dictionary",
+ "name": "dictionaries",
+ "description": "dictionary<utf8> with int8/int16/int32/int64/uint8 indices, nulls, ordered flag",
+ "files": {
+  "file": "dictionaries.arrow",
+  "stream": "dictionaries.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "d_i8",
+    "nullable": true,
+    "type": {
+     "id": "dictionary",
+     "index": {
+      "id": "int8"
+     },
+     "value": {
+      "id": "utf8"
+     },
+     "ordered": false
+    }
+   },
+   {
+    "name": "d_i16",
+    "nullable": true,
+    "type": {
+     "id": "dictionary",
+     "index": {
+      "id": "int16"
+     },
+     "value": {
+      "id": "utf8"
+     },
+     "ordered": false
+    }
+   },
+   {
+    "name": "d_i32_ordered",
+    "nullable": true,
+    "type": {
+     "id": "dictionary",
+     "index": {
+      "id": "int32"
+     },
+     "value": {
+      "id": "utf8"
+     },
+     "ordered": true
+    }
+   },
+   {
+    "name": "d_i64_int",
+    "nullable": true,
+    "type": {
+     "id": "dictionary",
+     "index": {
+      "id": "int64"
+     },
+     "value": {
+      "id": "int64"
+     },
+     "ordered": false
+    }
+   },
+   {
+    "name": "d_u8",
+    "nullable": true,
+    "type": {
+     "id": "dictionary",
+     "index": {
+      "id": "uint8"
+     },
+     "value": {
+      "id": "binary"
+     },
+     "ordered": false
+    }
+   }
+  ]
+ },
+ "num_rows": 6,
+ "batch_row_counts": [
+  6
+ ],
+ "columns": [
+  {
+   "name": "d_i8",
+   "null_count": 1,
+   "values": [
+    "red",
+    "green",
+    null,
+    "日本",
+    "red",
+    "blue"
+   ],
+   "dictionary": [
+    {
+     "indices": [
+      0,
+      1,
+      null,
+      3,
+      0,
+      2
+     ],
+     "values": [
+      "red",
+      "green",
+      "blue",
+      "日本"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "d_i16",
+   "null_count": 1,
+   "values": [
+    "日本",
+    "日本",
+    "blue",
+    "green",
+    null,
+    "red"
+   ],
+   "dictionary": [
+    {
+     "indices": [
+      3,
+      3,
+      2,
+      1,
+      null,
+      0
+     ],
+     "values": [
+      "red",
+      "green",
+      "blue",
+      "日本"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "d_i32_ordered",
+   "null_count": 1,
+   "values": [
+    "green",
+    "red",
+    "blue",
+    null,
+    "green",
+    "日本"
+   ],
+   "dictionary": [
+    {
+     "indices": [
+      1,
+      0,
+      2,
+      null,
+      1,
+      3
+     ],
+     "values": [
+      "red",
+      "green",
+      "blue",
+      "日本"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "d_i64_int",
+   "null_count": 1,
+   "values": [
+    "100",
+    "100",
+    "-7",
+    "-7",
+    null,
+    "100"
+   ],
+   "dictionary": [
+    {
+     "indices": [
+      "0",
+      "0",
+      "1",
+      "1",
+      null,
+      "0"
+     ],
+     "values": [
+      "100",
+      "-7"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "d_u8",
+   "null_count": 1,
+   "values": [
+    "",
+    null,
+    "ff",
+    "00",
+    "00",
+    "ff"
+   ],
+   "dictionary": [
+    {
+     "indices": [
+      2,
+      null,
+      1,
+      0,
+      0,
+      1
+     ],
+     "values": [
+      "00",
+      "ff",
+      ""
+     ]
+    }
+   ]
+  }
+ ]
+}

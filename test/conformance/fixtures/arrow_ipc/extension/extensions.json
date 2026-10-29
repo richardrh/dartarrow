@@ -1,0 +1,81 @@
+{
+ "family": "extension",
+ "name": "extensions",
+ "description": "canonical (json/bool8) and custom extension metadata",
+ "files": {
+  "file": "extensions.arrow",
+  "stream": "extensions.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "json",
+    "nullable": true,
+    "type": {
+     "id": "utf8"
+    },
+    "metadata": {
+     "ARROW:extension:metadata": "",
+     "ARROW:extension:name": "arrow.json"
+    }
+   },
+   {
+    "name": "bool8",
+    "nullable": true,
+    "type": {
+     "id": "int8"
+    },
+    "metadata": {
+     "ARROW:extension:metadata": "",
+     "ARROW:extension:name": "arrow.bool8"
+    }
+   },
+   {
+    "name": "custom",
+    "nullable": true,
+    "type": {
+     "id": "int32"
+    },
+    "metadata": {
+     "ARROW:extension:metadata": "{\"unit\":\"m\"}",
+     "ARROW:extension:name": "dartaframes.test.custom"
+    }
+   }
+  ]
+ },
+ "num_rows": 3,
+ "batch_row_counts": [
+  3
+ ],
+ "columns": [
+  {
+   "name": "json",
+   "null_count": 1,
+   "values": [
+    "{\"a\":1}",
+    "[]",
+    null
+   ]
+  },
+  {
+   "name": "bool8",
+   "null_count": 1,
+   "values": [
+    1,
+    0,
+    null
+   ]
+  },
+  {
+   "name": "custom",
+   "null_count": 1,
+   "values": [
+    1,
+    null,
+    -1
+   ]
+  }
+ ]
+}

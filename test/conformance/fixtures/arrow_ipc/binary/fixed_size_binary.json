@@ -1,0 +1,41 @@
+{
+ "family": "binary",
+ "name": "fixed_size_binary",
+ "description": "fixed_size_binary(3) with null",
+ "files": {
+  "file": "fixed_size_binary.arrow",
+  "stream": "fixed_size_binary.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "fsb3",
+    "nullable": true,
+    "type": {
+     "id": "fixed_size_binary",
+     "byte_width": 3
+    }
+   }
+  ]
+ },
+ "num_rows": 6,
+ "batch_row_counts": [
+  6
+ ],
+ "columns": [
+  {
+   "name": "fsb3",
+   "null_count": 1,
+   "values": [
+    "616263",
+    null,
+    "000000",
+    "fffefd",
+    "78797a",
+    "313233"
+   ]
+  }
+ ]
+}

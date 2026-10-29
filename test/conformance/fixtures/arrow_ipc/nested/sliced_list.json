@@ -1,0 +1,48 @@
+{
+ "family": "nested",
+ "name": "sliced_list",
+ "description": "list sliced before writing (non-zero offsets normalisation)",
+ "files": {
+  "file": "sliced_list.arrow",
+  "stream": "sliced_list.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "list",
+    "nullable": true,
+    "type": {
+     "id": "list",
+     "children": [
+      {
+       "name": "item",
+       "nullable": true,
+       "type": {
+        "id": "int32"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "num_rows": 3,
+ "batch_row_counts": [
+  3
+ ],
+ "columns": [
+  {
+   "name": "list",
+   "null_count": 1,
+   "values": [
+    [],
+    null,
+    [
+     4
+    ]
+   ]
+  }
+ ]
+}

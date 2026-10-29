@@ -1,0 +1,85 @@
+{
+ "family": "primitive",
+ "name": "booleans",
+ "description": "booleans spanning several validity/value bytes",
+ "files": {
+  "file": "booleans.arrow",
+  "stream": "booleans.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "b",
+    "nullable": true,
+    "type": {
+     "id": "bool"
+    }
+   },
+   {
+    "name": "all_true",
+    "nullable": true,
+    "type": {
+     "id": "bool"
+    }
+   }
+  ]
+ },
+ "num_rows": 19,
+ "batch_row_counts": [
+  19
+ ],
+ "columns": [
+  {
+   "name": "b",
+   "null_count": 4,
+   "values": [
+    true,
+    false,
+    null,
+    true,
+    true,
+    false,
+    null,
+    false,
+    true,
+    true,
+    null,
+    false,
+    true,
+    false,
+    false,
+    true,
+    null,
+    true,
+    true
+   ]
+  },
+  {
+   "name": "all_true",
+   "null_count": 0,
+   "values": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  }
+ ]
+}

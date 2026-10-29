@@ -1,0 +1,97 @@
+{
+ "family": "nested",
+ "name": "list_views",
+ "description": "list_view/large_list_view with out-of-order and overlapping offsets",
+ "files": {
+  "file": "list_views.arrow",
+  "stream": "list_views.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "list_view",
+    "nullable": true,
+    "type": {
+     "id": "list_view",
+     "children": [
+      {
+       "name": "item",
+       "nullable": true,
+       "type": {
+        "id": "int64"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "name": "large_list_view",
+    "nullable": true,
+    "type": {
+     "id": "large_list_view",
+     "children": [
+      {
+       "name": "item",
+       "nullable": true,
+       "type": {
+        "id": "utf8"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "num_rows": 5,
+ "batch_row_counts": [
+  5
+ ],
+ "columns": [
+  {
+   "name": "list_view",
+   "null_count": 1,
+   "values": [
+    [
+     "13"
+    ],
+    [
+     "10",
+     "11"
+    ],
+    [
+     "11",
+     null
+    ],
+    null,
+    [
+     null,
+     "13"
+    ]
+   ]
+  },
+  {
+   "name": "large_list_view",
+   "null_count": 0,
+   "values": [
+    [
+     "p"
+    ],
+    [
+     "p",
+     "q",
+     "r"
+    ],
+    [
+     "q"
+    ],
+    [],
+    [
+     "p",
+     "q"
+    ]
+   ]
+  }
+ ]
+}

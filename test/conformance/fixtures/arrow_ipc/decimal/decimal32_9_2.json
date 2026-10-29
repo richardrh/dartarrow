@@ -1,0 +1,42 @@
+{
+ "family": "decimal",
+ "name": "decimal32_9_2",
+ "description": "decimal32(9, 2) precision extrema, zero, null",
+ "files": {
+  "file": "decimal32_9_2.arrow",
+  "stream": "decimal32_9_2.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "d32_9_2",
+    "nullable": true,
+    "type": {
+     "id": "decimal32",
+     "precision": 9,
+     "scale": 2
+    }
+   }
+  ]
+ },
+ "num_rows": 6,
+ "batch_row_counts": [
+  6
+ ],
+ "columns": [
+  {
+   "name": "d32_9_2",
+   "null_count": 1,
+   "values": [
+    "999999999",
+    "-999999999",
+    "0",
+    null,
+    "150",
+    "-1"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,56 @@
+{
+ "family": "temporal",
+ "name": "interval_month_day_nano",
+ "description": "month_day_nano interval extrema and null",
+ "files": {
+  "file": "interval_month_day_nano.arrow",
+  "stream": "interval_month_day_nano.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "notes": "year_month and day_time intervals are not constructible in PyArrow",
+ "schema": {
+  "fields": [
+   {
+    "name": "mdn",
+    "nullable": true,
+    "type": {
+     "id": "interval_month_day_nano"
+    }
+   }
+  ]
+ },
+ "num_rows": 5,
+ "batch_row_counts": [
+  5
+ ],
+ "columns": [
+  {
+   "name": "mdn",
+   "null_count": 1,
+   "values": [
+    [
+     0,
+     0,
+     "0"
+    ],
+    [
+     -2147483648,
+     -2147483648,
+     "-9223372036854775808"
+    ],
+    [
+     2147483647,
+     2147483647,
+     "9223372036854775807"
+    ],
+    null,
+    [
+     1,
+     -2,
+     "3"
+    ]
+   ]
+  }
+ ]
+}

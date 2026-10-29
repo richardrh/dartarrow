@@ -1,0 +1,69 @@
+{
+ "family": "dictionary",
+ "name": "replacement",
+ "description": "stream with dictionary replacement between batches",
+ "files": {
+  "stream": "replacement.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "d",
+    "nullable": true,
+    "type": {
+     "id": "dictionary",
+     "index": {
+      "id": "int32"
+     },
+     "value": {
+      "id": "utf8"
+     },
+     "ordered": false
+    }
+   }
+  ]
+ },
+ "num_rows": 5,
+ "batch_row_counts": [
+  2,
+  3
+ ],
+ "columns": [
+  {
+   "name": "d",
+   "null_count": 1,
+   "values": [
+    "a",
+    "b",
+    "d",
+    "c",
+    null
+   ],
+   "dictionary": [
+    {
+     "indices": [
+      0,
+      1
+     ],
+     "values": [
+      "a",
+      "b"
+     ]
+    },
+    {
+     "indices": [
+      1,
+      0,
+      null
+     ],
+     "values": [
+      "c",
+      "d"
+     ]
+    }
+   ]
+  }
+ ]
+}

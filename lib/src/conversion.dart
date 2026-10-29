@@ -43,7 +43,7 @@ Array _castArray(Array source, DataType target, {bool safe = true}) {
         converted,
       );
     }
-    if (from is ListType && target is ListType) {
+    if (from is ListType && target is ListType && !from.view && !target.view) {
       final start = source._offsetAt(source.offset);
       final end = source._offsetAt(source.offset + source.length);
       final child = _castArray(
@@ -61,7 +61,7 @@ Array _castArray(Array source, DataType target, {bool safe = true}) {
             throw ArrowInvalid('List offset exceeds 32-bit capacity');
           bytes.setInt32(i * width, offset, Endian.little);
         } else {
-          bytes.setInt64(i * width, offset, Endian.little);
+          _setInt64(bytes, i * width, offset);
         }
       }
       return Array._(
@@ -279,6 +279,34 @@ _Value? _castRaw(
         _castRaw(child, from.type, to.type, safe, dictionary),
     ]);
   }
+  if (raw is _MapValue && source is MapType && target is MapType) {
+    return _MapValue([
+      for (final entry in raw.entries)
+        _MapEntry(
+          _castRaw(
+                entry.key,
+                source.keyField.type,
+                target.keyField.type,
+                safe,
+                dictionary,
+              ) ??
+              (throw ArgumentError('Map keys cannot be null')),
+          _castRaw(
+            entry.value,
+            source.valueField.type,
+            target.valueField.type,
+            safe,
+            dictionary,
+          ),
+        ),
+    ]);
+  }
+  if (source is RunEndEncodedType) {
+    return _castRaw(raw, source.valuesField.type, target, safe, dictionary);
+  }
+  if (target is RunEndEncodedType) {
+    return _castRaw(raw, source, target.valuesField.type, safe, dictionary);
+  }
   if (raw is _StructValue && source is StructType && target is StructType) {
     final result = <_StructEntry>[];
     for (final field in target.fields) {
@@ -433,9 +461,75 @@ _Value? _nativeRaw(
             value is DecimalValue))
       return _StringValue(value.toString());
   }
-  if (type is BinaryType) {
-    if (value is List<int>) return _BinaryValue(value);
-    if (value is String) return _BinaryValue(utf8.encode(value));
+  if (type is BinaryType || type is FixedSizeBinaryType) {
+    final bytes = value is List<int>
+        ? value
+        : value is String
+        ? utf8.encode(value)
+        : null;
+    if (bytes != null) {
+      if (type is FixedSizeBinaryType && bytes.length != type.byteWidth) {
+        throw ArgumentError(
+          'Expected ${type.byteWidth} bytes, got ${bytes.length}',
+        );
+      }
+      return _BinaryValue(bytes);
+    }
+  }
+  if (type is MapType) {
+    final Iterable<(Object?, Object?)> pairs = switch (value) {
+      Map() => value.entries.map((e) => (e.key, e.value)),
+      List() => value.map(
+        (entry) => switch (entry) {
+          (Object? key, Object? item) => (key, item),
+          MapEntry(:final key, :final value) => (key, value),
+          List(length: 2) => (entry[0], entry[1]),
+          _ => throw ArgumentError(
+            'Map entries must be (key, value) records, MapEntry, or pairs',
+          ),
+        },
+      ),
+      _ => throw ArgumentError('Expected map or list of entries'),
+    };
+    return _MapValue([
+      for (final (key, item) in pairs)
+        _MapEntry(
+          _nativeRaw(key, type.keyField.type, safe: safe, casting: casting) ??
+              (throw ArgumentError('Map keys cannot be null')),
+          _nativeRaw(item, type.valueField.type, safe: safe, casting: casting),
+        ),
+    ]);
+  }
+  if (type is IntervalType) {
+    if (value is IntervalValue && value.unit == type.unit) {
+      return _IntervalValue(value);
+    }
+    if (type.unit == IntervalUnit.monthDayNano) {
+      if (value case (int months, int days, Object nanoseconds)) {
+        return _IntervalValue(
+          IntervalValue.monthDayNano(months, days, nanoseconds),
+        );
+      }
+      if (value case [int months, int days, Object nanoseconds]) {
+        return _IntervalValue(
+          IntervalValue.monthDayNano(months, days, nanoseconds),
+        );
+      }
+    }
+    throw ArgumentError('Cannot convert $value to $type');
+  }
+  if (type is RunEndEncodedType) {
+    return _nativeRaw(
+      value,
+      type.valuesField.type,
+      safe: safe,
+      casting: casting,
+    );
+  }
+  if (type is UnionType) {
+    throw UnsupportedError(
+      'Union arrays cannot be built from native values; use Array.fromBuffers',
+    );
   }
   if (type is DecimalType) {
     BigInt unscaled;

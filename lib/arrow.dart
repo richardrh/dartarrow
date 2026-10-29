@@ -1,12 +1,12 @@
 /// Buffer-backed Arrow arrays, typed scalars, schemas, and tabular objects.
 ///
 /// Little-endian physical buffers support borrowed imports and cheap slices
-/// without a native dependency. This is not the complete Apache Arrow
-/// specification and does not implement Arrow IPC or compute kernels.
-/// Deliberately unsupported families include maps, unions, intervals,
-/// fixed-size binary, list/string/binary views, large lists, and run-end
-/// encoding. `int128` and `uint128` are binding extensions rather than Apache
-/// Arrow integer types.
+/// without a native dependency. Arrow IPC streams and files live in the
+/// separate `package:dartaframes_arrow/ipc.dart` library (mirroring
+/// `pyarrow.ipc`). This is not the complete Apache Arrow specification and
+/// does not implement compute kernels. `int128` and `uint128` are binding
+/// extensions rather than Apache Arrow integer types and have no IPC
+/// encoding.
 library dartaframes_arrow;
 
 export 'src/core.dart'
@@ -23,6 +23,7 @@ export 'src/core.dart'
         Scalar,
         DictionaryScalar,
         DecimalValue,
+        IntervalValue,
         TemporalValue,
         ByteMetadata,
         Field,
@@ -35,6 +36,8 @@ export 'src/core.dart'
         TimeUnit,
         DateUnit,
         OffsetWidth,
+        UnionMode,
+        IntervalUnit,
         NullType,
         BooleanType,
         IntegerType,
@@ -42,6 +45,7 @@ export 'src/core.dart'
         DecimalType,
         Utf8Type,
         BinaryType,
+        FixedSizeBinaryType,
         DateType,
         TimestampType,
         DurationType,
@@ -51,6 +55,10 @@ export 'src/core.dart'
         StructType,
         DictionaryType,
         ExtensionType,
+        MapType,
+        UnionType,
+        IntervalType,
+        RunEndEncodedType,
         array,
         scalar,
         int8,
@@ -70,9 +78,15 @@ export 'src/core.dart'
         nullType,
         string,
         largeString,
+        stringView,
         binary,
         largeBinary,
+        binaryView,
+        decimal32,
+        decimal64,
         decimal128,
+        decimal256,
+        monthDayNanoInterval,
         date32,
         date64,
         time32,
@@ -80,6 +94,14 @@ export 'src/core.dart'
         timestamp,
         duration,
         listType,
+        largeList,
+        listView,
+        largeListView,
+        mapType,
+        union,
+        sparseUnion,
+        denseUnion,
+        runEndEncoded,
         struct,
         dictionary,
         extension;
