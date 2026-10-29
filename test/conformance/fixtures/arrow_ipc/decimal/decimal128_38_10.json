@@ -1,0 +1,42 @@
+{
+ "family": "decimal",
+ "name": "decimal128_38_10",
+ "description": "decimal128(38, 10) precision extrema, zero, null",
+ "files": {
+  "file": "decimal128_38_10.arrow",
+  "stream": "decimal128_38_10.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "d128_38_10",
+    "nullable": true,
+    "type": {
+     "id": "decimal128",
+     "precision": 38,
+     "scale": 10
+    }
+   }
+  ]
+ },
+ "num_rows": 6,
+ "batch_row_counts": [
+  6
+ ],
+ "columns": [
+  {
+   "name": "d128_38_10",
+   "null_count": 1,
+   "values": [
+    "99999999999999999999999999999999999999",
+    "-99999999999999999999999999999999999999",
+    "0",
+    null,
+    "123456789000000",
+    "-1"
+   ]
+  }
+ ]
+}

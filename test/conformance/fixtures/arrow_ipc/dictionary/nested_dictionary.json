@@ -1,0 +1,98 @@
+{
+ "family": "dictionary",
+ "name": "nested_dictionary",
+ "description": "dictionary columns nested inside list and struct",
+ "files": {
+  "file": "nested_dictionary.arrow",
+  "stream": "nested_dictionary.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "list_dict",
+    "nullable": true,
+    "type": {
+     "id": "list",
+     "children": [
+      {
+       "name": "item",
+       "nullable": true,
+       "type": {
+        "id": "dictionary",
+        "index": {
+         "id": "int32"
+        },
+        "value": {
+         "id": "utf8"
+        },
+        "ordered": false
+       }
+      }
+     ]
+    }
+   },
+   {
+    "name": "struct_dict",
+    "nullable": true,
+    "type": {
+     "id": "struct",
+     "children": [
+      {
+       "name": "color",
+       "nullable": true,
+       "type": {
+        "id": "dictionary",
+        "index": {
+         "id": "int16"
+        },
+        "value": {
+         "id": "utf8"
+        },
+        "ordered": false
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "num_rows": 3,
+ "batch_row_counts": [
+  3
+ ],
+ "columns": [
+  {
+   "name": "list_dict",
+   "null_count": 0,
+   "values": [
+    [
+     "red",
+     "green"
+    ],
+    [],
+    [
+     null,
+     "blue",
+     "red"
+    ]
+   ]
+  },
+  {
+   "name": "struct_dict",
+   "null_count": 0,
+   "values": [
+    {
+     "color": "日本"
+    },
+    {
+     "color": "blue"
+    },
+    {
+     "color": "green"
+    }
+   ]
+  }
+ ]
+}

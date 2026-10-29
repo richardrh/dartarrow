@@ -1,0 +1,42 @@
+{
+ "family": "decimal",
+ "name": "decimal256_76_20",
+ "description": "decimal256(76, 20) precision extrema, zero, null",
+ "files": {
+  "file": "decimal256_76_20.arrow",
+  "stream": "decimal256_76_20.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "d256_76_20",
+    "nullable": true,
+    "type": {
+     "id": "decimal256",
+     "precision": 76,
+     "scale": 20
+    }
+   }
+  ]
+ },
+ "num_rows": 6,
+ "batch_row_counts": [
+  6
+ ],
+ "columns": [
+  {
+   "name": "d256_76_20",
+   "null_count": 1,
+   "values": [
+    "9999999999999999999999999999999999999999999999999999999999999999999999999999",
+    "-9999999999999999999999999999999999999999999999999999999999999999999999999999",
+    "0",
+    null,
+    "314159265358979323846",
+    "-100000000000000000000"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,56 @@
+{
+ "family": "ree",
+ "name": "ree64_f64",
+ "description": "run-end encoded run_end_encoded<run_ends: int64, values: double> with null runs",
+ "files": {
+  "file": "ree64_f64.arrow",
+  "stream": "ree64_f64.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "ree64_f64",
+    "nullable": true,
+    "type": {
+     "id": "run_end_encoded",
+     "children": [
+      {
+       "name": "run_ends",
+       "nullable": false,
+       "type": {
+        "id": "int64"
+       }
+      },
+      {
+       "name": "values",
+       "nullable": true,
+       "type": {
+        "id": "float64"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "num_rows": 6,
+ "batch_row_counts": [
+  6
+ ],
+ "columns": [
+  {
+   "name": "ree64_f64",
+   "null_count": 0,
+   "values": [
+    "0x3fd0000000000000",
+    "0x3fd0000000000000",
+    "0x3fd0000000000000",
+    "0x3fd0000000000000",
+    "0x3fd0000000000000",
+    "0x3fd0000000000000"
+   ]
+  }
+ ]
+}

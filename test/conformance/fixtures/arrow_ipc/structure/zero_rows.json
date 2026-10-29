@@ -1,0 +1,45 @@
+{
+ "family": "structure",
+ "name": "zero_rows",
+ "description": "a single zero-row batch",
+ "files": {
+  "file": "zero_rows.arrow",
+  "stream": "zero_rows.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "i",
+    "nullable": true,
+    "type": {
+     "id": "int64"
+    }
+   },
+   {
+    "name": "s",
+    "nullable": true,
+    "type": {
+     "id": "utf8"
+    }
+   }
+  ]
+ },
+ "num_rows": 0,
+ "batch_row_counts": [
+  0
+ ],
+ "columns": [
+  {
+   "name": "i",
+   "null_count": 0,
+   "values": []
+  },
+  {
+   "name": "s",
+   "null_count": 0,
+   "values": []
+  }
+ ]
+}

@@ -1,0 +1,173 @@
+{
+ "family": "primitive",
+ "name": "integers",
+ "description": "int8..uint64 extrema, zero and null",
+ "files": {
+  "file": "integers.arrow",
+  "stream": "integers.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "int8",
+    "nullable": true,
+    "type": {
+     "id": "int8"
+    }
+   },
+   {
+    "name": "int16",
+    "nullable": true,
+    "type": {
+     "id": "int16"
+    }
+   },
+   {
+    "name": "int32",
+    "nullable": true,
+    "type": {
+     "id": "int32"
+    }
+   },
+   {
+    "name": "int64",
+    "nullable": true,
+    "type": {
+     "id": "int64"
+    }
+   },
+   {
+    "name": "uint8",
+    "nullable": true,
+    "type": {
+     "id": "uint8"
+    }
+   },
+   {
+    "name": "uint16",
+    "nullable": true,
+    "type": {
+     "id": "uint16"
+    }
+   },
+   {
+    "name": "uint32",
+    "nullable": true,
+    "type": {
+     "id": "uint32"
+    }
+   },
+   {
+    "name": "uint64",
+    "nullable": true,
+    "type": {
+     "id": "uint64"
+    }
+   }
+  ]
+ },
+ "num_rows": 6,
+ "batch_row_counts": [
+  6
+ ],
+ "columns": [
+  {
+   "name": "int8",
+   "null_count": 1,
+   "values": [
+    -128,
+    127,
+    0,
+    null,
+    1,
+    -1
+   ]
+  },
+  {
+   "name": "int16",
+   "null_count": 1,
+   "values": [
+    -32768,
+    32767,
+    0,
+    null,
+    1,
+    -1
+   ]
+  },
+  {
+   "name": "int32",
+   "null_count": 1,
+   "values": [
+    -2147483648,
+    2147483647,
+    0,
+    null,
+    1,
+    -1
+   ]
+  },
+  {
+   "name": "int64",
+   "null_count": 1,
+   "values": [
+    "-9223372036854775808",
+    "9223372036854775807",
+    "0",
+    null,
+    "1",
+    "-1"
+   ]
+  },
+  {
+   "name": "uint8",
+   "null_count": 1,
+   "values": [
+    0,
+    255,
+    0,
+    null,
+    254,
+    1
+   ]
+  },
+  {
+   "name": "uint16",
+   "null_count": 1,
+   "values": [
+    0,
+    65535,
+    0,
+    null,
+    65534,
+    1
+   ]
+  },
+  {
+   "name": "uint32",
+   "null_count": 1,
+   "values": [
+    0,
+    4294967295,
+    0,
+    null,
+    4294967294,
+    1
+   ]
+  },
+  {
+   "name": "uint64",
+   "null_count": 1,
+   "values": [
+    "0",
+    "18446744073709551615",
+    "0",
+    null,
+    "18446744073709551614",
+    "1"
+   ]
+  }
+ ]
+}

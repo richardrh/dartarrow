@@ -1,0 +1,131 @@
+{
+ "family": "nested",
+ "name": "nested_lists",
+ "description": "list<list<int64>> and list<struct>",
+ "files": {
+  "file": "nested_lists.arrow",
+  "stream": "nested_lists.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "list_list",
+    "nullable": true,
+    "type": {
+     "id": "list",
+     "children": [
+      {
+       "name": "item",
+       "nullable": true,
+       "type": {
+        "id": "list",
+        "children": [
+         {
+          "name": "item",
+          "nullable": true,
+          "type": {
+           "id": "int64"
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   },
+   {
+    "name": "list_struct",
+    "nullable": true,
+    "type": {
+     "id": "list",
+     "children": [
+      {
+       "name": "item",
+       "nullable": true,
+       "type": {
+        "id": "struct",
+        "children": [
+         {
+          "name": "x",
+          "nullable": true,
+          "type": {
+           "id": "int32"
+          }
+         },
+         {
+          "name": "label",
+          "nullable": true,
+          "type": {
+           "id": "utf8"
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "num_rows": 5,
+ "batch_row_counts": [
+  5
+ ],
+ "columns": [
+  {
+   "name": "list_list",
+   "null_count": 1,
+   "values": [
+    [
+     [
+      "1"
+     ],
+     [
+      "2",
+      "3"
+     ]
+    ],
+    [
+     null,
+     []
+    ],
+    null,
+    [
+     [
+      null
+     ]
+    ],
+    []
+   ]
+  },
+  {
+   "name": "list_struct",
+   "null_count": 1,
+   "values": [
+    [
+     {
+      "x": 1,
+      "label": "a"
+     }
+    ],
+    [],
+    null,
+    [
+     {
+      "x": null,
+      "label": null
+     },
+     null
+    ],
+    [
+     {
+      "x": 2,
+      "label": "b"
+     }
+    ]
+   ]
+  }
+ ]
+}

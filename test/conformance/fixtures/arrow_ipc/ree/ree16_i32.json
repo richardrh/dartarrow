@@ -1,0 +1,56 @@
+{
+ "family": "ree",
+ "name": "ree16_i32",
+ "description": "run-end encoded run_end_encoded<run_ends: int16, values: int32> with null runs",
+ "files": {
+  "file": "ree16_i32.arrow",
+  "stream": "ree16_i32.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "ree16_i32",
+    "nullable": true,
+    "type": {
+     "id": "run_end_encoded",
+     "children": [
+      {
+       "name": "run_ends",
+       "nullable": false,
+       "type": {
+        "id": "int16"
+       }
+      },
+      {
+       "name": "values",
+       "nullable": true,
+       "type": {
+        "id": "int32"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "num_rows": 6,
+ "batch_row_counts": [
+  6
+ ],
+ "columns": [
+  {
+   "name": "ree16_i32",
+   "null_count": 0,
+   "values": [
+    7,
+    7,
+    null,
+    -1,
+    -1,
+    -1
+   ]
+  }
+ ]
+}

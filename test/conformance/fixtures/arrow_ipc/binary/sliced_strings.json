@@ -1,0 +1,39 @@
+{
+ "family": "binary",
+ "name": "sliced_strings",
+ "description": "utf8 array sliced before writing (non-zero offset normalisation)",
+ "files": {
+  "file": "sliced_strings.arrow",
+  "stream": "sliced_strings.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "utf8",
+    "nullable": true,
+    "type": {
+     "id": "utf8"
+    }
+   }
+  ]
+ },
+ "num_rows": 5,
+ "batch_row_counts": [
+  5
+ ],
+ "columns": [
+  {
+   "name": "utf8",
+   "null_count": 1,
+   "values": [
+    null,
+    "héllo wörld",
+    "日本語テキスト",
+    "emoji 😀👍🏽",
+    "é combining"
+   ]
+  }
+ ]
+}

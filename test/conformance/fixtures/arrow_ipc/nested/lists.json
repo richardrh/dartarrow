@@ -1,0 +1,173 @@
+{
+ "family": "nested",
+ "name": "lists",
+ "description": "list/large_list/fixed_size_list of int32 with null rows and null items",
+ "files": {
+  "file": "lists.arrow",
+  "stream": "lists.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "list",
+    "nullable": true,
+    "type": {
+     "id": "list",
+     "children": [
+      {
+       "name": "item",
+       "nullable": true,
+       "type": {
+        "id": "int32"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "name": "large_list",
+    "nullable": true,
+    "type": {
+     "id": "large_list",
+     "children": [
+      {
+       "name": "item",
+       "nullable": true,
+       "type": {
+        "id": "int32"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "name": "fixed_list",
+    "nullable": true,
+    "type": {
+     "id": "fixed_size_list",
+     "list_size": 2,
+     "children": [
+      {
+       "name": "item",
+       "nullable": true,
+       "type": {
+        "id": "int32"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "name": "list_utf8",
+    "nullable": true,
+    "type": {
+     "id": "list",
+     "children": [
+      {
+       "name": "item",
+       "nullable": true,
+       "type": {
+        "id": "utf8"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "num_rows": 5,
+ "batch_row_counts": [
+  5
+ ],
+ "columns": [
+  {
+   "name": "list",
+   "null_count": 1,
+   "values": [
+    [
+     1,
+     2,
+     null
+    ],
+    [],
+    null,
+    [
+     4
+    ],
+    [
+     5,
+     6,
+     7,
+     8
+    ]
+   ]
+  },
+  {
+   "name": "large_list",
+   "null_count": 1,
+   "values": [
+    [
+     1,
+     2,
+     null
+    ],
+    [],
+    null,
+    [
+     4
+    ],
+    [
+     5,
+     6,
+     7,
+     8
+    ]
+   ]
+  },
+  {
+   "name": "fixed_list",
+   "null_count": 1,
+   "values": [
+    [
+     1,
+     2
+    ],
+    [
+     null,
+     4
+    ],
+    null,
+    [
+     7,
+     8
+    ],
+    [
+     9,
+     10
+    ]
+   ]
+  },
+  {
+   "name": "list_utf8",
+   "null_count": 1,
+   "values": [
+    [
+     "a",
+     null
+    ],
+    null,
+    [],
+    [
+     "日本"
+    ],
+    [
+     "x",
+     "y",
+     "z"
+    ]
+   ]
+  }
+ ]
+}

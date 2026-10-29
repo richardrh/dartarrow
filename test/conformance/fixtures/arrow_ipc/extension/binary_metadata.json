@@ -1,0 +1,41 @@
+{
+ "family": "extension",
+ "name": "binary_metadata",
+ "description": "extension metadata value that is not valid UTF-8",
+ "files": {
+  "file": "binary_metadata.arrow",
+  "stream": "binary_metadata.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "notes": "Arrow metadata values are bytes; expectation renders them as hex:<bytes>",
+ "schema": {
+  "fields": [
+   {
+    "name": "raw",
+    "nullable": true,
+    "type": {
+     "id": "int32"
+    },
+    "metadata": {
+     "ARROW:extension:metadata": "hex:00fffe2062696e617279",
+     "ARROW:extension:name": "dartaframes.test.raw"
+    }
+   }
+  ]
+ },
+ "num_rows": 2,
+ "batch_row_counts": [
+  2
+ ],
+ "columns": [
+  {
+   "name": "raw",
+   "null_count": 1,
+   "values": [
+    1,
+    null
+   ]
+  }
+ ]
+}

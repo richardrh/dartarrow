@@ -1,0 +1,74 @@
+{
+ "family": "dictionary",
+ "name": "shared_across_batches",
+ "description": "two batches sharing one dictionary",
+ "files": {
+  "file": "shared_across_batches.arrow",
+  "stream": "shared_across_batches.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "d",
+    "nullable": true,
+    "type": {
+     "id": "dictionary",
+     "index": {
+      "id": "int32"
+     },
+     "value": {
+      "id": "utf8"
+     },
+     "ordered": false
+    }
+   }
+  ]
+ },
+ "num_rows": 5,
+ "batch_row_counts": [
+  2,
+  3
+ ],
+ "columns": [
+  {
+   "name": "d",
+   "null_count": 1,
+   "values": [
+    "red",
+    "green",
+    "blue",
+    null,
+    "日本"
+   ],
+   "dictionary": [
+    {
+     "indices": [
+      0,
+      1
+     ],
+     "values": [
+      "red",
+      "green",
+      "blue",
+      "日本"
+     ]
+    },
+    {
+     "indices": [
+      2,
+      null,
+      3
+     ],
+     "values": [
+      "red",
+      "green",
+      "blue",
+      "日本"
+     ]
+    }
+   ]
+  }
+ ]
+}

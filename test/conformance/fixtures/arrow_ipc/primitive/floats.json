@@ -1,0 +1,90 @@
+{
+ "family": "primitive",
+ "name": "floats",
+ "description": "float16/32/64 raw bits: +0, -0, inf, -inf, quiet NaN, payload NaN, negative NaN, subnormal, max, null",
+ "files": {
+  "file": "floats.arrow",
+  "stream": "floats.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "f16",
+    "nullable": true,
+    "type": {
+     "id": "float16"
+    }
+   },
+   {
+    "name": "f32",
+    "nullable": true,
+    "type": {
+     "id": "float32"
+    }
+   },
+   {
+    "name": "f64",
+    "nullable": true,
+    "type": {
+     "id": "float64"
+    }
+   }
+  ]
+ },
+ "num_rows": 10,
+ "batch_row_counts": [
+  10
+ ],
+ "columns": [
+  {
+   "name": "f16",
+   "null_count": 1,
+   "values": [
+    "0x0000",
+    "0x8000",
+    "0x7c00",
+    "0xfc00",
+    "0x7e00",
+    "0x7d01",
+    "0xfe00",
+    "0x0001",
+    "0x7bff",
+    null
+   ]
+  },
+  {
+   "name": "f32",
+   "null_count": 1,
+   "values": [
+    "0x00000000",
+    "0x80000000",
+    "0x7f800000",
+    "0xff800000",
+    "0x7fc00000",
+    "0x7fa00001",
+    "0xffc00000",
+    "0x00000001",
+    "0x7f7fffff",
+    null
+   ]
+  },
+  {
+   "name": "f64",
+   "null_count": 1,
+   "values": [
+    "0x0000000000000000",
+    "0x8000000000000000",
+    "0x7ff0000000000000",
+    "0xfff0000000000000",
+    "0x7ff8000000000000",
+    "0x7ff4000000000001",
+    "0xfff8000000000000",
+    "0x0000000000000001",
+    "0x7fefffffffffffff",
+    null
+   ]
+  }
+ ]
+}

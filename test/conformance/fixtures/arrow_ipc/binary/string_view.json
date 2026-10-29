@@ -1,0 +1,43 @@
+{
+ "family": "binary",
+ "name": "string_view",
+ "description": "utf8_view with inline (<=12 bytes) and out-of-line strings",
+ "files": {
+  "file": "string_view.arrow",
+  "stream": "string_view.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "utf8_view",
+    "nullable": true,
+    "type": {
+     "id": "utf8_view"
+    }
+   }
+  ]
+ },
+ "num_rows": 9,
+ "batch_row_counts": [
+  9
+ ],
+ "columns": [
+  {
+   "name": "utf8_view",
+   "null_count": 1,
+   "values": [
+    "",
+    "ascii",
+    null,
+    "héllo wörld",
+    "日本語テキスト",
+    "emoji 😀👍🏽",
+    "é combining",
+    "nul\u0000inside",
+    "a much longer string beyond twelve bytes"
+   ]
+  }
+ ]
+}

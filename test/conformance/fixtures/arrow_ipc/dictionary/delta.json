@@ -1,0 +1,72 @@
+{
+ "family": "dictionary",
+ "name": "delta",
+ "description": "stream with delta dictionary batch (isDelta=true)",
+ "files": {
+  "stream": "delta.arrows"
+ },
+ "write_options": {
+  "emit_dictionary_deltas": true
+ },
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "d",
+    "nullable": true,
+    "type": {
+     "id": "dictionary",
+     "index": {
+      "id": "int32"
+     },
+     "value": {
+      "id": "utf8"
+     },
+     "ordered": false
+    }
+   }
+  ]
+ },
+ "num_rows": 5,
+ "batch_row_counts": [
+  2,
+  3
+ ],
+ "columns": [
+  {
+   "name": "d",
+   "null_count": 1,
+   "values": [
+    "a",
+    "b",
+    "c",
+    "a",
+    null
+   ],
+   "dictionary": [
+    {
+     "indices": [
+      0,
+      1
+     ],
+     "values": [
+      "a",
+      "b"
+     ]
+    },
+    {
+     "indices": [
+      2,
+      0,
+      null
+     ],
+     "values": [
+      "a",
+      "b",
+      "c"
+     ]
+    }
+   ]
+  }
+ ]
+}

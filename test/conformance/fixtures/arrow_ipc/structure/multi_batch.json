@@ -1,0 +1,59 @@
+{
+ "family": "structure",
+ "name": "multi_batch",
+ "description": "three batches including an empty middle batch",
+ "files": {
+  "file": "multi_batch.arrow",
+  "stream": "multi_batch.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "i",
+    "nullable": true,
+    "type": {
+     "id": "int64"
+    }
+   },
+   {
+    "name": "s",
+    "nullable": true,
+    "type": {
+     "id": "utf8"
+    }
+   }
+  ]
+ },
+ "num_rows": 5,
+ "batch_row_counts": [
+  3,
+  0,
+  2
+ ],
+ "columns": [
+  {
+   "name": "i",
+   "null_count": 1,
+   "values": [
+    "1",
+    "2",
+    "3",
+    null,
+    "5"
+   ]
+  },
+  {
+   "name": "s",
+   "null_count": 1,
+   "values": [
+    "a",
+    null,
+    "c",
+    "é",
+    ""
+   ]
+  }
+ ]
+}

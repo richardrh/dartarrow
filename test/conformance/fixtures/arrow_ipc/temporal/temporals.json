@@ -1,0 +1,366 @@
+{
+ "family": "temporal",
+ "name": "temporals",
+ "description": "date/time/timestamp(+tz)/duration extrema and nulls",
+ "files": {
+  "file": "temporals.arrow",
+  "stream": "temporals.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "date32",
+    "nullable": true,
+    "type": {
+     "id": "date32"
+    }
+   },
+   {
+    "name": "date64",
+    "nullable": true,
+    "type": {
+     "id": "date64"
+    }
+   },
+   {
+    "name": "time32_s",
+    "nullable": true,
+    "type": {
+     "id": "time32",
+     "unit": "s"
+    }
+   },
+   {
+    "name": "time32_ms",
+    "nullable": true,
+    "type": {
+     "id": "time32",
+     "unit": "ms"
+    }
+   },
+   {
+    "name": "time64_us",
+    "nullable": true,
+    "type": {
+     "id": "time64",
+     "unit": "us"
+    }
+   },
+   {
+    "name": "time64_ns",
+    "nullable": true,
+    "type": {
+     "id": "time64",
+     "unit": "ns"
+    }
+   },
+   {
+    "name": "ts_s",
+    "nullable": true,
+    "type": {
+     "id": "timestamp",
+     "unit": "s",
+     "timezone": null
+    }
+   },
+   {
+    "name": "ts_ms",
+    "nullable": true,
+    "type": {
+     "id": "timestamp",
+     "unit": "ms",
+     "timezone": null
+    }
+   },
+   {
+    "name": "ts_us",
+    "nullable": true,
+    "type": {
+     "id": "timestamp",
+     "unit": "us",
+     "timezone": null
+    }
+   },
+   {
+    "name": "ts_ns",
+    "nullable": true,
+    "type": {
+     "id": "timestamp",
+     "unit": "ns",
+     "timezone": null
+    }
+   },
+   {
+    "name": "ts_ms_utc",
+    "nullable": true,
+    "type": {
+     "id": "timestamp",
+     "unit": "ms",
+     "timezone": "UTC"
+    }
+   },
+   {
+    "name": "ts_us_ny",
+    "nullable": true,
+    "type": {
+     "id": "timestamp",
+     "unit": "us",
+     "timezone": "America/New_York"
+    }
+   },
+   {
+    "name": "ts_ns_offset",
+    "nullable": true,
+    "type": {
+     "id": "timestamp",
+     "unit": "ns",
+     "timezone": "+01:00"
+    }
+   },
+   {
+    "name": "duration_s",
+    "nullable": true,
+    "type": {
+     "id": "duration",
+     "unit": "s"
+    }
+   },
+   {
+    "name": "duration_ms",
+    "nullable": true,
+    "type": {
+     "id": "duration",
+     "unit": "ms"
+    }
+   },
+   {
+    "name": "duration_us",
+    "nullable": true,
+    "type": {
+     "id": "duration",
+     "unit": "us"
+    }
+   },
+   {
+    "name": "duration_ns",
+    "nullable": true,
+    "type": {
+     "id": "duration",
+     "unit": "ns"
+    }
+   }
+  ]
+ },
+ "num_rows": 6,
+ "batch_row_counts": [
+  6
+ ],
+ "columns": [
+  {
+   "name": "date32",
+   "null_count": 1,
+   "values": [
+    -719162,
+    2932896,
+    0,
+    null,
+    -1,
+    19000
+   ]
+  },
+  {
+   "name": "date64",
+   "null_count": 1,
+   "values": [
+    "-62135596800000",
+    "253402214400000",
+    "0",
+    null,
+    "-86400000",
+    "1641600000000"
+   ]
+  },
+  {
+   "name": "time32_s",
+   "null_count": 1,
+   "values": [
+    0,
+    86399,
+    null,
+    1,
+    43200,
+    3600
+   ]
+  },
+  {
+   "name": "time32_ms",
+   "null_count": 1,
+   "values": [
+    0,
+    86399999,
+    null,
+    1,
+    43200000,
+    3600000
+   ]
+  },
+  {
+   "name": "time64_us",
+   "null_count": 1,
+   "values": [
+    "0",
+    "86399999999",
+    null,
+    "1",
+    "43200000000",
+    "3600000000"
+   ]
+  },
+  {
+   "name": "time64_ns",
+   "null_count": 1,
+   "values": [
+    "0",
+    "86399999999999",
+    null,
+    "1",
+    "43200000000000",
+    "3600000000000"
+   ]
+  },
+  {
+   "name": "ts_s",
+   "null_count": 1,
+   "values": [
+    "-9223372036854775807",
+    "9223372036854775807",
+    "0",
+    null,
+    "-1",
+    "1700000000123"
+   ]
+  },
+  {
+   "name": "ts_ms",
+   "null_count": 1,
+   "values": [
+    "-9223372036854775807",
+    "9223372036854775807",
+    "0",
+    null,
+    "-1",
+    "1700000000123"
+   ]
+  },
+  {
+   "name": "ts_us",
+   "null_count": 1,
+   "values": [
+    "-9223372036854775807",
+    "9223372036854775807",
+    "0",
+    null,
+    "-1",
+    "1700000000123"
+   ]
+  },
+  {
+   "name": "ts_ns",
+   "null_count": 1,
+   "values": [
+    "-9223372036854775807",
+    "9223372036854775807",
+    "0",
+    null,
+    "-1",
+    "1700000000123"
+   ]
+  },
+  {
+   "name": "ts_ms_utc",
+   "null_count": 1,
+   "values": [
+    "-9223372036854775807",
+    "9223372036854775807",
+    "0",
+    null,
+    "-1",
+    "1700000000123"
+   ]
+  },
+  {
+   "name": "ts_us_ny",
+   "null_count": 1,
+   "values": [
+    "-9223372036854775807",
+    "9223372036854775807",
+    "0",
+    null,
+    "-1",
+    "1700000000123"
+   ]
+  },
+  {
+   "name": "ts_ns_offset",
+   "null_count": 1,
+   "values": [
+    "-9223372036854775807",
+    "9223372036854775807",
+    "0",
+    null,
+    "-1",
+    "1700000000123"
+   ]
+  },
+  {
+   "name": "duration_s",
+   "null_count": 1,
+   "values": [
+    "-9223372036854775807",
+    "9223372036854775807",
+    "0",
+    null,
+    "-1",
+    "1700000000123"
+   ]
+  },
+  {
+   "name": "duration_ms",
+   "null_count": 1,
+   "values": [
+    "-9223372036854775807",
+    "9223372036854775807",
+    "0",
+    null,
+    "-1",
+    "1700000000123"
+   ]
+  },
+  {
+   "name": "duration_us",
+   "null_count": 1,
+   "values": [
+    "-9223372036854775807",
+    "9223372036854775807",
+    "0",
+    null,
+    "-1",
+    "1700000000123"
+   ]
+  },
+  {
+   "name": "duration_ns",
+   "null_count": 1,
+   "values": [
+    "-9223372036854775807",
+    "9223372036854775807",
+    "0",
+    null,
+    "-1",
+    "1700000000123"
+   ]
+  }
+ ]
+}

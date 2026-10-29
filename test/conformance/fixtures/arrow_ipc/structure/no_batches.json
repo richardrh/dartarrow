@@ -1,0 +1,43 @@
+{
+ "family": "structure",
+ "name": "no_batches",
+ "description": "schema only, zero record batches",
+ "files": {
+  "file": "no_batches.arrow",
+  "stream": "no_batches.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "i",
+    "nullable": true,
+    "type": {
+     "id": "int64"
+    }
+   },
+   {
+    "name": "s",
+    "nullable": true,
+    "type": {
+     "id": "utf8"
+    }
+   }
+  ]
+ },
+ "num_rows": 0,
+ "batch_row_counts": [],
+ "columns": [
+  {
+   "name": "i",
+   "null_count": 0,
+   "values": []
+  },
+  {
+   "name": "s",
+   "null_count": 0,
+   "values": []
+  }
+ ]
+}

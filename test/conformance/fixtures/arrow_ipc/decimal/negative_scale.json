@@ -1,0 +1,39 @@
+{
+ "family": "decimal",
+ "name": "negative_scale",
+ "description": "decimal128 with negative scale",
+ "files": {
+  "file": "negative_scale.arrow",
+  "stream": "negative_scale.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "d128_5_m2",
+    "nullable": true,
+    "type": {
+     "id": "decimal128",
+     "precision": 5,
+     "scale": -2
+    }
+   }
+  ]
+ },
+ "num_rows": 3,
+ "batch_row_counts": [
+  3
+ ],
+ "columns": [
+  {
+   "name": "d128_5_m2",
+   "null_count": 1,
+   "values": [
+    "99999",
+    "-1",
+    null
+   ]
+  }
+ ]
+}

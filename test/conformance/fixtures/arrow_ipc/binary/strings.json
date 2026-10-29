@@ -1,0 +1,65 @@
+{
+ "family": "binary",
+ "name": "strings",
+ "description": "utf8/large_utf8 with Unicode, empty, embedded NUL and null",
+ "files": {
+  "file": "strings.arrow",
+  "stream": "strings.arrows"
+ },
+ "write_options": {},
+ "optional": false,
+ "schema": {
+  "fields": [
+   {
+    "name": "utf8",
+    "nullable": true,
+    "type": {
+     "id": "utf8"
+    }
+   },
+   {
+    "name": "large_utf8",
+    "nullable": true,
+    "type": {
+     "id": "large_utf8"
+    }
+   }
+  ]
+ },
+ "num_rows": 9,
+ "batch_row_counts": [
+  9
+ ],
+ "columns": [
+  {
+   "name": "utf8",
+   "null_count": 1,
+   "values": [
+    "",
+    "ascii",
+    null,
+    "héllo wörld",
+    "日本語テキスト",
+    "emoji 😀👍🏽",
+    "é combining",
+    "nul\u0000inside",
+    "a much longer string beyond twelve bytes"
+   ]
+  },
+  {
+   "name": "large_utf8",
+   "null_count": 1,
+   "values": [
+    "",
+    "ascii",
+    null,
+    "héllo wörld",
+    "日本語テキスト",
+    "emoji 😀👍🏽",
+    "é combining",
+    "nul\u0000inside",
+    "a much longer string beyond twelve bytes"
+   ]
+  }
+ ]
+}
