@@ -49,6 +49,7 @@ jobs:
           mkdir -p build
           dart compile exe example/arrow.dart -o build/arrow-example.exe
           ./build/arrow-example.exe
+          dart run example/arrow_ipc.dart
       - name: Validate package publishing without publishing
         run: dart pub publish --dry-run
       - name: Upload coverage
@@ -88,10 +89,23 @@ jobs:
           cmp test/conformance/fixtures/api_pyarrow.json /tmp/api_pyarrow.json
       - name: Resolve locked dependencies
         run: dart pub get --enforce-lockfile
-      - name: Report declared support and missing features
+      - name: Regenerate Arrow IPC fixtures and compare exactly
+        run: |
+          python tool/conformance/arrow_ipc_interop.py check
+          python tool/conformance/arrow_ipc_interop.py verify --self-test
+      - name: Run Arrow IPC tests under dart2js
+        run: >-
+          dart test -p chrome test/ipc_test.dart test/ipc_schema_test.dart
+          test/ipc_extended_test.dart test/ipc_compression_test.dart
+          test/ipc_public_contract_test.dart test/arrow_extended_types_test.dart
+      - name: Verify Dart-written Arrow IPC with PyArrow
+        run: |
+          dart run tool/conformance/arrow_ipc_interop.dart --out build/arrow_ipc_dart
+          python tool/conformance/arrow_ipc_interop.py verify --output build/arrow_ipc_dart
+      - name: Require every physical fixture family
         run: |
           mkdir -p build
-          dart run test/conformance/dart_probe.dart --output build/conformance.json
+          dart run test/conformance/dart_probe.dart --output build/conformance.json --require-full
       - name: Require independent public API parity
         run: dart run test/conformance/api_probe.dart --output build/api-conformance.json
       - name: Run API acceptance and corrupted-oracle negative control
