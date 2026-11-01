@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:dartaframes_arrow/arrow.dart' as pa;
-import 'package:dartaframes_arrow/json.dart';
+import 'package:dartarrow/arrow.dart' as pa;
+import 'package:dartarrow/json.dart';
 import 'package:test/test.dart';
 
 const codec = OwnedBatchJsonCodec();

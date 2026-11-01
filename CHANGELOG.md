@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Breaking:** rename the package from `dartaframes_arrow` to `dartarrow`.
+  Update dependencies and imports to `package:dartarrow/...`.
 - Add the remaining standard Arrow logical types with PyArrow-style factories:
   fixed-size binary (`binary(n)`), `stringView`/`binaryView`, `largeList`,
   `listView`/`largeListView`, `decimal32`/`decimal64`/`decimal256` (any signed
@@ -50,7 +52,7 @@
 ## 0.1.0
 
 - Extract the existing pure Dart Arrow arrays, schemas, values, and owned JSON
-  interface from dartaframes_polars, without changing supported behavior.
+  interface from the Polars bindings, without changing supported behavior.
 - Provide optional standard C Data and C Stream ABI declarations in arrow_c.dart.
 - Move the package into its standalone `richardrh/dartarrow` repository with
   independent dependency locking, checks, documentation, and manual GitHub

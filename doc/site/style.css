@@ -27,3 +27,6 @@ footer { font-size: .95rem; }
 @media (max-width: 52rem) { .layout { display: block; } nav { position: static; border-bottom: 1px solid var(--border); margin-bottom: 2rem; } nav ul { columns: 2; } }
 @media (max-width: 30rem) { nav ul { columns: 1; } }
 @media (prefers-color-scheme: dark) { :root { --bg: #111c28; --fg: #e6edf6; --muted: #b9c8db; --link: #8ec7ff; --panel: #1c2c3e; --border: #4b6178; } }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { text-align: left; vertical-align: top; padding: .5rem .7rem; border-bottom: 1px solid var(--border); }
+th { background: var(--panel); }

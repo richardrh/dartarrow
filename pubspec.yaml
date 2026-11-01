@@ -1,4 +1,4 @@
-name: dartaframes_arrow
+name: dartarrow
 description: Pure Dart Arrow arrays, typed scalars, schemas, chunked tables, and owned JSON.
 version: 0.2.0
 repository: https://github.com/richardrh/dartarrow

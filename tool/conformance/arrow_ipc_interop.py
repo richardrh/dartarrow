@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent PyArrow oracle for dartaframes_arrow IPC interoperability.
+"""Independent PyArrow oracle for dartarrow IPC interoperability.
 
 The script has three commands:
 

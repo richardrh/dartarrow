@@ -2,12 +2,12 @@
 ///
 /// Little-endian physical buffers support borrowed imports and cheap slices
 /// without a native dependency. Arrow IPC streams and files live in the
-/// separate `package:dartaframes_arrow/ipc.dart` library (mirroring
+/// separate `package:dartarrow/ipc.dart` library (mirroring
 /// `pyarrow.ipc`). This is not the complete Apache Arrow specification and
 /// does not implement compute kernels. `int128` and `uint128` are binding
 /// extensions rather than Apache Arrow integer types and have no IPC
 /// encoding.
-library dartaframes_arrow;
+library dartarrow;
 
 export 'src/core.dart'
     show

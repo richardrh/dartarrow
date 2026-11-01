@@ -1,7 +1,7 @@
 // Dart half of the PyArrow interoperability loop.
 //
 // Reads every committed PyArrow fixture in test/conformance/fixtures/arrow_ipc with the
-// public dartaframes_arrow IPC readers (PyArrow -> Dart), then re-encodes the
+// public dartarrow IPC readers (PyArrow -> Dart), then re-encodes the
 // decoded table with the public writers into an output directory mirroring
 // `<family>/<name>.arrow|.arrows`. `tool/conformance/arrow_ipc_interop.py verify` then reads
 // those files with PyArrow and compares them to the PyArrow expectations
@@ -22,8 +22,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:dartaframes_arrow/arrow.dart';
-import 'package:dartaframes_arrow/ipc.dart' as ipc;
+import 'package:dartarrow/arrow.dart';
+import 'package:dartarrow/ipc.dart' as ipc;
 
 const _extensions = {'file': '.arrow', 'stream': '.arrows'};
 
