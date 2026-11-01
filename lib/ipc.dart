@@ -2,7 +2,7 @@
 /// PyArrow's `pyarrow.ipc` module. Import with a prefix:
 ///
 /// ```dart
-/// import 'package:dartaframes_arrow/ipc.dart' as ipc;
+/// import 'package:dartarrow/ipc.dart' as ipc;
 ///
 /// final writer = ipc.newStream(table.schema)..writeTable(table);
 /// final bytes = writer.close();
@@ -20,7 +20,7 @@
 /// [UnsupportedError]. Writers raise [UnsupportedError] for types without a
 /// standard IPC encoding (binding `int128`/`uint128`) and [ArgumentError] for
 /// invalid input such as a mismatched batch schema.
-library dartaframes_arrow_ipc;
+library dartarrow_ipc;
 
 export 'src/core.dart'
     show

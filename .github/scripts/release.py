@@ -44,11 +44,11 @@ def validate(tag):
 def update_draft(tag, directory):
     validate(tag)
     root = Path(directory)
-    expected = [root / f"dartaframes_arrow-{tag}-source.tar.gz", root / "SHA256SUMS"]
+    expected = [root / f"dartarrow-{tag}-source.tar.gz", root / "SHA256SUMS"]
     if not all(path.is_file() for path in expected):
         raise SystemExit("Expected source archive and SHA256SUMS are required")
     release = draft_for(tag)
-    notes = (f"Verified source distribution for dartaframes_arrow {tag[1:]}. "
+    notes = (f"Verified source distribution for dartarrow {tag[1:]}. "
              "Contains no native runtime dependency. This draft does not publish to pub.dev. "
              "Review the source archive and SHA256SUMS before manually publishing this GitHub release.")
     if release is None:

@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:dartaframes_arrow/arrow.dart' as pa;
+import 'package:dartarrow/arrow.dart' as pa;
 import 'package:test/test.dart';
 
 import 'dart_probe.dart' as conformance;
@@ -14,7 +14,7 @@ void main() {
       jsonDecode(
         File.fromUri(
           (await Isolate.resolvePackageUri(
-            Uri.parse('package:dartaframes_arrow/arrow.dart'),
+            Uri.parse('package:dartarrow/arrow.dart'),
           ))!.resolve('../test/conformance/fixtures/pyarrow.json'),
         ).readAsStringSync(),
       ),

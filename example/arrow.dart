@@ -1,4 +1,4 @@
-import 'package:dartaframes_arrow/arrow.dart' as pa;
+import 'package:dartarrow/arrow.dart' as pa;
 
 void main() {
   final values = pa.array([10, null, 30], type: pa.int32());

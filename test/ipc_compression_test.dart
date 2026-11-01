@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:dartaframes_arrow/ipc.dart' as ipc;
-import 'package:dartaframes_arrow/src/ipc_compression_web.dart' as web;
+import 'package:dartarrow/ipc.dart' as ipc;
+import 'package:dartarrow/src/ipc_compression_web.dart' as web;
 import 'package:test/test.dart';
 
 // Generated independently with PyArrow 26, IpcWriteOptions(compression='lz4').

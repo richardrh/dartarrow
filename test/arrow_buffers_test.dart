@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:dartaframes_arrow/arrow.dart';
-import 'package:dartaframes_arrow/json.dart';
+import 'package:dartarrow/arrow.dart';
+import 'package:dartarrow/json.dart';
 import 'package:test/test.dart';
 
 void main() {

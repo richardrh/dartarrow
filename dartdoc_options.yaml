@@ -1,6 +1,6 @@
 dartdoc:
   include:
-    - dartaframes_arrow
-    - dartaframes_arrow_c
-    - dartaframes_arrow_ipc
-    - dartaframes_arrow_json
+    - dartarrow
+    - dartarrow_c
+    - dartarrow_ipc
+    - dartarrow_json

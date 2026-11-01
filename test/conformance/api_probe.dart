@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:dartaframes_arrow/arrow.dart' as pa;
+import 'package:dartarrow/arrow.dart' as pa;
 
 Map<String, dynamic> object(Object? value) =>
     (value as Map).cast<String, dynamic>();

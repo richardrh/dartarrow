@@ -63,13 +63,13 @@ jobs:
       - name: Archive exact tag and calculate checksum
         run: |
           mkdir -p release-assets
-          git archive --format=tar.gz --prefix="dartaframes_arrow-$TAG/" --output="release-assets/dartaframes_arrow-$TAG-source.tar.gz" "refs/tags/$TAG"
-          (cd release-assets && sha256sum "dartaframes_arrow-$TAG-source.tar.gz" > SHA256SUMS)
+          git archive --format=tar.gz --prefix="dartarrow-$TAG/" --output="release-assets/dartarrow-$TAG-source.tar.gz" "refs/tags/$TAG"
+          (cd release-assets && sha256sum "dartarrow-$TAG-source.tar.gz" > SHA256SUMS)
       - name: Test source archive outside Git
         run: |
           mkdir -p "$RUNNER_TEMP/arrow-release"
-          tar -xzf "release-assets/dartaframes_arrow-$TAG-source.tar.gz" -C "$RUNNER_TEMP/arrow-release"
-          cd "$RUNNER_TEMP/arrow-release/dartaframes_arrow-$TAG"
+          tar -xzf "release-assets/dartarrow-$TAG-source.tar.gz" -C "$RUNNER_TEMP/arrow-release"
+          cd "$RUNNER_TEMP/arrow-release/dartarrow-$TAG"
           test ! -e .git
           dart pub get --enforce-lockfile
           dart test

@@ -10,14 +10,14 @@ native runtime). The historical 0.1.0 tag/draft is unchanged.
 
 ## Current public interface
 
-Import `package:dartaframes_arrow/arrow.dart` as `pa`. Its canonical public model
+Import `package:dartarrow/arrow.dart` as `pa`. Its canonical public model
 is `DataType`, `Field`, `Schema`, `Scalar`, `Array`, `Buffer`, `RecordBatch`,
 `ChunkedArray`, and `Table`. The implementation is one native-independent Dart
 library assembled from source parts; source files are not separate import APIs.
 There are no obsolete Arrow-prefixed public classes or compatibility aliases.
 
 ```dart
-import 'package:dartaframes_arrow/arrow.dart' as pa;
+import 'package:dartarrow/arrow.dart' as pa;
 
 final a = pa.array([1, null, 3], type: pa.int32());
 final valid = a[0].asDart(); // 1
@@ -131,7 +131,7 @@ capabilities stay explicit.
 
 ## Arrow IPC
 
-`import 'package:dartaframes_arrow/ipc.dart' as ipc;` mirrors `pyarrow.ipc`:
+`import 'package:dartarrow/ipc.dart' as ipc;` mirrors `pyarrow.ipc`:
 
 ```dart
 final bytes = (ipc.newStream(table.schema)..writeTable(table)).close();

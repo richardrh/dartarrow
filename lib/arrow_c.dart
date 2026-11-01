@@ -1,7 +1,7 @@
 /// Standard Arrow C Data and C Stream ABI declarations.
 ///
 /// This optional library requires dart:ffi; arrow.dart does not.
-library dartaframes_arrow_c;
+library dartarrow_c;
 
 import 'dart:ffi';
 
