@@ -24,6 +24,7 @@ dependencies:
 Not yet published to pub.dev.
 
 ## Usage
+The API looks like PyArrow but in Dart.
 
 ```dart
 import 'package:dartarrow/arrow.dart' as pa;
@@ -67,12 +68,6 @@ directions.
 - `Array` does not implement `Iterable` (its `cast<R>()` clashes with Arrow's `cast(type)`). Use `values.scalars` or `values.toDartList()`.
 - `Array.fromBuffers` borrows memory. Keep buffers alive and unmutated while arrays or slices exist.
 
-## Development
-
-```sh
-mise run check   # format, analyze, test, example, publish dry-run
-mise run docs    # build the guide and API reference into build/site
-```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the PyArrow conformance workflow.
 
