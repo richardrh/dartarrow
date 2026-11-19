@@ -198,8 +198,11 @@ Behaviour that is implemented but deviates from PyArrow 26, verified against it:
   metadata are neither exposed nor writable. A file footer that lists a block
   twice is rejected. Flatbuffer verification, view prefix consistency and
   buffer alignment are checked less strictly than by PyArrow, which rejects
-  some inputs this reader accepts. Default `IpcLimits` reject batches beyond
-  1,048,576 rows.
+  some inputs this reader accepts. Default `IpcLimits` reject valid data that
+  PyArrow reads: a batch beyond 1,048,576 rows, more than 4,194,304 values or
+  256 MiB of decompressed buffers in one stream or `readAll()`, and a
+  `string_view`/`binary_view` column whose views reference more than 64 MiB in
+  total, even when they alias the same bytes. Pass larger `limits:` to read them.
 - **dart2js:** integers beyond 2^53 are `BigInt`, and whole-number doubles are
   integers, so `array([1.0])` infers int64 there.
 
