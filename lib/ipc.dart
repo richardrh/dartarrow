@@ -15,6 +15,11 @@
 /// batches in streams, and are bounded by [IpcLimits]. Writers emit
 /// uncompressed little-endian V5 output.
 ///
+/// [IpcLimits] bound decoding work and allocations inside the reader. They
+/// do not bound later materialization (`toDartList`, `asDart`,
+/// `combineChunks`) of run-end encoded, dictionary or view columns that
+/// share values, and they are not a substitute for process isolation.
+///
 /// Errors: malformed input raises [FormatException]; valid input using an
 /// unsupported feature (big-endian data, unknown types or codecs) raises
 /// [UnsupportedError]. Writers raise [UnsupportedError] for types without a

@@ -15,6 +15,11 @@ part of 'core.dart';
 /// pass raised limits explicitly. Every breach raises a [FormatException]
 /// naming the `IpcLimits` field, its configured value and the offending
 /// value.
+///
+/// The limits bound decoding work and allocations inside the reader. They
+/// do not bound later materialization (`toDartList`, `asDart`,
+/// `combineChunks`) of run-end encoded, dictionary or view columns that
+/// share values, and they are not a substitute for process isolation.
 final class IpcLimits {
   /// Creates limits; every bound is inclusive.
   const IpcLimits({
@@ -39,8 +44,10 @@ final class IpcLimits {
   /// dictionary).
   final int maxRows;
 
-  /// Maximum total of all field node lengths decoded by one reader. Bounds
-  /// work even for layouts (such as Null or run-end encoded) whose wire size
+  /// Maximum total of all field node lengths decoded by one read (a stream
+  /// reader, or one file `getBatch`/`readAll` call plus the file's
+  /// dictionaries). Bounds decoding work and allocations inside the reader,
+  /// including for layouts (such as Null or run-end encoded) whose wire size
   /// is independent of their logical length.
   final int maxValues;
 
