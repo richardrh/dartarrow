@@ -71,6 +71,16 @@ const _smallFile =
     'BgAHAAwAAAAQABAAAAAAAAECEAAAABwAAAAEAAAAAAAAAAEAAABhAAAACAAMAAgABwAIAAAA'
     'AAAAAUAAAADQAAAAQVJST1cx';
 
+// PyArrow 26 ZSTD stream of string ['', ''] whose empty data buffer was
+// patched to an 8-byte prefix declaring uncompressed length 0 and no payload.
+const _zeroLengthZstd =
+    '/////3AAAAAQAAAAAAAKAAwABgAFAAgACgAAAAABBAAMAAAACAAIAAAABAAIAAAABAAAAAEA'
+    'AAAUAAAAEAAUAAgABgAHAAwAAAAQABAAAAAAAAEFEAAAABgAAAAEAAAAAAAAAAEAAABzAAAA'
+    'BAAEAAQAAAAAAAAA/////7AAAAAUAAAAAAAAAAwAGAAGAAUACAAMAAwAAAAAAwQAHAAAACgA'
+    'AAAAAAAAAAAAAAwAHgAQAAQACAAMAAwAAABgAAAAJAAAABgAAAACAAAAAAAAAAAAAAAAAAYA'
+    'CAAHAAYAAAAAAAABAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB0AAAAAAAAAIAAAAAAA'
+    'AAAIAAAAAAAAAAAAAAABAAAAAgAAAAAAAAAAAAAAAAAAAAwAAAAAAAAAKLUv/SAMYQAAAAAA'
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAA==';
 const _isJs = identical(0, 0.0);
 
 Array _dict(List<int> indices, List<String> values) =>
@@ -205,4 +215,12 @@ void main() {
     });
   });
 
+  // PyArrow 26 reads the crafted bytes as [{s: ''}, {s: ''}].
+  test('compressed buffer declaring length 0 is empty', () {
+    final table = ipc.openStream(base64Decode(_zeroLengthZstd)).readAll();
+    expect(table.toDartList(), [
+      {'s': ''},
+      {'s': ''},
+    ]);
+  }, skip: _isJs ? 'ZSTD IPC decompression is VM-only' : false);
 }

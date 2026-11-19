@@ -28,6 +28,9 @@ Uint8List _ipcDecompress(
     throw FormatException('Invalid IPC decompressed size $declared');
   }
   _ipcCheckDecompressed(used + declared, maxMessageBytes);
+  // A declared length of 0 is an empty buffer, as in Arrow C++'s
+  // DecompressBuffer; writers emit it for empty buffers.
+  if (declared == 0) return Uint8List(0);
   final Uint8List result;
   try {
     result = ipc_compression.decompressIpcBuffer(codec, payload, declared);
