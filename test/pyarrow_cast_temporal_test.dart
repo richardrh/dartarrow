@@ -368,6 +368,17 @@ void main() {
     });
   });
 
+  // Expected values: PyArrow 26.0.0 `pa.array([1], type=pa.string())` raises
+  // ArrowTypeError.
+  group('host type mismatch', () {
+    test('wrong host kind for an explicit type is an ArrowTypeError', () {
+      expect(
+        () => pa.array([1], type: pa.string()),
+        throwsA(isA<pa.ArrowTypeError>()),
+      );
+    });
+  });
+
   // Expected values: PyArrow 26.0.0 `pa.scalar(-0.0)` / `pa.scalar(-inf)`
   // infer double; web-relevant, also hold on the VM.
   group('host numbers', () {

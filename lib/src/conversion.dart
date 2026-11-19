@@ -690,6 +690,11 @@ _Value? _nativeRaw(
     );
     return storage == null ? null : _ExtensionValue(storage);
   }
+  if (!casting) {
+    throw ArrowTypeError(
+      'Cannot convert ${value.runtimeType} value $value to $type',
+    );
+  }
   throw UnsupportedError(
     'Conversion of ${value.runtimeType} to $type is unsupported',
   );
