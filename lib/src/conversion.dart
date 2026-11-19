@@ -148,17 +148,14 @@ Array _castArray(Array source, DataType target, {bool safe = true}) {
         });
         indices.add(_DictionaryIndexValue(index));
       }
-      var indexType = target.indexType as IntegerType;
-      while (BigInt.from(decoded.length - 1) > indexType.maximum) {
-        if (indexType.bitWidth >= 64)
-          throw ArgumentError('Dictionary exceeds index capacity');
-        indexType = IntegerType(
-          indexType.bitWidth * 2,
-          signed: indexType.signed,
+      final indexType = target.indexType as IntegerType;
+      if (BigInt.from(decoded.length - 1) > indexType.maximum)
+        throw ArrowInvalid(
+          'Dictionary of ${decoded.length} values cannot be indexed by '
+          '$indexType',
         );
-      }
       return Array._fromRaw(
-        DictionaryType(indexType, target.valueType, ordered: target.ordered),
+        target,
         indices,
         dictionary: Array._fromRaw(target.valueType, decoded),
       );
@@ -236,6 +233,10 @@ _Value? _castRaw(
   if (raw is _TemporalValue) {
     if (target is IntegerType)
       return _nativeRaw(raw.value, target, safe: safe, casting: true);
+    if (source is TimeType && target is TimestampType ||
+        source is DurationType && target is TimestampType ||
+        source is TimestampType && target is DurationType)
+      throw UnsupportedError('Unsupported cast from $source to $target');
     final temporal = switch (source) {
       DateType t => TemporalValue(
         raw.value,
@@ -400,7 +401,7 @@ _Value? _nativeRaw(
     } else if (casting && value is bool) {
       n = value ? BigInt.one : BigInt.zero;
     } else if (casting && value is String) {
-      n = BigInt.parse(value);
+      n = _parseIntegerText(value, type);
     } else if (casting && value is DecimalValue) {
       n = _rescale(value.unscaled, value.scale, 0, safe);
     } else if (casting && value is TemporalValue) {
@@ -426,7 +427,7 @@ _Value? _nativeRaw(
     } else if (value is BigInt) {
       n = value.toDouble();
     } else if (casting && value is String) {
-      n = double.parse(value);
+      n = _parseFloatText(value, type);
     } else if (casting && value is bool) {
       n = value ? 1 : 0;
     } else if (casting && value is DecimalValue) {
@@ -725,6 +726,55 @@ int _zoneOffsetSeconds(String? zone) {
   }
   final seconds = hours * 3600 + minutes * 60;
   return match[1] == '-' ? -seconds : seconds;
+}
+
+final _hexIntegerText = RegExp(r'^0[xX]([0-9a-fA-F]+)$');
+final _signedIntegerText = RegExp(r'^-?[0-9]+$');
+final _unsignedIntegerText = RegExp(r'^[0-9]+$');
+
+/// Parses [text] as Arrow's string-to-integer cast does: optional `-` (signed
+/// types only) and decimal digits, or `0x` with at most bitWidth/4 hex digits
+/// reinterpreted in two's complement. No whitespace, `+`, or out-of-range.
+BigInt _parseIntegerText(String text, IntegerType type) {
+  BigInt? n;
+  final hex = _hexIntegerText.firstMatch(text);
+  if (hex != null) {
+    final digits = hex[1]!;
+    if (digits.length <= type.bitWidth ~/ 4) {
+      n = BigInt.parse(digits, radix: 16);
+      if (type.signed && n > type.maximum) n -= BigInt.one << type.bitWidth;
+    }
+  } else if ((type.signed ? _signedIntegerText : _unsignedIntegerText).hasMatch(
+    text,
+  )) {
+    n = BigInt.parse(text);
+    if (n < type.minimum || n > type.maximum) n = null;
+  }
+  if (n == null) {
+    throw ArrowInvalid("Failed to parse string: '$text' as a scalar of $type");
+  }
+  return n;
+}
+
+final _floatText = RegExp(
+  r'^[+-]?(?:(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|(inf(?:inity)?)'
+  r'|(nan(?:\([0-9A-Za-z_]*\))?))$',
+  caseSensitive: false,
+);
+
+/// Parses [text] as Arrow's string-to-float cast does: decimal or exponent
+/// notation with an optional sign, and case-insensitive `inf`, `infinity`,
+/// `nan`. No surrounding whitespace or hexadecimal floats.
+double _parseFloatText(String text, FloatingType type) {
+  final match = _floatText.firstMatch(text);
+  if (match == null) {
+    throw ArrowInvalid("Failed to parse string: '$text' as a scalar of $type");
+  }
+  if (match[2] != null) return double.nan;
+  if (match[1] != null) {
+    return text.startsWith('-') ? double.negativeInfinity : double.infinity;
+  }
+  return double.parse(text);
 }
 
 /// Arrow's decimal text: plain notation when the scale is non-negative and

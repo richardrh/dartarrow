@@ -273,6 +273,101 @@ void main() {
     });
   });
 
+  // Expected values: PyArrow 26.0.0 (ArrowNotImplementedError / ArrowInvalid).
+  group('cast validation', () {
+    test('counter reinterpretations are not implemented', () {
+      expect(
+        () => pa.array([5], type: pa.time32('s')).cast(pa.timestamp('s')),
+        throwsUnsupportedError,
+      );
+      expect(
+        () => pa.array([5], type: pa.duration('s')).cast(pa.timestamp('s')),
+        throwsUnsupportedError,
+      );
+      expect(
+        () => pa.array([5], type: pa.timestamp('s')).cast(pa.duration('s')),
+        throwsUnsupportedError,
+      );
+    });
+
+    test('string to integer accepts only Arrow spellings', () {
+      expect(
+        pa.array(['-5', '007', '0x10', '0XfF']).cast(pa.int64()).toDartList(),
+        [-5, 7, 16, 255],
+      );
+      expect(pa.array(['0xff', '0x80']).cast(pa.int8()).toDartList(), [
+        -1,
+        -128,
+      ]);
+      expect(pa.array(['255']).cast(pa.uint8()).toDartList(), [255]);
+      for (final (text, type) in [
+        (' 12 ', pa.int64()),
+        ('+5', pa.int64()),
+        ('', pa.int64()),
+        ('-0x10', pa.int64()),
+        ('0x0010', pa.int8()),
+        ('128', pa.int8()),
+        ('-0', pa.uint8()),
+      ]) {
+        expect(
+          () => pa.array([text]).cast(type, safe: false),
+          throwsA(isA<pa.ArrowInvalid>()),
+          reason: text,
+        );
+      }
+    });
+
+    test('string to float accepts only Arrow spellings', () {
+      final parsed = pa
+          .array([
+            '+2.5',
+            '1e3',
+            '.5',
+            '5.',
+            'inf',
+            '-inf',
+            'Infinity',
+            '-INF',
+            '1e400',
+          ])
+          .cast(pa.float64())
+          .toDartList();
+      expect(parsed, [
+        2.5,
+        1000.0,
+        0.5,
+        5.0,
+        double.infinity,
+        double.negativeInfinity,
+        double.infinity,
+        double.negativeInfinity,
+        double.infinity,
+      ]);
+      final nans = pa.array(['nan', 'NaN', '-nan']).cast(pa.float64());
+      expect(nans.toDartList().every((v) => (v as double).isNaN), isTrue);
+      for (final text in [' 1.5', '1.5 ', '1,5', '0x10', '1e', 'infin']) {
+        expect(
+          () => pa.array([text]).cast(pa.float64()),
+          throwsA(isA<pa.ArrowInvalid>()),
+          reason: text,
+        );
+      }
+    });
+
+    test('dictionary cast honours the requested index type', () {
+      final small = pa
+          .array(List.generate(128, (i) => i))
+          .cast(pa.dictionary(pa.int8(), pa.int64()));
+      expect(small.type, pa.dictionary(pa.int8(), pa.int64()));
+      expect(
+        () => pa
+            .array(List.generate(200, (i) => i))
+            .cast(pa.dictionary(pa.int8(), pa.int64())),
+        throwsA(isA<pa.ArrowInvalid>()),
+      );
+    });
+  });
+
   // Expected values: PyArrow 26.0.0 `pa.scalar(-0.0)` / `pa.scalar(-inf)`
   // infer double; web-relevant, also hold on the VM.
   group('host numbers', () {
