@@ -357,16 +357,21 @@ Uint8List _offsetsBytes(List<int> offsets, int width) {
   final bytes = Uint8List(offsets.length * width);
   final data = ByteData.sublistView(bytes);
   for (var i = 0; i < offsets.length; i++) {
-    if (width == 4) {
-      if (offsets[i] > 0x7fffffff) {
-        throw ArgumentError('Offset exceeds 32-bit capacity');
-      }
-      data.setInt32(i * 4, offsets[i], Endian.little);
-    } else {
-      _setInt64(data, i * 8, offsets[i]);
-    }
+    _setOffset(data, i, width, offsets[i]);
   }
   return bytes;
+}
+
+/// Writes offset slot [index] of [width] bytes, rejecting 32-bit overflow.
+void _setOffset(ByteData data, int index, int width, int offset) {
+  if (width == 4) {
+    if (offset > 0x7fffffff) {
+      throw ArgumentError('Offset exceeds 32-bit capacity');
+    }
+    data.setInt32(index * 4, offset, Endian.little);
+  } else {
+    _setInt64(data, index * 8, offset);
+  }
 }
 
 /// Encodes validated logical values of an extended storage [type].

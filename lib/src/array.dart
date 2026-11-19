@@ -730,11 +730,7 @@ Array _encode(DataType type, List<_Value?> input, Array? dictionary) {
       final v = input[i];
       if (v is _StringValue) data.add(utf8.encode(v.value));
       if (v is _BinaryValue) data.add(v.bytes);
-      if (width == 4) {
-        offsetData.setInt32((i + 1) * width, data.length, Endian.little);
-      } else {
-        _setInt64(offsetData, (i + 1) * width, data.length);
-      }
+      _setOffset(offsetData, i + 1, width, data.length);
     }
     _physicalBuffers.addAll([offsets, data.takeBytes()]);
   } else if (type is BooleanType) {
@@ -1064,11 +1060,7 @@ Array _concatLeaf(List<Array> arrays, DataType type, int length) {
       for (var i = 1; i <= a.length; i++) {
         final position = bytePosition + a._offsetAt(a.offset + i) - start;
         row++;
-        if (width == 4) {
-          offsetData.setInt32(row * width, position, Endian.little);
-        } else {
-          _setInt64(offsetData, row * width, position);
-        }
+        _setOffset(offsetData, row, width, position);
       }
       bytePosition += end - start;
     }
