@@ -44,17 +44,22 @@ void main() {
   test(
     'array equality follows floating logical values rather than bit equality',
     () {
-      expect(pa.array([0.0]).equals(pa.array([-0.0])), isTrue);
+      // Explicit type: under dart2js a bare 0.0 is an integer.
+      final zero = pa.array([0.0], type: pa.float64());
+      expect(zero.equals(pa.array([-0.0], type: pa.float64())), isTrue);
       expect(pa.array([double.nan]).equals(pa.array([double.nan])), isFalse);
     },
   );
   test(
     'unsafe construction still rejects integers beyond float exact range',
     () {
+      // Parsed, not literal: dart2js cannot compile integers beyond 2^53.
+      final beyondDouble = int.parse('9007199254740993');
       expect(
-        () => pa.array([9007199254740993, 1.0], safe: false),
+        () => pa.array([beyondDouble, 1.0], safe: false),
         throwsArgumentError,
       );
     },
+    testOn: '!js',
   );
 }

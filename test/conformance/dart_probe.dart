@@ -1,3 +1,6 @@
+// ByteMetadata looks String keys up by their UTF-8 bytes.
+// ignore_for_file: collection_methods_unrelated_type
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -118,18 +121,20 @@ Object? oracle(Object? raw, DataType type, {Array? context}) {
         final b = bits.toInt();
         final exp = (b >> 10) & 31;
         final frac = b & 1023;
-        if (exp == 31)
+        if (exp == 31) {
           return frac == 0
               ? (b & 32768 == 0 ? double.infinity : double.negativeInfinity)
               : double.nan;
+        }
         final magnitude = exp == 0
             ? frac * math.pow(2, -24).toDouble()
             : (1024 + frac) * math.pow(2, exp - 25).toDouble();
         return b & 32768 == 0 ? magnitude : -magnitude;
       }
       final data = ByteData(width ~/ 8);
-      for (var i = 0; i < width ~/ 8; i++)
+      for (var i = 0; i < width ~/ 8; i++) {
         data.setUint8(i, ((bits >> (i * 8)) & BigInt.from(255)).toInt());
+      }
       return width == 32
           ? data.getFloat32(0, Endian.little)
           : data.getFloat64(0, Endian.little);
@@ -165,30 +170,36 @@ Object? oracle(Object? raw, DataType type, {Array? context}) {
 bool equalValue(Object? actual, Object? expected) {
   if (actual is DictionaryScalar) return equalValue(actual.asDart(), expected);
   if (actual is Scalar) return equalValue(actual.value, expected);
-  if (actual is TemporalValue)
+  if (actual is TemporalValue) {
     return expected is BigInt && actual.counter == expected;
-  if (actual is int && expected is BigInt)
+  }
+  if (actual is int && expected is BigInt) {
     return BigInt.from(actual) == expected;
+  }
   if (actual is double && expected is double) {
     if (actual.isNaN || expected.isNaN) return actual.isNaN && expected.isNaN;
-    if (actual == 0 && expected == 0)
+    if (actual == 0 && expected == 0) {
       return actual.isNegative == expected.isNegative;
+    }
     return actual == expected;
   }
-  if (actual is (Object?, Object?) && expected is (Object?, Object?))
+  if (actual is (Object?, Object?) && expected is (Object?, Object?)) {
     return equalValue(actual.$1, expected.$1) &&
         equalValue(actual.$2, expected.$2);
-  if (actual is List && expected is List)
+  }
+  if (actual is List && expected is List) {
     return actual.length == expected.length &&
         List.generate(
           actual.length,
           (i) => i,
         ).every((i) => equalValue(actual[i], expected[i]));
-  if (actual is Map && expected is Map)
+  }
+  if (actual is Map && expected is Map) {
     return actual.length == expected.length &&
         actual.keys.every(
           (k) => expected.containsKey(k) && equalValue(actual[k], expected[k]),
         );
+  }
   return actual == expected;
 }
 
@@ -417,6 +428,7 @@ void main(List<String> args) {
     (r) =>
         r['status'] == 'fail' ||
         (args.contains('--require-full') && r['status'] == 'missing'),
-  ))
+  )) {
     exitCode = 1;
+  }
 }

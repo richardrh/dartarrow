@@ -149,5 +149,6 @@ void main() {
       expect(batch.numColumns, 0);
       expect(pa.Table.fromBatches([batch]).toBatches().single.numRows, height);
     },
+    testOn: '!js', // 1 << 40 needs 64-bit integers.
   );
 }

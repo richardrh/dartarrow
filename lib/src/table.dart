@@ -3,12 +3,14 @@ part of 'core.dart';
 final class Table {
   Table._(this.schema, List<ChunkedArray> columns, this.numRows)
     : columns = List.unmodifiable(columns) {
-    if (numRows < 0 || columns.length != schema.length)
+    if (numRows < 0 || columns.length != schema.length) {
       throw ArrowInvalid('Invalid table shape');
+    }
     for (var i = 0; i < columns.length; i++) {
       if (columns[i].length != numRows ||
-          columns[i].type != schema.fields[i].type)
+          columns[i].type != schema.fields[i].type) {
         throw ArrowInvalid('Column $i does not match schema or row count');
+      }
     }
   }
   factory Table.fromArrays(
@@ -19,10 +21,12 @@ final class Table {
   }) {
     _checkTabularOptions(names, schema, metadata);
     final values = arrays.toList();
-    if (schema != null && values.length != schema.length)
+    if (schema != null && values.length != schema.length) {
       throw ArgumentError('Schema and column counts differ');
-    if (schema == null && (names == null || names.length != values.length))
+    }
+    if (schema == null && (names == null || names.length != values.length)) {
       throw ArgumentError('Names or schema required for each column');
+    }
     final columns = <ChunkedArray>[];
     for (var i = 0; i < values.length; i++) {
       final value = values[i];
@@ -53,8 +57,9 @@ final class Table {
     final names = schema?.names ?? data.keys.toList();
     final values = <Object?>[];
     for (final name in names) {
-      if (!data.containsKey(name))
+      if (!data.containsKey(name)) {
         throw ArgumentError('Missing column "$name"');
+      }
       values.add(data[name]);
     }
     return Table.fromArrays(
@@ -73,13 +78,15 @@ final class Table {
   ]);
   factory Table.fromBatches(Iterable<RecordBatch> batches, {Schema? schema}) {
     final values = batches.toList();
-    if (schema == null && values.isEmpty)
+    if (schema == null && values.isEmpty) {
       throw ArgumentError('Empty batches require a schema');
+    }
     schema ??= values.first.schema;
     var rows = 0;
     for (final batch in values) {
-      if (!schema.equals(batch.schema))
+      if (!schema.equals(batch.schema)) {
         throw ArgumentError('Batch schemas must match');
+      }
       rows = _checkedLengthAdd(rows, batch.numRows);
     }
     return Table._(schema, [
@@ -130,11 +137,13 @@ final class Table {
     for (final column in columns) ChunkedArray([column.combineChunks()]),
   ], numRows);
   Table cast(Schema targetSchema, {bool safe = true}) {
-    if (targetSchema.length != numColumns)
+    if (targetSchema.length != numColumns) {
       throw ArgumentError('Target schema names must match');
+    }
     for (var i = 0; i < numColumns; i++) {
-      if (targetSchema.fields[i].name != schema.fields[i].name)
+      if (targetSchema.fields[i].name != schema.fields[i].name) {
         throw ArgumentError('Target schema names must match');
+      }
     }
     return Table._(targetSchema, [
       for (var i = 0; i < numColumns; i++)
@@ -143,8 +152,9 @@ final class Table {
   }
 
   List<RecordBatch> toBatches({int? maxChunkSize}) {
-    if (maxChunkSize != null && maxChunkSize <= 0)
+    if (maxChunkSize != null && maxChunkSize <= 0) {
       throw ArgumentError.value(maxChunkSize, 'maxChunkSize');
+    }
     final result = <RecordBatch>[];
     if (numRows == 0) return result;
     final indices = List<int>.filled(numColumns, 0);
@@ -194,8 +204,9 @@ final class Table {
   ];
   bool equals(Table other, {bool checkMetadata = false}) {
     if (numRows != other.numRows ||
-        !schema.equals(other.schema, checkMetadata: checkMetadata))
+        !schema.equals(other.schema, checkMetadata: checkMetadata)) {
       return false;
+    }
     for (var i = 0; i < numColumns; i++) {
       if (!columns[i].equals(other.columns[i])) return false;
     }
@@ -218,16 +229,18 @@ Table table(
   Map<Object, Object>? metadata,
 }) {
   if (data is Map<String, Object?>) {
-    if (names != null)
+    if (names != null) {
       throw ArgumentError('names is not supported for mappings');
+    }
     return Table.fromDartMap(data, schema: schema, metadata: metadata);
   }
-  if (data is Iterable<Object?>)
+  if (data is Iterable<Object?>) {
     return Table.fromArrays(
       data,
       names: names,
       schema: schema,
       metadata: metadata,
     );
+  }
   throw ArgumentError.value(data, 'data', 'Expected mapping or arrays');
 }

@@ -1,6 +1,8 @@
 part of 'core.dart';
 
-/// Immutable byte-keyed metadata. Keys are compared by content, not identity.
+/// Immutable byte-keyed metadata. Keys and values are compared by content,
+/// not identity; lookups ([], [containsKey], [containsValue]) accept either a
+/// `String` (UTF-8 encoded) or a `Uint8List`.
 final class ByteMetadata extends MapBase<Uint8List, Uint8List> {
   ByteMetadata(Map<Object, Object> values) {
     for (final entry in values.entries) {
@@ -31,6 +33,25 @@ final class ByteMetadata extends MapBase<Uint8List, Uint8List> {
     if (key is Uint8List) return _entries[base64Encode(key)]?.value;
     return null;
   }
+
+  @override
+  bool containsKey(Object? key) => this[key] != null;
+
+  @override
+  bool containsValue(Object? value) {
+    final Uint8List bytes;
+    if (value is String) {
+      bytes = utf8.encode(value);
+    } else if (value is Uint8List) {
+      bytes = value;
+    } else {
+      return false;
+    }
+    return _entries.values.any((e) => _same(e.value, bytes));
+  }
+
+  @override
+  int get length => _entries.length;
 
   @override
   Iterable<Uint8List> get keys => _entries.values.map((e) => e.key);
@@ -64,16 +85,18 @@ final class ByteMetadata extends MapBase<Uint8List, Uint8List> {
   };
   static ByteMetadata? fromJson(Object? value) {
     if (value == null) return null;
-    if (value is! Map)
+    if (value is! Map) {
       throw const FormatException('metadata must be an object');
+    }
     if (value['encoding'] == 'base64' && value['entries'] is List) {
       final result = <Object, Object>{};
       for (final entry in value['entries'] as List) {
         if (entry is! List ||
             entry.length != 2 ||
             entry[0] is! String ||
-            entry[1] is! String)
+            entry[1] is! String) {
           throw const FormatException('Invalid binary metadata entry');
+        }
         result[base64Decode(entry[0] as String)] = base64Decode(
           entry[1] as String,
         );
@@ -82,8 +105,9 @@ final class ByteMetadata extends MapBase<Uint8List, Uint8List> {
     }
     final result = <Object, Object>{};
     for (final entry in value.entries) {
-      if (entry.key is! String || entry.value is! String)
+      if (entry.key is! String || entry.value is! String) {
         throw const FormatException('Legacy metadata must contain strings');
+      }
       result[entry.key as String] = entry.value as String;
     }
     return ByteMetadata(result);

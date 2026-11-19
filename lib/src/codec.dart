@@ -7,15 +7,37 @@ Object? scalarToJson(Scalar value) =>
     value._rawValue == null ? null : _valueToJson(value.type, value._rawValue);
 
 /// Decodes and validates a scalar in the owned-JSON physical value format.
-Scalar scalarFromJson(DataType type, Object? json, {Array? dictionary}) =>
-    Array._fromRaw(type, [
-      json == null ? null : _valueFromJson(type, json),
-    ], dictionary: dictionary)[0];
+///
+/// Valid values are never limited here. Throws [FormatException] only if
+/// null slots expand beyond the default [OwnedBatchJsonCodec] limits: a null
+/// fixed-size list slot is charged `listSize` times its child's null cost
+/// (recursively), a null fixed-size binary slot `byteWidth` bytes.
+Scalar scalarFromJson(DataType type, Object? json, {Array? dictionary}) {
+  final value = json == null ? null : _valueFromJson(type, json);
+  const limits = OwnedBatchJsonCodec();
+  _ExpansionBudget(
+    limits.maxCollectionSize,
+    limits.maxSourceLength,
+  ).addValue(type, value);
+  return Array._fromRaw(type, [value], dictionary: dictionary)[0];
+}
 
 /// JSON codec for the protocol's copied, binding-owned logical column batches.
 ///
 /// Wide integers and temporal counters are decimal strings. Floating-point
 /// values carry raw hexadecimal IEEE bits, preserving all bit patterns.
+///
+/// Decoding limits: [maxSourceLength] bounds the JSON text and
+/// [maxCollectionSize] the total number of JSON array/object elements. A null
+/// fixed-size list or fixed-size binary slot occupies storage sized by its
+/// declared type, not by the input, so decoding also rejects (with
+/// [FormatException], before allocating) batches whose null slots, across all
+/// columns and dictionaries, expand to more than [maxCollectionSize] value
+/// slots beyond the nulls themselves (a null fixed-size list costs `listSize`
+/// times its child's null cost, recursively) or more than [maxSourceLength]
+/// fixed-size binary bytes (`byteWidth` per null slot). Valid values are
+/// never charged: their storage is backed by the input, which the two
+/// limits above already bound.
 final class OwnedBatchJsonCodec {
   const OwnedBatchJsonCodec({
     this.maxNestingDepth = 64,
@@ -34,8 +56,9 @@ final class OwnedBatchJsonCodec {
       throw const FormatException('Batch JSON exceeds the source-size limit');
     }
     final value = jsonDecode(source);
-    if (value is! Map)
+    if (value is! Map) {
       throw const FormatException('Batch must be a JSON object');
+    }
     return fromJson(value.cast<String, Object?>());
   }
 
@@ -50,8 +73,9 @@ final class OwnedBatchJsonCodec {
           'Owned JSON does not encode nested dictionary storage; use physical Arrow buffers',
         );
       }
-      if (array.dictionary case final dictionary?)
+      if (array.dictionary case final dictionary?) {
         checkDictionaries(dictionary);
+      }
     }
 
     batch.columns.forEach(checkDictionaries);
@@ -67,6 +91,7 @@ final class OwnedBatchJsonCodec {
 
   RecordBatch fromJson(Map<String, Object?> json) {
     _checkJsonLimits(json);
+    final budget = _ExpansionBudget(maxCollectionSize, maxSourceLength);
     try {
       final schemaJson = json['schema'];
       final columnsJson = json['columns'];
@@ -91,7 +116,11 @@ final class OwnedBatchJsonCodec {
           throw FormatException('columns[$i] must be an object');
         }
         columns.add(
-          _columnFromJson(schema.fields[i], raw.cast<String, Object?>()),
+          _columnFromJson(
+            schema.fields[i],
+            raw.cast<String, Object?>(),
+            budget,
+          ),
         );
       }
       final length =
@@ -138,39 +167,52 @@ final class OwnedBatchJsonCodec {
       'dictionary': _anonymousArrayToJson(dictionary),
   };
 
-  Array _columnFromJson(Field field, Map<String, Object?> json) {
+  Array _columnFromJson(
+    Field field,
+    Map<String, Object?> json,
+    _ExpansionBudget budget,
+  ) {
     if (json['name'] != field.name) {
       throw FormatException(
         'Column name ${json['name']} does not match ${field.name}',
       );
     }
     final dtype = _dtype(json);
-    if (dtype != field.type)
+    if (dtype != field.type) {
       throw FormatException(
         'Column ${field.name} datatype does not match schema',
       );
-    return _arrayFromParts(dtype, json);
+    }
+    return _arrayFromParts(dtype, json, budget);
   }
 
-  Array _anonymousArrayFromJson(Map<String, Object?> json) =>
-      _arrayFromParts(_dtype(json), json);
+  Array _anonymousArrayFromJson(
+    Map<String, Object?> json,
+    _ExpansionBudget budget,
+  ) => _arrayFromParts(_dtype(json), json, budget);
 
   DataType _dtype(Map<String, Object?> json) {
     final raw = json['dtype'];
-    if (raw is! Map)
+    if (raw is! Map) {
       throw const FormatException('Column dtype must be an object');
+    }
     return DataType.fromJson(raw.cast<String, Object?>());
   }
 
-  Array _arrayFromParts(DataType dtype, Map<String, Object?> json) {
+  Array _arrayFromParts(
+    DataType dtype,
+    Map<String, Object?> json,
+    _ExpansionBudget budget,
+  ) {
     final _rawValues = json['values'];
     final rawValidity = json['validity'];
     if (_rawValues is! List || rawValidity is! List) {
       throw const FormatException('Column values and validity must be lists');
     }
     final validity = rawValidity.map((v) {
-      if (v is! bool)
+      if (v is! bool) {
         throw const FormatException('Validity entries must be booleans');
+      }
       return v;
     }).toList();
     if (validity.length != _rawValues.length) {
@@ -181,23 +223,30 @@ final class OwnedBatchJsonCodec {
     final values = <_Value?>[];
     for (var i = 0; i < _rawValues.length; i++) {
       if (!validity[i]) {
-        if (_rawValues[i] != null)
+        if (_rawValues[i] != null) {
           throw FormatException('Invalid value at index $i must be null');
+        }
         values.add(null);
       } else {
-        if (_rawValues[i] == null)
+        if (_rawValues[i] == null) {
           throw FormatException('Valid value at index $i is null');
+        }
         values.add(_valueFromJson(dtype, _rawValues[i]));
       }
     }
     Array? dictionary;
     final rawDictionary = json['dictionary'];
     if (rawDictionary != null) {
-      if (rawDictionary is! Map)
+      if (rawDictionary is! Map) {
         throw const FormatException('dictionary must be an object');
+      }
       dictionary = _anonymousArrayFromJson(
         rawDictionary.cast<String, Object?>(),
+        budget,
       );
+    }
+    for (final value in values) {
+      budget.addValue(dtype, value);
     }
     return Array._fromRaw(
       dtype,
@@ -247,6 +296,146 @@ final class OwnedBatchJsonCodec {
     }
 
     visit(root, 1);
+  }
+}
+
+/// Bounds the storage that decoded values expand to beyond what the input
+/// itself spells out. Valid values are never charged: every valid element and
+/// every valid fixed-size binary byte is backed by input text, which
+/// `maxCollectionSize` and `maxSourceLength` already bound. Only null slots
+/// are charged, for the storage their declared width allocates beyond the
+/// null itself: a null fixed-size list slot costs `listSize` times its
+/// child's null cost (recursively), a null fixed-size binary slot costs
+/// `byteWidth` bytes, and a null struct or union costs its widest child.
+/// [slots] are bounded by `maxCollectionSize`, [bytes] by `maxSourceLength`.
+/// Every product is guarded by division, so no intermediate exceeds the
+/// limits and the arithmetic stays exact on dart2js.
+final class _ExpansionBudget {
+  _ExpansionBudget(this.maxSlots, this.maxBytes);
+
+  final int maxSlots;
+  final int maxBytes;
+  int slots = 0;
+  int bytes = 0;
+
+  void addValue(DataType type, _Value? value) {
+    final (s, b) = _valueCost(type, value);
+    slots += s;
+    bytes += b;
+    _check(slots, bytes);
+  }
+
+  static Never _exceeded() => throw const FormatException(
+    'Batch JSON expands beyond the decoding limits',
+  );
+
+  void _check(int s, int b) {
+    if (s > maxSlots || b > maxBytes) _exceeded();
+  }
+
+  (int, int) _sum((int, int) a, (int, int) b) {
+    final result = (a.$1 + b.$1, a.$2 + b.$2);
+    _check(result.$1, result.$2);
+    return result;
+  }
+
+  static (int, int) _max((int, int) a, (int, int) b) =>
+      (a.$1 > b.$1 ? a.$1 : b.$1, a.$2 > b.$2 ? a.$2 : b.$2);
+
+  int _times(int count, int each, int limit) {
+    if (count > 0 && each > limit ~/ count) _exceeded();
+    return count * each;
+  }
+
+  (int, int) _nullCost(DataType type) {
+    switch (type) {
+      case final FixedSizeListType list:
+        final (s, b) = _nullCost(list.field.type);
+        return _max(
+          (1, 0),
+          (_times(list.size, s, maxSlots), _times(list.size, b, maxBytes)),
+        );
+      case final FixedSizeBinaryType binary:
+        _check(1, binary.byteWidth);
+        return (1, binary.byteWidth);
+      case final StructType struct:
+        var cost = (1, 0);
+        for (final field in struct.fields) {
+          cost = _max(cost, _nullCost(field.type));
+        }
+        return cost;
+      case final UnionType union:
+        var cost = (1, 0);
+        for (final field in union.fields) {
+          cost = _max(cost, _nullCost(field.type));
+        }
+        return cost;
+      case final RunEndEncodedType ree:
+        return _nullCost(ree.valuesField.type);
+      case final ExtensionType extension:
+        return _nullCost(extension.storageType);
+      default:
+        return (1, 0);
+    }
+  }
+
+  (int, int) _valueCost(DataType type, _Value? value) {
+    if (value == null) {
+      // The null itself is a JSON element; only its declared-width storage
+      // beyond that one slot is unbacked.
+      final (s, b) = _nullCost(type);
+      return (s - 1, b);
+    }
+    switch (type) {
+      case final ListType list:
+        var cost = (0, 0);
+        for (final child in (value as _ListValue).values) {
+          cost = _sum(cost, _valueCost(list.field.type, child));
+        }
+        return cost;
+      case final FixedSizeListType list:
+        var cost = (0, 0);
+        for (final child in (value as _ListValue).values) {
+          cost = _sum(cost, _valueCost(list.field.type, child));
+        }
+        return cost;
+      case final StructType struct:
+        var cost = (0, 0);
+        final fields = (value as _StructValue).fields;
+        for (var i = 0; i < fields.length && i < struct.fields.length; i++) {
+          cost = _sum(cost, _valueCost(struct.fields[i].type, fields[i].value));
+        }
+        return cost;
+      case final MapType map:
+        var cost = (0, 0);
+        for (final entry in (value as _MapValue).entries) {
+          cost = _sum(cost, _valueCost(map.keyField.type, entry.key));
+          cost = _sum(cost, _valueCost(map.valueField.type, entry.value));
+        }
+        return cost;
+      case final UnionType union:
+        final tagged = value as _UnionValue;
+        final selected = union.childIndexForTypeId(tagged.typeId);
+        var cost = (0, 0);
+        for (var i = 0; i < union.fields.length; i++) {
+          cost = _max(
+            cost,
+            i == selected
+                ? _valueCost(union.fields[i].type, tagged.value)
+                : _valueCost(union.fields[i].type, null),
+          );
+        }
+        return cost;
+      case final RunEndEncodedType ree:
+        return _valueCost(ree.valuesField.type, value);
+      case final ExtensionType extension:
+        return _valueCost(
+          extension.storageType,
+          (value as _ExtensionValue).storage,
+        );
+      default:
+        return (0, 0);
+    }
   }
 }
 
@@ -346,8 +535,9 @@ Object _valueToJson(DataType type, _Value value) {
 
 _Value _valueFromJson(DataType type, Object? json) {
   Map<String, Object?> object() {
-    if (json is! Map)
+    if (json is! Map) {
       throw FormatException('Value for $type must be an object');
+    }
     return json.cast<String, Object?>();
   }
 
@@ -355,15 +545,17 @@ _Value _valueFromJson(DataType type, Object? json) {
     case NullType():
       throw const FormatException('Null datatype cannot contain a valid value');
     case BooleanType():
-      if (json is! bool)
+      if (json is! bool) {
         throw const FormatException('Boolean value must be a boolean');
+      }
       return _BooleanValue(json);
     case IntegerType():
       return _IntegerValue(_canonicalInteger(json, 'Integer value'));
     case final FloatingType floating:
       final bits = object()['floatBits'];
-      if (bits is! String)
+      if (bits is! String) {
         throw const FormatException('floatBits must be a string');
+      }
       return _FloatingValue(
         floating.bitWidth,
         _floatBits(bits, floating.bitWidth),
@@ -373,19 +565,22 @@ _Value _valueFromJson(DataType type, Object? json) {
         _canonicalInteger(object()['unscaled'], 'Decimal unscaled value'),
       );
     case Utf8Type():
-      if (json is! String)
+      if (json is! String) {
         throw const FormatException('String value must be a string');
+      }
       return _StringValue(json);
     case BinaryType():
       final encoded = object()['base64'];
-      if (encoded is! String)
+      if (encoded is! String) {
         throw const FormatException('base64 must be a string');
+      }
       return _BinaryValue(base64Decode(encoded));
     case DateType() || TimestampType() || DurationType() || TimeType():
       return _TemporalValue(_canonicalInteger(json, 'Temporal counter'));
     case final ListType list:
-      if (json is! List)
+      if (json is! List) {
         throw const FormatException('List value must be a list');
+      }
       return _ListValue(
         json
             .map(
@@ -395,8 +590,9 @@ _Value _valueFromJson(DataType type, Object? json) {
             .toList(),
       );
     case final FixedSizeListType list:
-      if (json is! List)
+      if (json is! List) {
         throw const FormatException('Fixed list value must be a list');
+      }
       return _ListValue(
         json
             .map(
@@ -406,20 +602,24 @@ _Value _valueFromJson(DataType type, Object? json) {
             .toList(),
       );
     case final StructType struct:
-      if (json is! List)
+      if (json is! List) {
         throw const FormatException('Struct value must be a list');
-      if (json.length != struct.fields.length)
+      }
+      if (json.length != struct.fields.length) {
         throw const FormatException('Struct field count mismatch');
+      }
       return _StructValue([
         for (var i = 0; i < json.length; i++)
           () {
             final raw = json[i];
-            if (raw is! Map)
+            if (raw is! Map) {
               throw const FormatException('Struct entry must be an object');
+            }
             final entry = raw.cast<String, Object?>();
             final name = entry['name'];
-            if (name is! String)
+            if (name is! String) {
               throw const FormatException('Struct entry name must be a string');
+            }
             final _rawValue = entry['value'];
             return _StructEntry(
               name,
@@ -433,20 +633,24 @@ _Value _valueFromJson(DataType type, Object? json) {
       return _DictionaryIndexValue(_canonicalInteger(json, 'Dictionary index'));
     case FixedSizeBinaryType():
       final encoded = object()['base64'];
-      if (encoded is! String)
+      if (encoded is! String) {
         throw const FormatException('base64 must be a string');
+      }
       return _BinaryValue(base64Decode(encoded));
     case final MapType map:
-      if (json is! List)
+      if (json is! List) {
         throw const FormatException('Map value must be a list');
+      }
       return _MapValue([
         for (final raw in json)
           () {
-            if (raw is! Map)
+            if (raw is! Map) {
               throw const FormatException('Map entry must be an object');
+            }
             final key = raw['key'];
-            if (key == null)
+            if (key == null) {
               throw const FormatException('Map keys cannot be null');
+            }
             final item = raw['value'];
             return _MapEntry(
               _valueFromJson(map.keyField.type, key),
@@ -457,8 +661,9 @@ _Value _valueFromJson(DataType type, Object? json) {
     case final UnionType union:
       final tagged = object();
       final typeId = tagged['typeId'];
-      if (typeId is! int)
+      if (typeId is! int) {
         throw const FormatException('typeId must be an integer');
+      }
       final child = union.childIndexForTypeId(typeId);
       if (child < 0) throw FormatException('Undeclared union type id $typeId');
       final item = tagged['value'];
@@ -492,8 +697,9 @@ _Value _valueFromJson(DataType type, Object? json) {
       return _valueFromJson(ree.valuesField.type, json);
     case final ExtensionType extension:
       final storage = object()['storage'];
-      if (storage == null)
+      if (storage == null) {
         throw const FormatException('Extension storage cannot be null');
+      }
       return _ExtensionValue(_valueFromJson(extension.storageType, storage));
   }
 }

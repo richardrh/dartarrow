@@ -6,7 +6,9 @@ final class Array {
   /// A lazy scalar view; separate from [cast] because Dart's Iterable.cast
   /// has an incompatible generic signature.
   Iterable<Scalar> get scalars sync* {
-    for (var i = 0; i < length; i++) yield this[i];
+    for (var i = 0; i < length; i++) {
+      yield this[i];
+    }
   }
 
   factory Array._fromRaw(
@@ -16,11 +18,13 @@ final class Array {
     Array? dictionary,
   }) {
     if (validity != null) {
-      if (validity.length != values.length)
+      if (validity.length != values.length) {
         throw ArgumentError('Validity length mismatch');
+      }
       for (var i = 0; i < values.length; i++) {
-        if (validity[i] != (values[i] != null))
+        if (validity[i] != (values[i] != null)) {
           throw ArgumentError('Validity and values disagree at $i');
+        }
       }
     }
     final dt = _dictionaryType(type);
@@ -87,9 +91,9 @@ final class Array {
     );
   }
 
-  /// Builds a sparse union from int8 [typeIds] and children at least as long,
-  /// as PyArrow's `UnionArray.from_sparse`. Field names default to `'0'`,
-  /// `'1'`, ...; [typeCodes] default to child positions.
+  /// Builds a sparse union from int8 [typeIds] and children exactly as long
+  /// as [typeIds], as PyArrow's `UnionArray.from_sparse`. Field names default
+  /// to `'0'`, `'1'`, ...; [typeCodes] default to child positions.
   factory Array.fromSparseUnion(
     Array typeIds,
     List<Array> children, {
@@ -131,13 +135,14 @@ final class Array {
     this._owner,
   ]);
 
-  /// Imports little-endian Arrow _physicalBuffers without copying. Buffer zero is the
+  /// Imports little-endian Arrow buffers without copying. Buffer zero is the
   /// optional LSB-first validity bitmap; remaining slots follow Arrow layout.
-  /// All _physicalBuffers are borrowed and externally read-only. Keep the original
+  /// All buffers are borrowed and externally read-only. Keep the original
   /// storage alive and immutable through every alias while any view is used.
-  /// Required data _physicalBuffers must be supplied even when empty. Null validity
+  /// Required data buffers must be supplied even when empty. Null validity
   /// means all valid; nullCount -1 means unknown. Children use logical indices:
   /// list offsets are relative to child index zero, including sliced children.
+  /// The null type accepts either no buffers or `[null]`, as [buffers] returns.
   factory Array.fromBuffers(
     DataType type,
     int length,
@@ -147,6 +152,11 @@ final class Array {
     Array? dictionary,
     int nullCount = -1,
   }) {
+    if (_physicalType(type) is NullType &&
+        buffers.length == 1 &&
+        buffers.single == null) {
+      buffers = const [];
+    }
     final array = Array._(
       type,
       length,
@@ -307,8 +317,9 @@ final class Array {
   /// Constant-time view; shares _physicalBuffers, children and dictionary without scans.
   Array slice([int offset = 0, int? length]) {
     if (offset < 0) throw RangeError.value(offset, 'offset');
-    if (length != null && length < 0)
+    if (length != null && length < 0) {
       throw ArgumentError.value(length, 'length');
+    }
     if (offset > this.length) offset = this.length;
     final available = this.length - offset;
     final size = length == null || length > available ? available : length;
@@ -349,7 +360,9 @@ final class Array {
   void validate({bool full = false}) {
     _validate();
     if (full) {
-      for (final child in children) child.validate(full: true);
+      for (final child in children) {
+        child.validate(full: true);
+      }
       dictionary?.validate(full: true);
     }
   }
@@ -381,7 +394,7 @@ final class Array {
     final i = offset + index;
     _Value decode(DataType t) {
       if (t is ExtensionType) return _ExtensionValue(decode(t.storageType));
-      if (t is DictionaryType)
+      if (t is DictionaryType) {
         return _DictionaryIndexValue(
           _readInteger(
             _data,
@@ -390,19 +403,23 @@ final class Array {
             (t.indexType as IntegerType).signed,
           ),
         );
-      if (t is BooleanType)
+      }
+      if (t is BooleanType) {
         return _BooleanValue(
           _physicalBuffers[1]![i >> 3] & (1 << (i & 7)) != 0,
         );
-      if (t is IntegerType)
+      }
+      if (t is IntegerType) {
         return _IntegerValue(
           _readInteger(_data, i * (t.bitWidth ~/ 8), t.bitWidth ~/ 8, t.signed),
         );
-      if (t is FloatingType)
+      }
+      if (t is FloatingType) {
         return _FloatingValue(
           t.bitWidth,
           _readInteger(_data, i * (t.bitWidth ~/ 8), t.bitWidth ~/ 8, false),
         );
+      }
       if (t is DecimalType) {
         final width = t.bitWidth ~/ 8;
         return _DecimalValue(_readInteger(_data, i * width, width, true));
@@ -418,19 +435,22 @@ final class Array {
             ? _StringValue(utf8.decode(bytes))
             : _BinaryValue(bytes);
       }
-      if (t is ListType)
+      if (t is ListType) {
         return _ListValue(
           children[0]
               .slice(_offsetAt(i), _offsetAt(i + 1) - _offsetAt(i))
               ._rawValues,
         );
-      if (t is FixedSizeListType)
+      }
+      if (t is FixedSizeListType) {
         return _ListValue(children[0].slice(i * t.size, t.size)._rawValues);
-      if (t is StructType)
+      }
+      if (t is StructType) {
         return _StructValue([
           for (var c = 0; c < children.length; c++)
             _StructEntry(t.fields[c].name, children[c]._rawValue(i)),
         ]);
+      }
       return _TemporalValue(
         _readInteger(_data, i * _byteWidth(t), _byteWidth(t), true),
       );
@@ -440,8 +460,9 @@ final class Array {
   }
 
   void _validate() {
-    if (length < 0 || offset < 0)
+    if (length < 0 || offset < 0) {
       throw ArgumentError('Negative length or offset');
+    }
     final t = _storage;
     final end = offset + length;
     if (end < offset) throw ArgumentError('Array offset plus length overflows');
@@ -459,24 +480,29 @@ final class Array {
         : 2;
     if (_isView(t)
         ? _physicalBuffers.length < slots
-        : _physicalBuffers.length != slots)
-      throw ArgumentError('Expected $slots _physicalBuffers for $type');
+        : _physicalBuffers.length != slots) {
+      throw ArgumentError('Expected $slots buffers for $type');
+    }
     if (slots > 0 &&
         _physicalBuffers[0] != null &&
-        _physicalBuffers[0]!.length < bitmapBytes)
+        _physicalBuffers[0]!.length < bitmapBytes) {
       throw ArgumentError('Truncated validity bitmap');
+    }
     void requireBuffer(int slot, int count, [int width = 1]) {
       if (_physicalBuffers[slot] == null ||
-          _physicalBuffers[slot]!.length ~/ width < count)
+          _physicalBuffers[slot]!.length ~/ width < count) {
         throw ArgumentError('Truncated buffer $slot');
+      }
     }
 
     final fields = _childFields(t);
-    if (children.length != fields.length)
+    if (children.length != fields.length) {
       throw ArgumentError('Incorrect child count');
+    }
     for (var c = 0; c < fields.length; c++) {
-      if (children[c].type != fields[c].type)
+      if (children[c].type != fields[c].type) {
         throw ArgumentError('Child datatype mismatch');
+      }
     }
     if (_isExtendedStorage(t)) {
       _validateExtended(this, t, end);
@@ -493,31 +519,38 @@ final class Array {
       if (previous < 0) throw ArgumentError('Negative offset');
       for (var i = offset + 1; i <= end; i++) {
         final next = _offsetAt(i);
-        if (next < previous || next > limit)
+        if (next < previous || next > limit) {
           throw ArgumentError('Invalid offsets');
+        }
         previous = next;
       }
       if (previous > limit) throw ArgumentError('Offset exceeds storage');
     } else if (t is BooleanType) {
       requireBuffer(1, bitmapBytes);
     } else if (t is FixedSizeListType) {
-      if (t.size != 0 && children[0].length ~/ t.size < end)
+      if (t.size != 0 && children[0].length ~/ t.size < end) {
         throw ArgumentError('Truncated list child');
+      }
     } else if (t is StructType) {
-      if (children.any((c) => c.length < end))
+      if (children.any((c) => c.length < end)) {
         throw ArgumentError('Truncated struct child');
+      }
     } else if (t is! NullType) {
       requireBuffer(1, end, _byteWidth(t));
     }
     final dt = _dictionaryType(type);
-    if (dt == null && dictionary != null)
+    if (dt == null && dictionary != null) {
       throw ArgumentError('Unexpected dictionary');
-    if (dt != null && (dictionary == null || dictionary!.type != dt.valueType))
+    }
+    if (dt != null &&
+        (dictionary == null || dictionary!.type != dt.valueType)) {
       throw ArgumentError('Dictionary datatype mismatch');
+    }
     if (t is FixedSizeListType && t.size == 0) return;
     // Semantic invariants not expressible by buffer sizes alone.
-    if (dt == null && t is! Utf8Type && t is! TimeType && t is! DecimalType)
+    if (dt == null && t is! Utf8Type && t is! TimeType && t is! DecimalType) {
       return;
+    }
     for (var i = 0; i < length; i++) {
       if (!_isValid(i)) continue;
       if (dt != null) {
@@ -527,11 +560,13 @@ final class Array {
           _byteWidth(t),
           (dt.indexType as IntegerType).signed,
         );
-        if (index.isNegative || index >= BigInt.from(dictionary!.length))
+        if (index.isNegative || index >= BigInt.from(dictionary!.length)) {
           throw RangeError('Dictionary index out of bounds');
+        }
       }
-      if (t is Utf8Type || t is TimeType || t is DecimalType)
+      if (t is Utf8Type || t is TimeType || t is DecimalType) {
         _validateRawValue(type, _rawValue(i)!);
+      }
     }
   }
 }
@@ -584,8 +619,9 @@ int _byteWidth(DataType t) {
   if (t is FixedSizeBinaryType) return t.byteWidth;
   if (t is IntervalType) return _intervalWidth(t);
   if (t is DateType) return t.unit == DateUnit.day ? 4 : 8;
-  if (t is TimeType)
+  if (t is TimeType) {
     return t.unit == TimeUnit.second || t.unit == TimeUnit.millisecond ? 4 : 8;
+  }
   return 8;
 }
 
@@ -704,8 +740,9 @@ Array _encode(DataType type, List<_Value?> input, Array? dictionary) {
     for (var i = 0; i < n; i++) {
       final v = input[i] as _ListValue?;
       if (v != null) childValues.addAll(v.values);
-      if (v == null && type is FixedSizeListType)
+      if (v == null && type is FixedSizeListType) {
         childValues.addAll(List.filled(type.size, null));
+      }
       offsets?.add(childValues.length);
     }
     if (offsets != null) {
@@ -730,18 +767,15 @@ Array _encode(DataType type, List<_Value?> input, Array? dictionary) {
       final v = input[i];
       if (v is _StringValue) data.add(utf8.encode(v.value));
       if (v is _BinaryValue) data.add(v.bytes);
-      if (width == 4) {
-        offsetData.setInt32((i + 1) * width, data.length, Endian.little);
-      } else {
-        _setInt64(offsetData, (i + 1) * width, data.length);
-      }
+      _setOffset(offsetData, i + 1, width, data.length);
     }
     _physicalBuffers.addAll([offsets, data.takeBytes()]);
   } else if (type is BooleanType) {
     final data = Uint8List((n + 7) ~/ 8);
     for (var i = 0; i < n; i++) {
-      if ((input[i] as _BooleanValue?)?.value == true)
+      if ((input[i] as _BooleanValue?)?.value == true) {
         data[i >> 3] |= 1 << (i & 7);
+      }
     }
     _physicalBuffers.add(data);
   } else {
@@ -788,8 +822,9 @@ void _validateRawValue(DataType type, _Value value, {String path = 'value'}) {
         );
       }
     case final FloatingType floating:
-      if (value is! _FloatingValue || value.bitWidth != floating.bitWidth)
+      if (value is! _FloatingValue || value.bitWidth != floating.bitWidth) {
         mismatch();
+      }
     case final DecimalType decimal:
       if (value is! _DecimalValue) mismatch();
       final limit = BigInt.one << (decimal.bitWidth - 1);
@@ -911,8 +946,9 @@ Array concatArrays(List<Array> arrays) {
   if (arrays.isEmpty) throw ArgumentError('At least one array is required');
   if (arrays.length == 1) return arrays.single;
   final type = arrays.first.type;
-  if (arrays.any((a) => a.type != type))
+  if (arrays.any((a) => a.type != type)) {
     throw ArgumentError('Array types must match');
+  }
   var length = 0;
   for (final array in arrays) {
     length = _checkedLengthAdd(length, array.length);
@@ -939,25 +975,48 @@ Array concatArrays(List<Array> arrays) {
     );
   }
   if (type is DictionaryType) {
-    final entries = <Array>[];
+    final shared = arrays.first.dictionary!;
+    if (arrays.every((a) => identical(a.dictionary, shared))) {
+      return Array._fromRaw(type, [
+        for (final a in arrays) ...a._rawValues,
+      ], dictionary: shared);
+    }
+    // Entries are (source dictionary, index); equal hashes are confirmed by
+    // representation (as PyArrow's unifier: NaNs with the same bits unify,
+    // -0.0 and 0.0 stay distinct), keeping first occurrence.
+    final sources = <Array>[];
+    final indices = <int>[];
+    final buckets = <int, List<int>>{};
     final remaps = <List<int>>[];
     for (final a in arrays) {
       final source = a.dictionary!;
       final remap = <int>[];
       for (var i = 0; i < source.length; i++) {
-        final value = source.slice(i, 1);
-        var found = entries.indexWhere((entry) => entry.equals(value));
+        final bucket =
+            buckets[_elementHash(source, i, representation: true)] ??= <int>[];
+        var found = -1;
+        for (final k in bucket) {
+          if (_elementEquals(sources[k], indices[k], source, i, null, true)) {
+            found = k;
+            break;
+          }
+        }
         if (found < 0) {
-          found = entries.length;
-          entries.add(value);
+          found = sources.length;
+          sources.add(source);
+          indices.add(i);
+          bucket.add(found);
         }
         remap.add(found);
       }
       remaps.add(remap);
     }
-    final dictionary = entries.isEmpty
-        ? arrays.first.dictionary!.slice(0, 0)
-        : concatArrays(entries);
+    final dictionary = sources.isEmpty
+        ? shared.slice(0, 0)
+        : concatArrays([
+            for (var k = 0; k < sources.length; k++)
+              sources[k].slice(indices[k], 1),
+          ]);
     return Array._fromRaw(type, [
       for (var c = 0; c < arrays.length; c++)
         for (final value in arrays[c]._rawValues)
@@ -1028,8 +1087,9 @@ Array concatArrays(List<Array> arrays) {
 }
 
 Array _concatLeaf(List<Array> arrays, DataType type, int length) {
-  if (type is NullType)
+  if (type is NullType) {
     return Array._(type, length, 0, const [], const [], null);
+  }
   Uint8List? validity;
   if (arrays.any((a) => a.nullCount != 0)) {
     validity = Uint8List((length + 7) ~/ 8);
@@ -1064,11 +1124,7 @@ Array _concatLeaf(List<Array> arrays, DataType type, int length) {
       for (var i = 1; i <= a.length; i++) {
         final position = bytePosition + a._offsetAt(a.offset + i) - start;
         row++;
-        if (width == 4) {
-          offsetData.setInt32(row * width, position, Endian.little);
-        } else {
-          _setInt64(offsetData, row * width, position);
-        }
+        _setOffset(offsetData, row, width, position);
       }
       bytePosition += end - start;
     }
@@ -1114,12 +1170,87 @@ Array _concatLeaf(List<Array> arrays, DataType type, int length) {
 bool _hasDictionaryStorage(Array array) =>
     array.dictionary != null || array.children.any(_hasDictionaryStorage);
 
+/// Hash consistent with [_elementEquals] (with the same [representation]):
+/// equal elements hash equally.
+int _elementHash(Array array, int index, {bool representation = false}) {
+  final type = _physicalType(array.type);
+  if (type is DictionaryType) return array._isValid(index) ? 1 : 0;
+  if (!array._isValid(index)) return 0;
+  if (type is StructType) {
+    return Object.hashAll([
+      for (final child in array.children)
+        _elementHash(
+          child,
+          array.offset + index,
+          representation: representation,
+        ),
+    ]);
+  }
+  if (type is UnionType) {
+    final (child, position) = _unionSlot(array, type, array.offset + index);
+    return Object.hash(
+      child,
+      _elementHash(
+        array.children[child],
+        position,
+        representation: representation,
+      ),
+    );
+  }
+  if (type is RunEndEncodedType) {
+    return _elementHash(
+      array.children[1],
+      _runIndex(array, type, array.offset + index),
+      representation: representation,
+    );
+  }
+  if (type is ListType || type is FixedSizeListType || type is MapType) {
+    final (start, length) = type is FixedSizeListType
+        ? ((array.offset + index) * type.size, type.size)
+        : _listRange(array, array.offset + index);
+    return Object.hashAll([
+      length,
+      for (var i = 0; i < length; i++)
+        _elementHash(
+          array.children.single,
+          start + i,
+          representation: representation,
+        ),
+    ]);
+  }
+  return _rawHash(array._rawValue(index), representation);
+}
+
+/// Hash consistent with [_rawEquals] for leaf values.
+int _rawHash(_Value? value, [bool representation = false]) => switch (value) {
+  null => 0,
+  _FloatingValue() when representation => value.hashCode,
+  _FloatingValue() => switch (_floating(value)) {
+    0.0 => 0, // -0.0 == 0.0
+    final double d => d.hashCode,
+  },
+  _ExtensionValue() => _rawHash(value.storage, representation),
+  _IntegerValue() ||
+  _DecimalValue() ||
+  _StringValue() ||
+  _BinaryValue() ||
+  _TemporalValue() ||
+  _BooleanValue() ||
+  _IntervalValue() ||
+  _DictionaryIndexValue() => value.hashCode,
+  _ => 2,
+};
+
+/// Element equality used by [Array.equals]: floating values compare as
+/// numbers (NaN never equal, `-0.0 == 0.0`). With [representation], floating
+/// values compare by bit pattern instead (dictionary unification).
 bool _elementEquals(
   Array left,
   int li,
   Array right,
   int ri, [
   Map<Array, Map<Array, bool>>? dictionaries,
+  bool representation = false,
 ]) {
   final type = _physicalType(left.type);
   if (type is DictionaryType) {
@@ -1139,7 +1270,12 @@ bool _elementEquals(
     return left._isValid(li) == right._isValid(ri);
   }
   if (type is DictionaryType) {
-    return _rawEquals(left.type, left._rawValue(li), right._rawValue(ri));
+    return _rawEquals(
+      left.type,
+      left._rawValue(li),
+      right._rawValue(ri),
+      representation,
+    );
   }
   if (type is StructType) {
     for (var c = 0; c < type.fields.length; c++) {
@@ -1149,8 +1285,10 @@ bool _elementEquals(
         right.children[c],
         right.offset + ri,
         dictionaries,
-      ))
+        representation,
+      )) {
         return false;
+      }
     }
     return true;
   }
@@ -1164,6 +1302,7 @@ bool _elementEquals(
           right.children[rc],
           rp,
           dictionaries,
+          representation,
         );
   }
   if (type is RunEndEncodedType) {
@@ -1173,6 +1312,7 @@ bool _elementEquals(
       right.children[1],
       _runIndex(right, type, right.offset + ri),
       dictionaries,
+      representation,
     );
   }
   if (type is ListType || type is FixedSizeListType || type is MapType) {
@@ -1190,26 +1330,43 @@ bool _elementEquals(
         right.children.single,
         rs + i,
         dictionaries,
-      ))
+        representation,
+      )) {
         return false;
+      }
     }
     return true;
   }
-  return _rawEquals(left.type, left._rawValue(li), right._rawValue(ri));
+  return _rawEquals(
+    left.type,
+    left._rawValue(li),
+    right._rawValue(ri),
+    representation,
+  );
 }
 
-bool _rawEquals(DataType type, _Value? left, _Value? right) {
+bool _rawEquals(
+  DataType type,
+  _Value? left,
+  _Value? right, [
+  bool representation = false,
+]) {
   if (left == null || right == null) return left == right;
   if (left is _FloatingValue && right is _FloatingValue) {
-    return _floating(left) == _floating(right);
+    return representation ? left == right : _floating(left) == _floating(right);
   }
   if (type is ExtensionType &&
       left is _ExtensionValue &&
       right is _ExtensionValue) {
-    return _rawEquals(type.storageType, left.storage, right.storage);
+    return _rawEquals(
+      type.storageType,
+      left.storage,
+      right.storage,
+      representation,
+    );
   }
   if (type is RunEndEncodedType) {
-    return _rawEquals(type.valuesField.type, left, right);
+    return _rawEquals(type.valuesField.type, left, right, representation);
   }
   if (type is MapType && left is _MapValue && right is _MapValue) {
     if (left.entries.length != right.entries.length) return false;
@@ -1218,13 +1375,16 @@ bool _rawEquals(DataType type, _Value? left, _Value? right) {
             type.keyField.type,
             left.entries[i].key,
             right.entries[i].key,
+            representation,
           ) ||
           !_rawEquals(
             type.valueField.type,
             left.entries[i].value,
             right.entries[i].value,
-          ))
+            representation,
+          )) {
         return false;
+      }
     }
     return true;
   }
@@ -1234,6 +1394,7 @@ bool _rawEquals(DataType type, _Value? left, _Value? right) {
           type.fields[type.childIndexForTypeId(left.typeId)].type,
           left.value,
           right.value,
+          representation,
         );
   }
   if (left is _ListValue && right is _ListValue) {
@@ -1242,7 +1403,14 @@ bool _rawEquals(DataType type, _Value? left, _Value? right) {
         ? type.field.type
         : (type as FixedSizeListType).field.type;
     for (var i = 0; i < left.values.length; i++) {
-      if (!_rawEquals(childType, left.values[i], right.values[i])) return false;
+      if (!_rawEquals(
+        childType,
+        left.values[i],
+        right.values[i],
+        representation,
+      )) {
+        return false;
+      }
     }
     return true;
   }
@@ -1252,8 +1420,10 @@ bool _rawEquals(DataType type, _Value? left, _Value? right) {
         type.fields[i].type,
         left.fields[i].value,
         right.fields[i].value,
-      ))
+        representation,
+      )) {
         return false;
+      }
     }
     return true;
   }

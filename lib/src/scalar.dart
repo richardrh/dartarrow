@@ -14,8 +14,9 @@ final class DecimalValue {
     final fraction = match[3] ?? match[4] ?? '';
     final digits = '${match[2] ?? '0'}$fraction';
     final exponent = int.tryParse(match[5] ?? '0');
-    if (exponent == null)
+    if (exponent == null) {
       throw FormatException('Decimal exponent out of range', source);
+    }
     final scale = BigInt.from(fraction.length) - BigInt.from(exponent);
     if (scale < _minInt || scale > _maxInt) {
       throw FormatException('Decimal scale out of range', source);
@@ -269,8 +270,9 @@ class Scalar {
           childType,
           raw.values[i],
           i,
-        ).equals(other._child(childType, right.values[i], i)))
+        ).equals(other._child(childType, right.values[i], i))) {
           return false;
+        }
       }
       return true;
     }
@@ -284,8 +286,9 @@ class Scalar {
           struct: true,
         ).equals(
           other._child(fields[i].type, right.fields[i].value, i, struct: true),
-        ))
+        )) {
           return false;
+        }
       }
       return true;
     }
@@ -498,8 +501,9 @@ final class DictionaryScalar extends Scalar {
         : _IntegerValue((_rawValue as _DictionaryIndexValue).index),
   );
   Scalar get value {
-    if (!isValid)
+    if (!isValid) {
       return Scalar._fromRaw((type as DictionaryType).valueType, null);
+    }
     final position = (_rawValue as _DictionaryIndexValue).index;
     if (position.isNegative || position >= BigInt.from(dictionary.length)) {
       throw RangeError('Dictionary index $position is out of bounds');
@@ -564,8 +568,35 @@ BigInt _integer(Object value) {
 
 final _minInt = -(BigInt.one << 63);
 final _maxInt = (BigInt.one << 63) - BigInt.one;
+
+/// True on platforms whose `int` is a JavaScript number (dart2js).
+const bool _jsNumbers = identical(0, 0.0);
+final _maxSafeInt = BigInt.parse('9007199254740991');
+
+/// Whether [value] survives `toInt()` exactly on this platform: within int64,
+/// and within ±(2^53 − 1) where `int` is a JavaScript number.
+bool _fitsHostInt(BigInt value) => _jsNumbers
+    ? value.abs() <= _maxSafeInt
+    : value >= _minInt && value <= _maxInt;
+
+/// An `int` where exactly representable on this platform, otherwise `BigInt`.
 Object _nativeInteger(BigInt value) =>
-    value >= _minInt && value <= _maxInt ? value.toInt() : value;
+    _fitsHostInt(value) ? value.toInt() : value;
+
+/// Whether a host number is an integer for inference and encoding purposes.
+/// Non-finite values and negative zero are always floating, including on
+/// dart2js where `double.infinity is int` and `-0.0 is int` hold. Where `int`
+/// is a JavaScript number, a whole number is an integer only inside the
+/// 64-bit domain the library stores (−2^63 ≤ v < 2^64); larger magnitudes
+/// such as `1e300` are floating, as on the VM.
+bool _isHostInteger(Object? value) =>
+    value is BigInt ||
+    value is int &&
+        value.isFinite &&
+        !(value == 0 && value.isNegative) &&
+        (!_jsNumbers ||
+            (value >= -9.223372036854775808e18 &&
+                value < 1.8446744073709551616e19));
 
 double _floating(_FloatingValue value) {
   if (value.bitWidth == 16) {
@@ -573,10 +604,11 @@ double _floating(_FloatingValue value) {
     final negative = bits & 0x8000 != 0;
     final exponent = (bits >> 10) & 31;
     final fraction = bits & 1023;
-    if (exponent == 31)
+    if (exponent == 31) {
       return fraction == 0
           ? (negative ? double.negativeInfinity : double.infinity)
           : double.nan;
+    }
     final magnitude = exponent == 0
         ? fraction * math.pow(2, -24).toDouble()
         : (1024 + fraction) * math.pow(2, exponent - 25).toDouble();
@@ -636,10 +668,22 @@ Object _temporal(DataType type, BigInt counter) {
           _ => 1,
         });
   }
-  if (micros < _minInt || micros > _maxInt) return fallback();
   if (type is DurationType) {
+    // `Duration` stores a microsecond `int`, exact only within ±(2^53 − 1)
+    // where `int` is a JavaScript number.
+    if (!_fitsHostInt(micros)) return fallback();
     return Duration(microseconds: micros.toInt());
   }
+  // `DateTime` holds ±8.64e15 ms plus a microsecond part on every platform;
+  // build it from whole milliseconds so dart2js never sees an unsafe int.
   if (micros.abs() > BigInt.parse('8640000000000000000')) return fallback();
-  return DateTime.fromMicrosecondsSinceEpoch(micros.toInt(), isUtc: true);
+  final millis = micros ~/ BigInt.from(1000);
+  var rest = (micros - millis * BigInt.from(1000)).toInt();
+  var whole = millis.toInt();
+  if (rest < 0) {
+    whole -= 1;
+    rest += 1000;
+  }
+  final time = DateTime.fromMillisecondsSinceEpoch(whole, isUtc: true);
+  return rest == 0 ? time : time.add(Duration(microseconds: rest));
 }

@@ -40,8 +40,9 @@ final class Field {
     final dtype = json['dtype'] ?? json['type'];
     if (name is! String ||
         dtype is! Map ||
-        (json.containsKey('nullable') && json['nullable'] is! bool))
+        (json.containsKey('nullable') && json['nullable'] is! bool)) {
       throw const FormatException('Invalid field');
+    }
     return Field(
       name,
       DataType.fromJson(Map<String, Object?>.from(dtype)),
@@ -82,11 +83,13 @@ final class Schema {
   Schema removeMetadata() => withMetadata(null);
   bool equals(Schema other, {bool checkMetadata = false}) {
     if (length != other.length ||
-        (checkMetadata && !_metadataEquals(metadata, other.metadata)))
+        (checkMetadata && !_metadataEquals(metadata, other.metadata))) {
       return false;
+    }
     for (var i = 0; i < length; i++) {
-      if (!fields[i].equals(other.fields[i], checkMetadata: checkMetadata))
+      if (!fields[i].equals(other.fields[i], checkMetadata: checkMetadata)) {
         return false;
+      }
     }
     return true;
   }
@@ -101,8 +104,9 @@ final class Schema {
   };
   factory Schema.fromJson(Map<String, Object?> json) {
     final fields = json['fields'];
-    if (fields is! List)
+    if (fields is! List) {
       throw const FormatException('schema.fields must be a list');
+    }
     return Schema(
       fields.map((f) {
         if (f is! Map || f.keys.any((key) => key is! String)) {
@@ -134,8 +138,9 @@ int _fieldIndex(Schema schema, Object value) {
   }
   if (value is String) {
     final i = schema.getFieldIndex(value);
-    if (i < 0)
+    if (i < 0) {
       throw ArgumentError('Field name "$value" is missing or ambiguous');
+    }
     return i;
   }
   throw ArgumentError.value(value, 'indexOrName', 'Expected int or String');

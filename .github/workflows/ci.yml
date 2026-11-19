@@ -47,7 +47,7 @@ jobs:
       - name: Compile and execute the example
         run: |
           mkdir -p build
-          dart compile exe example/arrow.dart -o build/arrow-example.exe
+          dart compile exe example/dartarrow_example.dart -o build/arrow-example.exe
           ./build/arrow-example.exe
           dart run example/arrow_ipc.dart
       - name: Validate package publishing without publishing
@@ -93,11 +93,11 @@ jobs:
         run: |
           python tool/conformance/arrow_ipc_interop.py check
           python tool/conformance/arrow_ipc_interop.py verify --self-test
-      - name: Run Arrow IPC tests under dart2js
-        run: >-
-          dart test -p chrome test/ipc_test.dart test/ipc_schema_test.dart
-          test/ipc_extended_test.dart test/ipc_compression_test.dart
-          test/ipc_public_contract_test.dart test/arrow_extended_types_test.dart
+      # Every test file not marked VM-only; 64-bit-only cases skip under dart2js.
+      - name: Run package tests under dart2js and dart2wasm
+        run: |
+          dart test -p chrome -c dart2js
+          dart test -p chrome -c dart2wasm
       - name: Verify Dart-written Arrow IPC with PyArrow
         run: |
           dart run tool/conformance/arrow_ipc_interop.dart --out build/arrow_ipc_dart

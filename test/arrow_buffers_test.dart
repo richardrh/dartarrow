@@ -218,6 +218,8 @@ void main() {
     },
   );
   test('foreign geometry cannot wrap required buffer sizes', () {
+    // Parsed, not literal: dart2js cannot compile integers beyond 2^53.
+    final maxInt64 = int.parse('9223372036854775807');
     expect(
       () => Array.fromBuffers(IntegerType(64), 1 << 61, [
         null,
@@ -226,16 +228,11 @@ void main() {
       throwsArgumentError,
     );
     expect(
-      () => Array.fromBuffers(
-        const NullType(),
-        1,
-        [],
-        offset: 0x7fffffffffffffff,
-      ),
+      () => Array.fromBuffers(const NullType(), 1, [], offset: maxInt64),
       throwsArgumentError,
     );
     expect(
-      () => Array.fromBuffers(const BooleanType(), 0x7fffffffffffffff, [
+      () => Array.fromBuffers(const BooleanType(), maxInt64, [
         Buffer(Uint8List(0)),
         Buffer(Uint8List(0)),
       ]),
@@ -268,5 +265,5 @@ void main() {
       ).toDartList(),
       [[], []],
     );
-  });
+  }, testOn: '!js');
 }

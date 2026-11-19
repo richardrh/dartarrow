@@ -13,7 +13,7 @@ run = """
 dart format --output=none --set-exit-if-changed .
 dart analyze --fatal-infos
 dart test --coverage=coverage
-dart run example/arrow.dart
+dart run example/dartarrow_example.dart
 dart pub publish --dry-run
 """
 

@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
+
+First release on pub.dev.
 
 - **Breaking:** rename the package from `dartaframes_arrow` to `dartarrow`.
   Update dependencies and imports to `package:dartarrow/...`.
@@ -27,6 +29,57 @@
   exact-width `floatBits`, bounding hostile input before parsing.
 - Every physical PyArrow 26 fixture family is now supported; CI runs the
   conformance probe with `--require-full`.
+- **Breaking:** casts follow PyArrow. Decimal to string yields Arrow decimal
+  text (`1.23`, `5E+2`) instead of `DecimalValue(...)`; float to string yields
+  Arrow's shortest form (`1`, `nan`, `1e+16`); timestamp to date32/date64 floors
+  to the day (also before 1970 and with `safe: true`) and uses the zone-local
+  date for UTC and fixed `±HH:MM` zones, raising `ArrowInvalid` for malformed
+  offsets and `UnsupportedError` for zone names that need a time zone
+  database; time/duration/timestamp reinterpretation casts throw
+  `UnsupportedError`; string to number accepts only Arrow's spellings; a
+  dictionary cast keeps the requested index type or raises `ArrowInvalid`.
+- **Breaking:** a `DateTime` given to `date32`/`date64` stores its own calendar
+  date regardless of the machine's time zone, and date64 values are whole days.
+  A host value of the wrong kind for an explicit type raises the same
+  `ArrowInvalid` or `ArrowTypeError` as PyArrow instead of `UnsupportedError`.
+- **Breaking:** `Array.fromSparseUnion` requires children as long as `typeIds`,
+  and `fromBuffers`/`validate` reject sparse unions whose children do not cover
+  `offset + length`; such arrays previously misaligned rows in `concatArrays`.
+- Fix large list-view validation accepting overflowing `offset + size`, 32-bit
+  offset overflow when building or concatenating string/binary data beyond
+  2 GiB, and `fromBuffers` rejecting the `[null]` that `buffers()` returns for
+  the null type.
+- `concatArrays` and `ChunkedArray.combineChunks` unify dictionaries in linear
+  rather than quadratic time, by value representation: NaN entries unify and
+  `-0.0` no longer merges into `0.0`. A dictionary shared by every input is
+  reused.
+- `ByteMetadata.containsKey`/`containsValue` compare by content, like
+  `operator []`; they previously always returned false.
+- Owned JSON decoding rejects null fixed-size list/binary slots whose declared
+  width would expand past the codec limits instead of exhausting memory.
+- IPC writers are atomic: a `writeBatch`/`writeTable` call that throws writes
+  nothing and leaves dictionary state unchanged, so a later `close()` still
+  produces a valid file.
+- IPC readers raise `UnsupportedError` (not `FormatException`) for metadata
+  versions before V5, accept compressed buffers declaring length 0, and name
+  the exceeded `IpcLimits` field in limit errors.
+- Harden IPC readers against small inputs that expand: decoded metadata
+  strings and the data referenced by `string_view`/`binary_view` columns count
+  against `IpcLimits.maxMessageBytes` even when offsets alias one value, file
+  footers whose blocks repeat or overlap are rejected, and the new
+  `IpcLimits.maxDecompressedBytes` (default 256 MiB) bounds decompressed
+  buffers per read. The limits bound decoding, not later materialization of
+  columns that share values, and do not replace process isolation.
+- Upgrade `libcompress` to 2.x, which decodes ZSTD bodies that 1.x rejected or
+  could exhaust memory on.
+- On dart2js, integers and temporal counters beyond 2^53 are returned as
+  `BigInt` instead of being rounded; infinities, `-0.0` and whole numbers
+  outside the 64-bit integer range infer float64. CI now runs the whole test
+  suite under dart2js and dart2wasm.
+- `arrow_c.dart` exports its `dart:ffi` structs only where `dart:ffi` exists,
+  so the package analyses as web and WASM compatible.
+- Pushing a `v<version>` tag publishes to pub.dev and creates the GitHub
+  release.
 
 ## 0.2.0
 

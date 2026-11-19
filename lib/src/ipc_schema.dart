@@ -124,8 +124,8 @@ _FbTableObject _ipcFieldTable(_IpcField descriptor) {
   final metadata = <MapEntry<List<int>, List<int>>>[
     ...?field.metadata?.entries,
   ];
-  if (field.metadata?[_ipcExtensionName] != null ||
-      field.metadata?[_ipcExtensionMetadata] != null) {
+  if (field.metadata?[utf8.encode(_ipcExtensionName)] != null ||
+      field.metadata?[utf8.encode(_ipcExtensionMetadata)] != null) {
     throw ArgumentError(
       'Use ExtensionType instead of reserved extension metadata keys',
     );
@@ -320,9 +320,20 @@ _IpcSchema _ipcReadSchema(_FbTableView table, IpcLimits limits) {
   var count = 0;
   final dictionaries = <int, DictionaryType>{};
   _IpcField visit(_FbTableView table, int depth) {
-    if (depth > limits.maxDepth || ++count > limits.maxFields) {
-      throw const FormatException(
-        'IPC schema nesting or field count limit exceeded',
+    if (depth > limits.maxDepth) {
+      throw _ipcLimitError(
+        'IPC schema nesting depth',
+        depth,
+        'maxDepth',
+        limits.maxDepth,
+      );
+    }
+    if (++count > limits.maxFields) {
+      throw _ipcLimitError(
+        'IPC schema field count',
+        count,
+        'maxFields',
+        limits.maxFields,
       );
     }
     final children = [

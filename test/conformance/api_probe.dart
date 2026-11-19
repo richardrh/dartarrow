@@ -171,11 +171,13 @@ Object? normalized(Object? value) {
       'interval': [value.months, value.days, '${value.nanoseconds}'],
     };
   }
-  if (value is (Object?, Object?))
+  if (value is (Object?, Object?)) {
     return [normalized(value.$1), normalized(value.$2)];
+  }
   if (value is List) return value.map(normalized).toList();
-  if (value is Map)
+  if (value is Map) {
     return {for (final e in value.entries) e.key: normalized(e.value)};
+  }
   throw StateError('Unnormalized native value ${value.runtimeType}');
 }
 
@@ -416,8 +418,9 @@ Object? evaluateOperation(Map<String, dynamic> e) {
             );
   }
   final dynamic source = evaluate(object(e['source']));
-  if (op == 'fromStructBatch')
+  if (op == 'fromStructBatch') {
     return pa.RecordBatch.fromStructArray(source as pa.Array);
+  }
   if (op == 'validateFull') {
     source.validate(full: true);
     return source;

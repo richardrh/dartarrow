@@ -246,7 +246,7 @@ void _validateExtended(Array array, DataType t, int end) {
       for (var i = offset; i < end; i++) {
         final start = array._offsetAt(i);
         final size = _sizeAt(array, i);
-        if (start < 0 || size < 0 || start + size > limit) {
+        if (start < 0 || size < 0 || start > limit || size > limit - start) {
           throw ArgumentError('List view $i is out of bounds');
         }
       }
@@ -282,6 +282,16 @@ void _validateExtended(Array array, DataType t, int end) {
       }
       requireBytes(1, end);
       if (t.mode == UnionMode.dense) requireBytes(2, end * 4);
+      if (t.mode == UnionMode.sparse) {
+        for (var c = 0; c < array.children.length; c++) {
+          if (array.children[c].length < end) {
+            throw ArgumentError(
+              'Sparse union child array #$c has length smaller than '
+              'expected for union array (${array.children[c].length} < $end)',
+            );
+          }
+        }
+      }
       for (var i = offset; i < end; i++) {
         final typeId = buffers[1]![i].toSigned(8);
         final child = t.childIndexForTypeId(typeId);
@@ -347,16 +357,21 @@ Uint8List _offsetsBytes(List<int> offsets, int width) {
   final bytes = Uint8List(offsets.length * width);
   final data = ByteData.sublistView(bytes);
   for (var i = 0; i < offsets.length; i++) {
-    if (width == 4) {
-      if (offsets[i] > 0x7fffffff) {
-        throw ArgumentError('Offset exceeds 32-bit capacity');
-      }
-      data.setInt32(i * 4, offsets[i], Endian.little);
-    } else {
-      _setInt64(data, i * 8, offsets[i]);
-    }
+    _setOffset(data, i, width, offsets[i]);
   }
   return bytes;
+}
+
+/// Writes offset slot [index] of [width] bytes, rejecting 32-bit overflow.
+void _setOffset(ByteData data, int index, int width, int offset) {
+  if (width == 4) {
+    if (offset > 0x7fffffff) {
+      throw ArgumentError('Offset exceeds 32-bit capacity');
+    }
+    data.setInt32(index * 4, offset, Endian.little);
+  } else {
+    _setInt64(data, index * 8, offset);
+  }
 }
 
 /// Encodes validated logical values of an extended storage [type].
@@ -367,8 +382,9 @@ Array _encodeExtended(DataType type, List<_Value?> input) {
       final data = Uint8List(n * byteWidth);
       for (var i = 0; i < n; i++) {
         final v = input[i] as _BinaryValue?;
-        if (v != null)
+        if (v != null) {
           data.setRange(i * byteWidth, (i + 1) * byteWidth, v.bytes);
+        }
       }
       return _owned(type, n, [_validityBits(input), data]);
     case IntervalType():
@@ -737,6 +753,13 @@ Array _unionFromArrays(
     mode: mode,
     typeIds: typeCodes,
   );
+  if (mode == UnionMode.sparse &&
+      children.any((child) => child.length != typeIds.length)) {
+    throw ArgumentError(
+      'Sparse UnionArray must have len(child) == len(type_ids) '
+      'for all children',
+    );
+  }
   final ids = _packedBytes(typeIds, IntegerType(8), 'typeIds');
   return Array.fromBuffers(type, typeIds.length, [
     null,

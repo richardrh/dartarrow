@@ -63,8 +63,9 @@ reader.getBatch(0);</code></pre>
 <section id="limits">
 <h2>Limits</h2>
 <ul>
-<li>Little-endian only. Big-endian input raises <code>UnsupportedError</code>.</li>
-<li><code>IpcLimits</code> bounds depth, fields, rows, buffers, message size, dictionaries and batches. Defaults are conservative; raise them for large trusted input.</li>
+<li>Little-endian, metadata version V5 only. Big-endian or older input raises <code>UnsupportedError</code>.</li>
+<li><code>IpcLimits</code> bounds depth, fields, rows, values, buffers, message size, dictionaries, batches and decompressed bytes. The defaults (1,048,576 rows per array, 4,194,304 values and 256 MiB of decompressed buffers per read) are conservative; a breach raises a <code>FormatException</code> naming the field, so pass larger <code>limits:</code> for bigger trusted input.</li>
+<li>The limits bound work inside the reader, not what <code>toDartList()</code> later materializes from run-end encoded, dictionary or view columns that share values. Decode untrusted input in an isolate.</li>
 <li>Malformed input raises <code>FormatException</code>. Unknown codecs or types raise <code>UnsupportedError</code>.</li>
 <li><code>bindingInt128()</code> and <code>bindingUint128()</code> cannot be written.</li>
 <li>Extension metadata must be UTF-8. Other metadata is preserved as raw bytes.</li>

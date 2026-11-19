@@ -4,17 +4,19 @@ import 'package:dartarrow/arrow.dart';
 import 'package:test/test.dart';
 
 void main() {
+  // Parsed, not literal: dart2js cannot compile integers beyond 2^53.
+  final beyondDouble = int.parse('9007199254740993');
   test('temporal casts preserve exact raw nanosecond counters', () {
     final source = array([
-      TemporalValue(9007199254740993, TimeUnit.nanosecond, kind: 'timestamp'),
+      TemporalValue(beyondDouble, TimeUnit.nanosecond, kind: 'timestamp'),
     ], type: timestamp('ns'));
-    expect(source.cast(int64())[0].asDart(), 9007199254740993);
+    expect(source.cast(int64())[0].asDart(), beyondDouble);
     expect(
       source.cast(timestamp('us'), safe: false).cast(int64())[0].asDart(),
       9007199254740,
     );
     expect(() => source.cast(timestamp('us')), throwsArgumentError);
-  });
+  }, testOn: '!js');
   test('native construction infers nullable int64 and null arrays', () {
     expect(array([1, null, 2]).type, int64());
     expect(array([]).type, nullType());
@@ -47,9 +49,9 @@ void main() {
     expect((result.type as StructType).fields.map((f) => f.name), ['z', 'a']);
   });
   test('mixed numeric inference rejects lossy integer conversion', () {
-    expect(() => array([9007199254740993, 1.0]), throwsArgumentError);
+    expect(() => array([beyondDouble, 1.0]), throwsArgumentError);
     expect(array([1, 1.5])[0].asDart(), 1.0);
-  });
+  }, testOn: '!js');
   test('extension construction encodes native storage values losslessly', () {
     final type = extension('binding.counter', int64(), metadata: 'v1');
     final values = array([1, null, 3], type: type);

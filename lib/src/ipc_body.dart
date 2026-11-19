@@ -69,17 +69,39 @@ int _ipcReadOffset(ByteData data, int index, int width) => width == 4
 
 // ----------------------------------------------------------------- reader --
 
-/// Running total of decoded field node lengths, shared across one read.
+/// Running totals shared across one read: decoded field node lengths
+/// (`maxValues`) and decompressed buffer bytes (`maxDecompressedBytes`).
 final class _IpcValueBudget {
-  _IpcValueBudget(this.limit, [this.used = 0]);
-  final int limit;
-  int used;
+  _IpcValueBudget(this.limits);
+  _IpcValueBudget._copy(this.limits, this.used, this.decompressed);
+  final IpcLimits limits;
+  int used = 0;
+  int decompressed = 0;
+
+  /// A budget starting from this one's current totals.
+  _IpcValueBudget copy() => _IpcValueBudget._copy(limits, used, decompressed);
 
   void charge(int count) {
     used += count;
-    if (used > limit) {
-      throw FormatException(
-        'Decoded value count exceeds IpcLimits.maxValues ($limit)',
+    if (used > limits.maxValues) {
+      throw _ipcLimitError(
+        'Decoded value count',
+        used,
+        'maxValues',
+        limits.maxValues,
+      );
+    }
+  }
+
+  /// Charges [size] decompressed bytes before they are allocated.
+  void chargeDecompressed(int size) {
+    decompressed += size;
+    if (decompressed > limits.maxDecompressedBytes) {
+      throw _ipcLimitError(
+        'Total decompressed buffer size',
+        decompressed,
+        'maxDecompressedBytes',
+        limits.maxDecompressedBytes,
       );
     }
   }
@@ -114,6 +136,34 @@ final class _IpcBodyReader {
   int _buffer = 0;
   int _variadic = 0;
   int _decompressed = 0;
+  int _viewBytes = 0;
+
+  /// Charges the lengths of the valid views in [views] against
+  /// `maxMessageBytes` for this message, so view validation work stays
+  /// proportional to the message bound however often views alias data.
+  void chargeViews(Uint8List views, Buffer? validity, int length) {
+    final data = ByteData.sublistView(views);
+    final bits = validity?._bytes;
+    final count = length < views.length ~/ 16 ? length : views.length ~/ 16;
+    for (var i = 0; i < count; i++) {
+      if (bits != null &&
+          (i >> 3 >= bits.length || (bits[i >> 3] >> (i & 7)) & 1 == 0)) {
+        continue;
+      }
+      final size = data.getInt32(i * 16, Endian.little);
+      if (size <= 0) continue;
+      _viewBytes += size;
+      if (_viewBytes > limits.maxMessageBytes) {
+        throw _ipcLimitError(
+          'View data bytes referenced by one message',
+          _viewBytes,
+          'maxMessageBytes',
+          limits.maxMessageBytes,
+        );
+      }
+    }
+  }
+
   int depth = 0;
 
   _IpcNode node() {
@@ -121,8 +171,16 @@ final class _IpcBodyReader {
       throw const FormatException('RecordBatch has too few field nodes');
     }
     final n = nodes[_node++];
-    if (n.length < 0 || n.length > limits.maxRows) {
-      throw FormatException('Field node length ${n.length} exceeds limits');
+    if (n.length < 0) {
+      throw FormatException('Invalid field node length ${n.length}');
+    }
+    if (n.length > limits.maxRows) {
+      throw _ipcLimitError(
+        'Field node length',
+        n.length,
+        'maxRows',
+        limits.maxRows,
+      );
     }
     if (n.nullCount < 0 || n.nullCount > n.length) {
       throw FormatException('Invalid null count ${n.nullCount}');
@@ -151,16 +209,19 @@ final class _IpcBodyReader {
     );
     final codec = this.codec;
     if (codec == null || raw.isEmpty) return raw;
-    final decoded = _ipcDecompress(
-      raw,
-      codec,
-      limits.maxMessageBytes - _decompressed,
-    );
-    _decompressed += decoded.length;
-    if (_decompressed > limits.maxMessageBytes) {
-      throw const FormatException('Decompressed body exceeds maxMessageBytes');
-    }
-    return decoded;
+    return _ipcDecompress(raw, codec, (size, copied) {
+      final total = _decompressed + size;
+      if (total > limits.maxMessageBytes) {
+        throw _ipcLimitError(
+          'Decompressed body size',
+          total,
+          'maxMessageBytes',
+          limits.maxMessageBytes,
+        );
+      }
+      if (copied) budget.chargeDecompressed(size);
+      _decompressed = total;
+    });
   }
 
   /// The validity bitmap of [n], or null when every slot is valid.
@@ -207,7 +268,12 @@ final class _IpcBodyReader {
 /// dictionary-encoded field, whose children describe the value type.
 Array _ipcReadArray(_IpcBodyReader r, DataType type, _IpcField field) {
   if (++r.depth > r.limits.maxDepth) {
-    throw const FormatException('Arrow nesting exceeds maximum depth');
+    throw _ipcLimitError(
+      'Arrow nesting depth',
+      r.depth,
+      'maxDepth',
+      r.limits.maxDepth,
+    );
   }
   try {
     return _ipcReadArrayAt(r, type, field);
@@ -276,10 +342,20 @@ Array _ipcReadArrayAt(_IpcBodyReader r, DataType type, _IpcField field) {
     case BooleanType():
       buffers = [validity, Buffer(r.buffer())];
     case Utf8Type() || BinaryType() when _ipcIsView(storage):
-      final views = Buffer(r.buffer());
+      final viewBytes = r.buffer();
+      r.chargeViews(viewBytes, validity, n.length);
+      final views = Buffer(viewBytes);
       final count = r.variadicCount();
-      if (count < 0 || count > r.limits.maxBuffers) {
-        throw const FormatException('Invalid variadic buffer count');
+      if (count < 0) {
+        throw FormatException('Invalid variadic buffer count $count');
+      }
+      if (count > r.limits.maxBuffers) {
+        throw _ipcLimitError(
+          'Variadic buffer count',
+          count,
+          'maxBuffers',
+          r.limits.maxBuffers,
+        );
       }
       buffers = [
         validity,
