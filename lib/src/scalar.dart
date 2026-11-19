@@ -585,10 +585,18 @@ Object _nativeInteger(BigInt value) =>
 
 /// Whether a host number is an integer for inference and encoding purposes.
 /// Non-finite values and negative zero are always floating, including on
-/// dart2js where `double.infinity is int` and `-0.0 is int` hold.
+/// dart2js where `double.infinity is int` and `-0.0 is int` hold. Where `int`
+/// is a JavaScript number, a whole number is an integer only inside the
+/// 64-bit domain the library stores (−2^63 ≤ v < 2^64); larger magnitudes
+/// such as `1e300` are floating, as on the VM.
 bool _isHostInteger(Object? value) =>
     value is BigInt ||
-    value is int && value.isFinite && !(value == 0 && value.isNegative);
+    value is int &&
+        value.isFinite &&
+        !(value == 0 && value.isNegative) &&
+        (!_jsNumbers ||
+            (value >= -9.223372036854775808e18 &&
+                value < 1.8446744073709551616e19));
 
 double _floating(_FloatingValue value) {
   if (value.bitWidth == 16) {

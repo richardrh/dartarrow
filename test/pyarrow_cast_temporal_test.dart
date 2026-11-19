@@ -400,5 +400,25 @@ void main() {
         ns.toString(),
       );
     });
+
+    // PyArrow 26: pa.array([1e300]).type, [-1e300], [1e19], [1e20] -> double.
+    // On JS platforms the literal 1e19 is the integer 10^19 (< 2^64), the same
+    // value as BigInt 10^19 on the VM, which is out of int64 range and raises
+    // ArrowInvalid there too (PyArrow raises OverflowError for 10**19).
+    test('whole doubles outside the 64-bit domain infer float64', () {
+      for (final v in [1e300, -1e300, 1e20]) {
+        expect(pa.array([v]).type, pa.float64(), reason: '$v');
+        expect(pa.scalar(v).type, pa.float64(), reason: '$v');
+      }
+      if (identical(0, 0.0)) {
+        expect(() => pa.array([1e19]), throwsA(isA<pa.ArrowInvalid>()));
+        expect(
+          () => pa.array([BigInt.parse('10000000000000000000')]),
+          throwsA(isA<pa.ArrowInvalid>()),
+        );
+      } else {
+        expect(pa.array([1e19]).type, pa.float64());
+      }
+    });
   });
 }
