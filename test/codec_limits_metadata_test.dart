@@ -105,6 +105,35 @@ void main() {
         null,
       ]);
     });
+
+    // PyArrow 26: pa.scalar(list(range(150000)), pa.list_(pa.int64())) and
+    // pa.scalar(bytes(17 << 20), pa.binary(17 << 20)) are valid values; the
+    // expansion budget charges null slots only, never valid input.
+    group('valid values are never charged', () {
+      test('scalarFromJson of a 150000-element list', () {
+        final s = pa.scalar([
+          for (var i = 0; i < 150000; i++) i,
+        ], type: pa.listType(pa.int64()));
+        expect(scalarFromJson(s.type, scalarToJson(s)).equals(s), isTrue);
+      });
+
+      test('scalarFromJson of a 17 MiB fixed-size binary', () {
+        final s = pa.scalar(Uint8List(17 << 20), type: pa.binary(17 << 20));
+        expect(scalarFromJson(s.type, scalarToJson(s)).equals(s), isTrue);
+      });
+
+      test('fromJson(toJson) of 17 valid 1 MiB fixed-size binaries', () {
+        final batch = pa.recordBatch(
+          [
+            pa.array([
+              for (var i = 0; i < 17; i++) Uint8List(1 << 20),
+            ], type: pa.binary(1 << 20)),
+          ],
+          names: ['a'],
+        );
+        expect(codec.fromJson(codec.toJson(batch)).equals(batch), isTrue);
+      });
+    });
   });
 
   // PyArrow 26: m = pa.schema([...], metadata={'k': 'v'}).metadata;

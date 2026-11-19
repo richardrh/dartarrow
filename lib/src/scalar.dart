@@ -585,10 +585,18 @@ Object _nativeInteger(BigInt value) =>
 
 /// Whether a host number is an integer for inference and encoding purposes.
 /// Non-finite values and negative zero are always floating, including on
-/// dart2js where `double.infinity is int` and `-0.0 is int` hold.
+/// dart2js where `double.infinity is int` and `-0.0 is int` hold. Where `int`
+/// is a JavaScript number, a whole number is an integer only inside the
+/// 64-bit domain the library stores (−2^63 ≤ v < 2^64); larger magnitudes
+/// such as `1e300` are floating, as on the VM.
 bool _isHostInteger(Object? value) =>
     value is BigInt ||
-    value is int && value.isFinite && !(value == 0 && value.isNegative);
+    value is int &&
+        value.isFinite &&
+        !(value == 0 && value.isNegative) &&
+        (!_jsNumbers ||
+            (value >= -9.223372036854775808e18 &&
+                value < 1.8446744073709551616e19));
 
 double _floating(_FloatingValue value) {
   if (value.bitWidth == 16) {
@@ -660,10 +668,22 @@ Object _temporal(DataType type, BigInt counter) {
           _ => 1,
         });
   }
-  if (!_fitsHostInt(micros)) return fallback();
   if (type is DurationType) {
+    // `Duration` stores a microsecond `int`, exact only within ±(2^53 − 1)
+    // where `int` is a JavaScript number.
+    if (!_fitsHostInt(micros)) return fallback();
     return Duration(microseconds: micros.toInt());
   }
+  // `DateTime` holds ±8.64e15 ms plus a microsecond part on every platform;
+  // build it from whole milliseconds so dart2js never sees an unsafe int.
   if (micros.abs() > BigInt.parse('8640000000000000000')) return fallback();
-  return DateTime.fromMicrosecondsSinceEpoch(micros.toInt(), isUtc: true);
+  final millis = micros ~/ BigInt.from(1000);
+  var rest = (micros - millis * BigInt.from(1000)).toInt();
+  var whole = millis.toInt();
+  if (rest < 0) {
+    whole -= 1;
+    rest += 1000;
+  }
+  final time = DateTime.fromMillisecondsSinceEpoch(whole, isUtc: true);
+  return rest == 0 ? time : time.add(Duration(microseconds: rest));
 }

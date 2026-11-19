@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dartarrow/arrow.dart' as pa;
 import 'package:test/test.dart';
 
@@ -377,6 +379,57 @@ void main() {
         throwsA(isA<pa.ArrowTypeError>()),
       );
     });
+
+    // PyArrow 26.0.0 `pa.array([value], type=t)` for each host kind × type:
+    // ok accepted, I ArrowInvalid, T ArrowTypeError. Python `date` has no
+    // Dart host kind. Cells marked `~` are accepted on one side only (float
+    // or Decimal into int64/temporal, bool into float64 and bytes into string
+    // accepted by PyArrow; a byte list into binary accepted by Dart) and are
+    // not compared.
+    test('exception class matches PyArrow for every rejected cell', () {
+      final types = [
+        pa.boolType(),
+        pa.int64(),
+        pa.float64(),
+        pa.decimal128(10, 2),
+        pa.string(),
+        pa.binary(),
+        pa.date32(),
+        pa.time64('us'),
+        pa.timestamp('us'),
+        pa.duration('us'),
+        pa.listType(pa.int64()),
+        pa.struct([pa.field('x', pa.int64())]),
+      ];
+      final table = <(Object, String)>[
+        (1, 'I  ok ok ok T  T  ok ok ok ok T  T'),
+        (1.5, 'I  ~  ok T  T  T  ~  ~  ~  ~  T  T'),
+        (true, 'ok T  ~  I  T  T  T  T  T  T  T  T'),
+        ('true', 'I  I  I  T  ok ok T  T  T  T  I  T'),
+        (Uint8List.fromList([120]), 'I  I  I  T  ~  ok T  T  T  T  ok T'),
+        (DateTime.utc(2020), 'I  I  I  T  T  T  ok T  ok T  T  T'),
+        (const Duration(days: 1), 'I  I  I  T  T  T  T  T  T  ok T  T'),
+        (pa.DecimalValue(15, 1), 'I  ~  I  ok T  T  ~  ~  ~  ~  T  T'),
+        ([1], 'I  I  I  T  T  ~  T  T  T  T  ok T'),
+        ({'x': 1}, 'I  I  I  T  T  T  T  T  T  T  T  ok'),
+      ];
+      for (final (value, row) in table) {
+        final codes = row.split(RegExp(' +'));
+        for (var i = 0; i < types.length; i++) {
+          String actual;
+          try {
+            pa.array([value], type: types[i]);
+            actual = 'ok';
+          } on pa.ArrowInvalid {
+            actual = 'I';
+          } on pa.ArrowTypeError {
+            actual = 'T';
+          }
+          if (codes[i] == '~') continue;
+          expect(actual, codes[i], reason: '$value -> ${types[i]}');
+        }
+      }
+    });
   });
 
   // Expected values: PyArrow 26.0.0 `pa.scalar(-0.0)` / `pa.scalar(-inf)`
@@ -399,6 +452,142 @@ void main() {
         pa.scalar(ns, type: pa.timestamp('ns')).value.toString(),
         ns.toString(),
       );
+    });
+
+    // PyArrow 26: pa.array([1e300]).type, [-1e300], [1e19], [1e20] -> double.
+    // On JS platforms the literal 1e19 is the integer 10^19 (< 2^64), the same
+    // value as BigInt 10^19 on the VM, which is out of int64 range and raises
+    // ArrowInvalid there too (PyArrow raises OverflowError for 10**19).
+    test('whole doubles outside the 64-bit domain infer float64', () {
+      for (final v in [1e300, -1e300, 1e20]) {
+        expect(pa.array([v]).type, pa.float64(), reason: '$v');
+        expect(pa.scalar(v).type, pa.float64(), reason: '$v');
+      }
+      if (identical(0, 0.0)) {
+        expect(() => pa.array([1e19]), throwsA(isA<pa.ArrowInvalid>()));
+        expect(
+          () => pa.array([BigInt.parse('10000000000000000000')]),
+          throwsA(isA<pa.ArrowInvalid>()),
+        );
+      } else {
+        expect(pa.array([1e19]).type, pa.float64());
+      }
+    });
+  });
+
+  // Expected values: PyArrow 26.0.0 `pa.scalar(c, type).as_py()` where Python
+  // datetime can hold it (timestamp[us] ±(2**53+1) -> 2255-06-05
+  // 23:47:34.740993 / 1684-07-28 00:12:25.259007, -1 -> 1969-12-31
+  // 23:59:59.999999, timestamp[s] -62135596800 -> 0001-01-01); DateTime's
+  // extremes (±8.64e15 ms) lie beyond Python's range.
+  group('temporal host conversion is platform independent', () {
+    test('representable values become equal UTC DateTimes', () {
+      for (final (type, counter, expected) in [
+        (pa.date32(), '-100000000', DateTime.utc(-271821, 4, 20)),
+        (pa.date32(), '100000000', DateTime.utc(275760, 9, 13)),
+        (pa.date64(), '-8640000000000000', DateTime.utc(-271821, 4, 20)),
+        (pa.date64(), '8640000000000000', DateTime.utc(275760, 9, 13)),
+        (
+          pa.timestamp('us'),
+          '9007199254740993',
+          DateTime.utc(2255, 6, 5, 23, 47, 34, 740, 993),
+        ),
+        (
+          pa.timestamp('us'),
+          '-9007199254740993',
+          DateTime.utc(1684, 7, 28, 0, 12, 25, 259, 7),
+        ),
+        (
+          pa.timestamp('us'),
+          '-1',
+          DateTime.utc(1969, 12, 31, 23, 59, 59, 999, 999),
+        ),
+        (
+          pa.timestamp('ns'),
+          '-1000',
+          DateTime.utc(1969, 12, 31, 23, 59, 59, 999, 999),
+        ),
+        (pa.timestamp('s'), '-62135596800', DateTime.utc(1)),
+        (
+          pa.timestamp('us'),
+          '8639999999999999999',
+          DateTime.utc(275760, 9, 12, 23, 59, 59, 999, 999),
+        ),
+      ]) {
+        final value = pa.scalar(BigInt.parse(counter), type: type).asDart();
+        expect(value, isA<DateTime>(), reason: '$type $counter');
+        expect((value as DateTime).isUtc, isTrue);
+        expect(value, expected, reason: '$type $counter');
+      }
+    });
+
+    test('unrepresentable values stay TemporalValue', () {
+      for (final (type, counter) in [
+        (pa.timestamp('us'), '8640000000000000001'),
+        (pa.timestamp('ns'), '-1'),
+        (pa.date32(), '100000001'),
+      ]) {
+        expect(
+          pa.scalar(BigInt.parse(counter), type: type).asDart(),
+          isA<pa.TemporalValue>(),
+          reason: '$type $counter',
+        );
+      }
+    });
+  });
+
+  // Expected values: PyArrow 26.0.0
+  // `pa.array([0], pa.timestamp('us', tz=z)).cast(pa.date32())`.
+  group('timestamp to date time zones', () {
+    test('match Arrow wherever no time zone database is needed', () {
+      final accepted = {
+        '+05:30': DateTime.utc(1970),
+        '-05:30': DateTime.utc(1969, 12, 31),
+        '+0530': DateTime.utc(1970),
+        '+23:59': DateTime.utc(1970),
+        '-00:00': DateTime.utc(1970),
+        '+0530x': DateTime.utc(1970),
+        '+12345': DateTime.utc(1970),
+        'UTC': DateTime.utc(1970),
+        'Etc/UTC': DateTime.utc(1970),
+        'GMT': DateTime.utc(1970),
+        '': DateTime.utc(1970),
+      };
+      for (final MapEntry(key: zone, value: date) in accepted.entries) {
+        final array = pa.array([0], type: pa.timestamp('us', tz: zone));
+        expect(array.cast(pa.date32()).toDartList(), [date], reason: zone);
+      }
+      for (final zone in [
+        '+05',
+        '05:30',
+        '+5:30',
+        '+25:00',
+        '+05:60',
+        '+24:00',
+        '+05:30:00',
+        ' +05:30',
+        '+1:30',
+        '+123',
+      ]) {
+        expect(
+          () => pa
+              .array([0], type: pa.timestamp('us', tz: zone))
+              .cast(pa.date32()),
+          throwsA(isA<pa.ArrowInvalid>()),
+          reason: zone,
+        );
+      }
+      // PyArrow accepts America/New_York, EST and rejects utc, Z, Foo; both
+      // need its time zone database.
+      for (final zone in ['America/New_York', 'EST', 'utc', 'Z', 'Foo']) {
+        expect(
+          () => pa
+              .array([0], type: pa.timestamp('us', tz: zone))
+              .cast(pa.date32()),
+          throwsUnsupportedError,
+          reason: zone,
+        );
+      }
     });
   });
 }

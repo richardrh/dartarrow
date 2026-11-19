@@ -401,6 +401,7 @@ _Value? _nativeRaw(
     if (casting && (value is num || value is BigInt)) {
       return _BooleanValue(value != 0 && value != BigInt.zero);
     }
+    if (!casting) throw ArrowInvalid('Cannot convert $value to $type');
   }
   if (type is IntegerType) {
     BigInt n;
@@ -419,6 +420,8 @@ _Value? _nativeRaw(
       n = _rescale(value.unscaled, value.scale, 0, safe);
     } else if (casting && value is TemporalValue) {
       n = value.counter;
+    } else if (value is bool) {
+      throw ArrowTypeError('Cannot convert $value to $type');
     } else {
       throw ArgumentError('Cannot convert $value to integer');
     }
@@ -573,6 +576,8 @@ _Value? _nativeRaw(
         type.scale,
         safe,
       );
+    } else if (!casting && value is! bool) {
+      throw ArrowTypeError('Cannot convert $value to $type');
     } else {
       throw ArgumentError('Expected exact decimal or integer');
     }
@@ -638,6 +643,8 @@ _Value? _nativeRaw(
       } else if (value is Duration && type is DurationType) {
         counter = BigInt.from(value.inMicroseconds);
         scale = 6;
+      } else if (!casting && value is! num && value is! DecimalValue) {
+        throw ArrowTypeError('Cannot convert $value to $type');
       } else {
         throw ArgumentError('Cannot convert $value to temporal datatype');
       }
@@ -675,7 +682,12 @@ _Value? _nativeRaw(
     return _TemporalValue(checked.value);
   }
   if (type is ListType || type is FixedSizeListType) {
-    if (value is! List) throw ArgumentError('Expected list');
+    if (value is! List) {
+      if (!casting && value is! String) {
+        throw ArrowTypeError('Cannot convert $value to $type');
+      }
+      throw ArgumentError('Expected list');
+    }
     final field = type is ListType
         ? type.field
         : (type as FixedSizeListType).field;
@@ -688,7 +700,10 @@ _Value? _nativeRaw(
     ]);
   }
   if (type is StructType) {
-    if (value is! Map) throw ArgumentError('Expected struct map');
+    if (value is! Map) {
+      if (!casting) throw ArrowTypeError('Cannot convert $value to $type');
+      throw ArgumentError('Expected struct map');
+    }
     return _StructValue([
       for (final field in type.fields)
         _StructEntry(
@@ -733,26 +748,46 @@ const _utcZoneNames = {
   'GMT-0', 'Etc/GMT+0', 'Etc/GMT-0', 'Greenwich', 'Etc/Greenwich',
 };
 
-/// The UTC offset in seconds of a timestamp time zone: UTC-equivalent names
-/// and fixed `±HH:MM`/`±HHMM` offsets. Named zones with rules need a time
-/// zone database, which this pure-Dart library does not ship.
+/// The UTC offset in seconds of a timestamp time zone, decided as Arrow's
+/// `LocateZone` does wherever no time zone database is needed: an empty zone
+/// and UTC-equivalent names are UTC; a zone starting with `+`/`-` must be
+/// `±HH:MM` (6 characters, falling back to `±HHMM` on its first five, as
+/// Arrow does) or `±HHMM`, with hours below 24 and minutes below 60, else
+/// [ArrowInvalid]. Names with characters no IANA zone uses are
+/// [ArrowInvalid]; other names need a time zone database, which this
+/// pure-Dart library does not ship, and raise [UnsupportedError].
 int _zoneOffsetSeconds(String? zone) {
-  if (zone == null || _utcZoneNames.contains(zone)) return 0;
-  final match = RegExp(r'^([+-])(\d\d):?(\d\d)$').firstMatch(zone);
-  if (match == null) {
-    throw UnsupportedError(
-      'Time zone "$zone" requires a time zone database, which is not '
-      'available; only UTC and fixed ±HH:MM offsets are supported',
-    );
+  if (zone == null || zone.isEmpty || _utcZoneNames.contains(zone)) return 0;
+  if (zone.startsWith('+') || zone.startsWith('-')) {
+    final match =
+        (zone.length == 6
+            ? _zoneHoursColonMinutes.matchAsPrefix(zone)
+            : null) ??
+        (zone.length == 5 || zone.length == 6
+            ? _zoneHoursMinutes.matchAsPrefix(zone)
+            : null);
+    final hours = match == null ? 24 : int.parse(match[1]!);
+    final minutes = match == null ? 60 : int.parse(match[2]!);
+    if (hours > 23 || minutes > 59) {
+      throw ArrowInvalid("Cannot locate or parse timezone '$zone'");
+    }
+    final seconds = hours * 3600 + minutes * 60;
+    return zone.startsWith('-') ? -seconds : seconds;
   }
-  final hours = int.parse(match[2]!);
-  final minutes = int.parse(match[3]!);
-  if (hours > 23 || minutes > 59) {
-    throw ArrowInvalid('Cannot parse time zone "$zone"');
+  if (!_zoneNameText.hasMatch(zone)) {
+    throw ArrowInvalid("Cannot locate or parse timezone '$zone'");
   }
-  final seconds = hours * 3600 + minutes * 60;
-  return match[1] == '-' ? -seconds : seconds;
+  throw UnsupportedError(
+    'Time zone "$zone" requires a time zone database, which is not '
+    'available; only UTC and fixed ±HH:MM offsets are supported',
+  );
 }
+
+final _zoneHoursColonMinutes = RegExp(r'[+-](\d\d):(\d\d)$');
+final _zoneHoursMinutes = RegExp(r'[+-](\d\d)(\d\d)');
+
+/// Characters IANA time zone names are made of.
+final _zoneNameText = RegExp(r'^[A-Za-z0-9/_+-]+$');
 
 final _hexIntegerText = RegExp(r'^0[xX]([0-9a-fA-F]+)$');
 final _signedIntegerText = RegExp(r'^-?[0-9]+$');
@@ -788,9 +823,16 @@ final _floatText = RegExp(
   caseSensitive: false,
 );
 
-/// Parses [text] as Arrow's string-to-float cast does: decimal or exponent
-/// notation with an optional sign, and case-insensitive `inf`, `infinity`,
-/// `nan`. No surrounding whitespace or hexadecimal floats.
+/// Accepts the same spellings as Arrow's string-to-float cast: decimal or
+/// exponent notation with an optional sign, and case-insensitive `inf`,
+/// `infinity`, `nan`. No surrounding whitespace or hexadecimal floats.
+///
+/// Values are correctly rounded for float64 only. Float32 (and float16)
+/// targets parse to the nearest double first and then round that double, so
+/// a decimal string within about 2^-29 relative of a float32 rounding
+/// midpoint can land one float32 ULP away from Arrow, which rounds the
+/// decimal directly: `'1.00000005960464477539062500000001'` gives `1.0`
+/// where PyArrow gives `1.0000001192092896`.
 double _parseFloatText(String text, FloatingType type) {
   final match = _floatText.firstMatch(text);
   if (match == null) {

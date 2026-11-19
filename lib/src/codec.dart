@@ -8,9 +8,10 @@ Object? scalarToJson(Scalar value) =>
 
 /// Decodes and validates a scalar in the owned-JSON physical value format.
 ///
-/// Throws [FormatException] if the scalar would expand (for example a null
-/// fixed-size list or fixed-size binary slot, whose storage size comes from
-/// the declared type) beyond the default [OwnedBatchJsonCodec] limits.
+/// Valid values are never limited here. Throws [FormatException] only if
+/// null slots expand beyond the default [OwnedBatchJsonCodec] limits: a null
+/// fixed-size list slot is charged `listSize` times its child's null cost
+/// (recursively), a null fixed-size binary slot `byteWidth` bytes.
 Scalar scalarFromJson(DataType type, Object? json, {Array? dictionary}) {
   final value = json == null ? null : _valueFromJson(type, json);
   const limits = OwnedBatchJsonCodec();
@@ -30,10 +31,13 @@ Scalar scalarFromJson(DataType type, Object? json, {Array? dictionary}) {
 /// [maxCollectionSize] the total number of JSON array/object elements. A null
 /// fixed-size list or fixed-size binary slot occupies storage sized by its
 /// declared type, not by the input, so decoding also rejects (with
-/// [FormatException], before allocating) batches whose expanded value count
-/// across all columns and dictionaries exceeds [maxCollectionSize], or whose
-/// fixed-size binary storage exceeds [maxSourceLength] bytes. Any batch whose
-/// values are all valid within these limits is unaffected.
+/// [FormatException], before allocating) batches whose null slots, across all
+/// columns and dictionaries, expand to more than [maxCollectionSize] value
+/// slots beyond the nulls themselves (a null fixed-size list costs `listSize`
+/// times its child's null cost, recursively) or more than [maxSourceLength]
+/// fixed-size binary bytes (`byteWidth` per null slot). Valid values are
+/// never charged: their storage is backed by the input, which the two
+/// limits above already bound.
 final class OwnedBatchJsonCodec {
   const OwnedBatchJsonCodec({
     this.maxNestingDepth = 64,
@@ -296,14 +300,16 @@ final class OwnedBatchJsonCodec {
 }
 
 /// Bounds the storage that decoded values expand to beyond what the input
-/// itself spells out. [slots] counts values at every nesting level; [bytes]
-/// counts fixed-size binary storage. Valid nested values are charged one slot
-/// per JSON element. Null slots carry no children in JSON, yet fixed-size
-/// lists and fixed-size binary allocate them from the declared width, so a
-/// null is charged its largest fixed-size expansion (the product of the
-/// enclosing list sizes; the widest child of a struct or union). Every
-/// product is guarded by division, so no intermediate exceeds the limits and
-/// the arithmetic stays exact on dart2js.
+/// itself spells out. Valid values are never charged: every valid element and
+/// every valid fixed-size binary byte is backed by input text, which
+/// `maxCollectionSize` and `maxSourceLength` already bound. Only null slots
+/// are charged, for the storage their declared width allocates beyond the
+/// null itself: a null fixed-size list slot costs `listSize` times its
+/// child's null cost (recursively), a null fixed-size binary slot costs
+/// `byteWidth` bytes, and a null struct or union costs its widest child.
+/// [slots] are bounded by `maxCollectionSize`, [bytes] by `maxSourceLength`.
+/// Every product is guarded by division, so no intermediate exceeds the
+/// limits and the arithmetic stays exact on dart2js.
 final class _ExpansionBudget {
   _ExpansionBudget(this.maxSlots, this.maxBytes);
 
@@ -374,29 +380,34 @@ final class _ExpansionBudget {
   }
 
   (int, int) _valueCost(DataType type, _Value? value) {
-    if (value == null) return _nullCost(type);
+    if (value == null) {
+      // The null itself is a JSON element; only its declared-width storage
+      // beyond that one slot is unbacked.
+      final (s, b) = _nullCost(type);
+      return (s - 1, b);
+    }
     switch (type) {
       case final ListType list:
-        var cost = (1, 0);
+        var cost = (0, 0);
         for (final child in (value as _ListValue).values) {
           cost = _sum(cost, _valueCost(list.field.type, child));
         }
         return cost;
       case final FixedSizeListType list:
-        var cost = (1, 0);
+        var cost = (0, 0);
         for (final child in (value as _ListValue).values) {
           cost = _sum(cost, _valueCost(list.field.type, child));
         }
         return cost;
       case final StructType struct:
-        var cost = (1, 0);
+        var cost = (0, 0);
         final fields = (value as _StructValue).fields;
         for (var i = 0; i < fields.length && i < struct.fields.length; i++) {
           cost = _sum(cost, _valueCost(struct.fields[i].type, fields[i].value));
         }
         return cost;
       case final MapType map:
-        var cost = (1, 0);
+        var cost = (0, 0);
         for (final entry in (value as _MapValue).entries) {
           cost = _sum(cost, _valueCost(map.keyField.type, entry.key));
           cost = _sum(cost, _valueCost(map.valueField.type, entry.value));
@@ -405,13 +416,13 @@ final class _ExpansionBudget {
       case final UnionType union:
         final tagged = value as _UnionValue;
         final selected = union.childIndexForTypeId(tagged.typeId);
-        var cost = (1, 0);
+        var cost = (0, 0);
         for (var i = 0; i < union.fields.length; i++) {
           cost = _max(
             cost,
             i == selected
                 ? _valueCost(union.fields[i].type, tagged.value)
-                : _nullCost(union.fields[i].type),
+                : _valueCost(union.fields[i].type, null),
           );
         }
         return cost;
@@ -422,11 +433,8 @@ final class _ExpansionBudget {
           extension.storageType,
           (value as _ExtensionValue).storage,
         );
-      case final FixedSizeBinaryType binary:
-        _check(1, binary.byteWidth);
-        return (1, binary.byteWidth);
       default:
-        return (1, 0);
+        return (0, 0);
     }
   }
 }
