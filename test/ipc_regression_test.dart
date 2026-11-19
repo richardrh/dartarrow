@@ -44,10 +44,48 @@ const _v4Stream =
     'AAAAAAAABQAAAAAAAAABAAAAAAAAAAMAAAAAAAAABQAAAAAAAAAAAAAAAQAAAAEAAAACAAAA'
     'eHoAAAAAAAD/////AAAAAA==';
 
+// PyArrow 26 stream and file of {a: int64 [1, 2, 3], b: string [x, y, z]}.
+const _smallStream =
+    '/////6gAAAAQAAAAAAAKAAwABgAFAAgACgAAAAABBAAMAAAACAAIAAAABAAIAAAABAAAAAIA'
+    'AABAAAAABAAAANj///8AAAEFEAAAABgAAAAEAAAAAAAAAAEAAABiAAAABAAEAAQAAAAQABQA'
+    'CAAGAAcADAAAABAAEAAAAAAAAQIQAAAAHAAAAAQAAAAAAAAAAQAAAGEAAAAIAAwACAAHAAgA'
+    'AAAAAAABQAAAAAAAAAD/////yAAAABQAAAAAAAAADAAWAAYABQAIAAwADAAAAAADBAAYAAAA'
+    'MAAAAAAAAAAAAAoAGAAMAAQACAAKAAAAbAAAABAAAAADAAAAAAAAAAAAAAAFAAAAAAAAAAAA'
+    'AAAAAAAAAAAAAAAAAAAAAAAAGAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAGAAAAAAAAAAQAAAA'
+    'AAAAACgAAAAAAAAAAwAAAAAAAAAAAAAAAgAAAAMAAAAAAAAAAAAAAAAAAAADAAAAAAAAAAAA'
+    'AAAAAAAAAQAAAAAAAAACAAAAAAAAAAMAAAAAAAAAAAAAAAEAAAACAAAAAwAAAHh5egAAAAAA'
+    '/////wAAAAA=';
+
+const _smallFile =
+    'QVJST1cxAAD/////qAAAABAAAAAAAAoADAAGAAUACAAKAAAAAAEEAAwAAAAIAAgAAAAEAAgA'
+    'AAAEAAAAAgAAAEAAAAAEAAAA2P///wAAAQUQAAAAGAAAAAQAAAAAAAAAAQAAAGIAAAAEAAQA'
+    'BAAAABAAFAAIAAYABwAMAAAAEAAQAAAAAAABAhAAAAAcAAAABAAAAAAAAAABAAAAYQAAAAgA'
+    'DAAIAAcACAAAAAAAAAFAAAAAAAAAAP/////IAAAAFAAAAAAAAAAMABYABgAFAAgADAAMAAAA'
+    'AAMEABgAAAAwAAAAAAAAAAAACgAYAAwABAAIAAoAAABsAAAAEAAAAAMAAAAAAAAAAAAAAAUA'
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAYAAAA'
+    'AAAAABAAAAAAAAAAKAAAAAAAAAADAAAAAAAAAAAAAAACAAAAAwAAAAAAAAAAAAAAAAAAAAMA'
+    'AAAAAAAAAAAAAAAAAAABAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAAAAAAAQAAAAIAAAADAAAA'
+    'eHl6AAAAAAD/////AAAAABAAAAAMABQABgAIAAwAEAAMAAAAAAAEADgAAAAoAAAABAAAAAEA'
+    'AAC4AAAAAAAAANAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAAAgACAAAAAQACAAAAAQAAAACAAAA'
+    'QAAAAAQAAADY////AAABBRAAAAAYAAAABAAAAAAAAAABAAAAYgAAAAQABAAEAAAAEAAUAAgA'
+    'BgAHAAwAAAAQABAAAAAAAAECEAAAABwAAAAEAAAAAAAAAAEAAABhAAAACAAMAAgABwAIAAAA'
+    'AAAAAUAAAADQAAAAQVJST1cx';
+
 const _isJs = identical(0, 0.0);
 
 Array _dict(List<int> indices, List<String> values) =>
     Array.fromDictionary(array(indices, type: int32()), array(values));
+
+Matcher _limitError(String field, int limit, int value) => throwsA(
+  isA<FormatException>().having(
+    (e) => e.message,
+    'message',
+    allOf(
+      contains('$value exceeds IpcLimits.$field ($limit)'),
+      contains('pass larger IpcLimits to openStream/openFile'),
+    ),
+  ),
+);
 
 void main() {
   // Expected rows from PyArrow 26 ipc.open_file(...).read_all() of the same
@@ -113,6 +151,58 @@ void main() {
       () => ipc.openFile(base64Decode(_v4File)).readAll(),
       throwsUnsupportedError,
     );
+  });
+
+  // The PyArrow 26 fixtures hold 3 rows and 6 values.
+  group('limit breaches name the IpcLimits field', () {
+    final stream = base64Decode(_smallStream);
+    final file = base64Decode(_smallFile);
+
+    test('maxRows', () {
+      const limits = ipc.IpcLimits(maxRows: 2);
+      expect(
+        () => ipc.openStream(stream, limits: limits).readAll(),
+        _limitError('maxRows', 2, 3),
+      );
+      expect(
+        () => ipc.openFile(file, limits: limits).readAll(),
+        _limitError('maxRows', 2, 3),
+      );
+      const raised = ipc.IpcLimits(maxRows: 3);
+      expect(ipc.openStream(stream, limits: raised).readAll().numRows, 3);
+      expect(ipc.openFile(file, limits: raised).readAll().numRows, 3);
+    });
+
+    test('maxValues', () {
+      const limits = ipc.IpcLimits(maxValues: 5);
+      expect(
+        () => ipc.openStream(stream, limits: limits).readAll(),
+        _limitError('maxValues', 5, 6),
+      );
+      const raised = ipc.IpcLimits(maxValues: 6);
+      expect(ipc.openStream(stream, limits: raised).readAll().numRows, 3);
+    });
+
+    test('maxMessageBytes', () {
+      const limits = ipc.IpcLimits(maxMessageBytes: 64);
+      expect(
+        () => ipc.openStream(stream, limits: limits).readAll(),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            matches(
+              RegExp(
+                r'^IPC metadata length \d+ exceeds '
+                r'IpcLimits\.maxMessageBytes \(64\); pass larger IpcLimits',
+              ),
+            ),
+          ),
+        ),
+      );
+      const raised = ipc.IpcLimits(maxMessageBytes: 4096);
+      expect(ipc.openStream(stream, limits: raised).readAll().numRows, 3);
+    });
   });
 
 }

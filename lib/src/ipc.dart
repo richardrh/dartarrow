@@ -12,7 +12,9 @@ part of 'core.dart';
 /// Resource limits applied while decoding untrusted IPC input.
 ///
 /// Defaults are conservative; trusted callers handling larger data should
-/// pass raised limits explicitly.
+/// pass raised limits explicitly. Every breach raises a [FormatException]
+/// naming the `IpcLimits` field, its configured value and the offending
+/// value.
 final class IpcLimits {
   /// Creates limits; every bound is inclusive.
   const IpcLimits({
@@ -55,6 +57,18 @@ final class IpcLimits {
   final int maxBatches;
 }
 
+/// A [FormatException] for [value] (described by [what]) breaching the
+/// `IpcLimits` field [name] configured as [limit].
+FormatException _ipcLimitError(
+  String what,
+  int value,
+  String name,
+  int limit,
+) => FormatException(
+  '$what $value exceeds IpcLimits.$name ($limit); pass larger IpcLimits '
+  'to openStream/openFile for trusted input',
+);
+
 /// Opens an in-memory Arrow IPC stream, like PyArrow's `ipc.open_stream`.
 ///
 /// The schema message is decoded immediately. Malformed input raises
@@ -91,7 +105,12 @@ RecordBatchFileReader openFile(
   }
   final state = _IpcReadState(_ipcReadSchema(schemaTable, limits), limits);
   final budget = _IpcValueBudget(limits.maxValues);
-  for (final block in _ipcBlocks(footer, 2, limits.maxDictionaries)) {
+  for (final block in _ipcBlocks(
+    footer,
+    2,
+    'maxDictionaries',
+    limits.maxDictionaries,
+  )) {
     final message = _ipcReadBlock(data, block, limits);
     if (message.headerType != _ipcHeaderDictionaryBatch) {
       throw const FormatException('Dictionary block has wrong message type');
@@ -101,7 +120,7 @@ RecordBatchFileReader openFile(
   return RecordBatchFileReader._(
     state,
     data,
-    _ipcBlocks(footer, 3, limits.maxBatches),
+    _ipcBlocks(footer, 3, 'maxBatches', limits.maxBatches),
     budget.used,
   );
 });
@@ -156,7 +175,12 @@ final class RecordBatchStreamReader extends Iterable<RecordBatch> {
           _state.acceptDictionary(message, _budget, allowReplacement: true);
         case _ipcHeaderRecordBatch:
           if (++_batches > limits.maxBatches) {
-            throw const FormatException('Too many record batches');
+            throw _ipcLimitError(
+              'Record batch count',
+              _batches,
+              'maxBatches',
+              limits.maxBatches,
+            );
           }
           return _state.decodeBatch(message, _budget);
         case _ipcHeaderSchema:

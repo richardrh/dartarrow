@@ -85,9 +85,15 @@ final class _IpcMessageCursor {
     // Pre-0.15 streams omit the continuation token.
     if (length == -1) length = _int32();
     if (length == 0) return null;
-    if (length < 0 ||
-        length > limits.maxMessageBytes ||
-        length > bytes.length - position) {
+    if (length > limits.maxMessageBytes) {
+      throw _ipcLimitError(
+        'IPC metadata length',
+        length,
+        'maxMessageBytes',
+        limits.maxMessageBytes,
+      );
+    }
+    if (length < 0 || length > bytes.length - position) {
       throw FormatException('Invalid IPC metadata length $length');
     }
     final metadata = Uint8List.sublistView(bytes, position, position + length);
@@ -97,7 +103,12 @@ final class _IpcMessageCursor {
       Uint8List.sublistView(bytes, position),
     );
     if (message.body.length > limits.maxMessageBytes) {
-      throw const FormatException('IPC body exceeds maxMessageBytes');
+      throw _ipcLimitError(
+        'IPC body length',
+        message.body.length,
+        'maxMessageBytes',
+        limits.maxMessageBytes,
+      );
     }
     position += message.body.length;
     return message;
@@ -126,7 +137,12 @@ bool _ipcHasMagic(Uint8List bytes, int at) {
     throw FormatException('Invalid IPC file footer length $length');
   }
   if (length > limits.maxMessageBytes) {
-    throw const FormatException('IPC footer exceeds maxMessageBytes');
+    throw _ipcLimitError(
+      'IPC footer length',
+      length,
+      'maxMessageBytes',
+      limits.maxMessageBytes,
+    );
   }
   final footer = _FbReader(
     ByteData.sublistView(bytes, start, bytes.length - trailer),
@@ -135,12 +151,15 @@ bool _ipcHasMagic(Uint8List bytes, int at) {
   return (footer, start);
 }
 
-List<_IpcBlock> _ipcBlocks(_FbTableView footer, int slot, int max) {
+List<_IpcBlock> _ipcBlocks(
+  _FbTableView footer,
+  int slot,
+  String name,
+  int max,
+) {
   final structs = footer.structs(slot, 24);
   if (structs.count > max) {
-    throw FormatException(
-      'IPC file has ${structs.count} blocks; limit is $max',
-    );
+    throw _ipcLimitError('IPC file block count', structs.count, name, max);
   }
   return [
     for (var i = 0; i < structs.count; i++)
@@ -149,11 +168,18 @@ List<_IpcBlock> _ipcBlocks(_FbTableView footer, int slot, int max) {
 }
 
 _IpcMessage _ipcReadBlock(Uint8List bytes, _IpcBlock block, IpcLimits limits) {
+  if (block.bodyLength > limits.maxMessageBytes) {
+    throw _ipcLimitError(
+      'IPC file block body length',
+      block.bodyLength,
+      'maxMessageBytes',
+      limits.maxMessageBytes,
+    );
+  }
   final end = block.offset + block.metadataLength + block.bodyLength;
   if (block.offset < 8 ||
       block.metadataLength < 8 ||
       block.bodyLength < 0 ||
-      block.bodyLength > limits.maxMessageBytes ||
       end > bytes.length) {
     throw const FormatException('IPC file block lies outside the file');
   }
@@ -212,7 +238,12 @@ final class _IpcReadState {
     required bool allowReplacement,
   }) {
     if (++_dictionaryCount > limits.maxDictionaries) {
-      throw const FormatException('Too many dictionary batches');
+      throw _ipcLimitError(
+        'Dictionary batch count',
+        _dictionaryCount,
+        'maxDictionaries',
+        limits.maxDictionaries,
+      );
     }
     final id = message.header.i64(0, 0);
     final slot = _slots[id];
@@ -234,7 +265,12 @@ final class _IpcReadState {
       throw const FormatException('IPC files may not replace dictionaries');
     }
     if (isDelta && existing!.length + values.length > limits.maxRows) {
-      throw const FormatException('Dictionary delta exceeds row limit');
+      throw _ipcLimitError(
+        'Dictionary $id length after delta',
+        existing.length + values.length,
+        'maxRows',
+        limits.maxRows,
+      );
     }
     _dictionaries[id] = isDelta ? concatArrays([existing!, values]) : values;
   }
@@ -255,8 +291,9 @@ final class _IpcReadState {
     _IpcValueBudget budget,
   ) {
     final length = batch.i64(0, 0);
-    if (length < 0 || length > limits.maxRows) {
-      throw FormatException('Batch length $length exceeds limits');
+    if (length < 0) throw FormatException('Invalid batch length $length');
+    if (length > limits.maxRows) {
+      throw _ipcLimitError('Batch length', length, 'maxRows', limits.maxRows);
     }
     final reader = _IpcBodyReader(
       body,
@@ -290,7 +327,12 @@ final class _IpcReadState {
 
   List<(int, int)> _ipcPairs(_FbStructs structs, String name) {
     if (structs.count > limits.maxBuffers) {
-      throw FormatException('Too many $name');
+      throw _ipcLimitError(
+        'RecordBatch $name count',
+        structs.count,
+        'maxBuffers',
+        limits.maxBuffers,
+      );
     }
     return [
       for (var i = 0; i < structs.count; i++)
@@ -301,7 +343,12 @@ final class _IpcReadState {
   List<int> _ipcVariadicCounts(_FbTableView batch) {
     final structs = batch.structs(4, 8);
     if (structs.count > limits.maxBuffers) {
-      throw const FormatException('Too many variadic buffer counts');
+      throw _ipcLimitError(
+        'Variadic buffer count entries',
+        structs.count,
+        'maxBuffers',
+        limits.maxBuffers,
+      );
     }
     return [for (var i = 0; i < structs.count; i++) structs.i64(i, 0)];
   }

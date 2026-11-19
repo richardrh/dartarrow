@@ -78,9 +78,7 @@ final class _IpcValueBudget {
   void charge(int count) {
     used += count;
     if (used > limit) {
-      throw FormatException(
-        'Decoded value count exceeds IpcLimits.maxValues ($limit)',
-      );
+      throw _ipcLimitError('Decoded value count', used, 'maxValues', limit);
     }
   }
 }
@@ -121,8 +119,16 @@ final class _IpcBodyReader {
       throw const FormatException('RecordBatch has too few field nodes');
     }
     final n = nodes[_node++];
-    if (n.length < 0 || n.length > limits.maxRows) {
-      throw FormatException('Field node length ${n.length} exceeds limits');
+    if (n.length < 0) {
+      throw FormatException('Invalid field node length ${n.length}');
+    }
+    if (n.length > limits.maxRows) {
+      throw _ipcLimitError(
+        'Field node length',
+        n.length,
+        'maxRows',
+        limits.maxRows,
+      );
     }
     if (n.nullCount < 0 || n.nullCount > n.length) {
       throw FormatException('Invalid null count ${n.nullCount}');
@@ -154,12 +160,10 @@ final class _IpcBodyReader {
     final decoded = _ipcDecompress(
       raw,
       codec,
-      limits.maxMessageBytes - _decompressed,
+      _decompressed,
+      limits.maxMessageBytes,
     );
     _decompressed += decoded.length;
-    if (_decompressed > limits.maxMessageBytes) {
-      throw const FormatException('Decompressed body exceeds maxMessageBytes');
-    }
     return decoded;
   }
 
@@ -207,7 +211,12 @@ final class _IpcBodyReader {
 /// dictionary-encoded field, whose children describe the value type.
 Array _ipcReadArray(_IpcBodyReader r, DataType type, _IpcField field) {
   if (++r.depth > r.limits.maxDepth) {
-    throw const FormatException('Arrow nesting exceeds maximum depth');
+    throw _ipcLimitError(
+      'Arrow nesting depth',
+      r.depth,
+      'maxDepth',
+      r.limits.maxDepth,
+    );
   }
   try {
     return _ipcReadArrayAt(r, type, field);
@@ -278,8 +287,16 @@ Array _ipcReadArrayAt(_IpcBodyReader r, DataType type, _IpcField field) {
     case Utf8Type() || BinaryType() when _ipcIsView(storage):
       final views = Buffer(r.buffer());
       final count = r.variadicCount();
-      if (count < 0 || count > r.limits.maxBuffers) {
-        throw const FormatException('Invalid variadic buffer count');
+      if (count < 0) {
+        throw FormatException('Invalid variadic buffer count $count');
+      }
+      if (count > r.limits.maxBuffers) {
+        throw _ipcLimitError(
+          'Variadic buffer count',
+          count,
+          'maxBuffers',
+          r.limits.maxBuffers,
+        );
       }
       buffers = [
         validity,
