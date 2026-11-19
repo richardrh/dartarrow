@@ -33,8 +33,9 @@ void main() {
   group('canonical decimal integers', () {
     const int64 = {'kind': 'int64'};
     test('accepts canonical forms', () {
+      // Compared as text: dart2js returns integers beyond 2^53 as BigInt.
       for (final raw in ['0', '-1', '42', '-9223372036854775808']) {
-        expect(decodeOne(int64, raw).value, int.parse(raw));
+        expect('${decodeOne(int64, raw).value}', raw);
       }
     });
 

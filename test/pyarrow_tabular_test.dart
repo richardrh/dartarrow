@@ -154,8 +154,10 @@ void main() {
     expect(chunks.scalars.map((s) => s.asDart()), [1, null, 3]);
   });
   test('logical length sums reject overflow without materializing rows', () {
-    final huge = pa.Array.fromBuffers(pa.nullType(), 0x7fffffffffffffff, []);
-    expect(pa.chunkedArray([huge]).length, 0x7fffffffffffffff);
+    // Parsed, not literal: dart2js cannot compile integers beyond 2^53.
+    final maxInt64 = int.parse('9223372036854775807');
+    final huge = pa.Array.fromBuffers(pa.nullType(), maxInt64, []);
+    expect(pa.chunkedArray([huge]).length, maxInt64);
     expect(
       () => pa.chunkedArray([
         huge,
@@ -171,12 +173,12 @@ void main() {
       [huge],
       names: ['x'],
     ).select([]);
-    expect(zeroColumns.numRows, 0x7fffffffffffffff);
+    expect(zeroColumns.numRows, maxInt64);
     expect(
       () => pa.Table.fromBatches([zeroColumns, zeroColumns, zeroColumns]),
       throwsA(isA<pa.ArrowInvalid>()),
     );
-  });
+  }, testOn: '!js');
   test('native primitive encoding owns bytes and preserves valid values', () {
     final bytes = Uint8List.fromList([128, 255]);
     final binary = pa.array([bytes], type: pa.binary());

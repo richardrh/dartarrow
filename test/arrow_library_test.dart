@@ -324,7 +324,10 @@ void main() {
         throwsRangeError,
       );
       expect(
-        () => pa.Array.fromDictionary(pa.array([1.0]), dictionary),
+        () => pa.Array.fromDictionary(
+          pa.array([1.0], type: pa.float64()),
+          dictionary,
+        ),
         throwsArgumentError,
       );
     });
