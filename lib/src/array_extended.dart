@@ -282,6 +282,16 @@ void _validateExtended(Array array, DataType t, int end) {
       }
       requireBytes(1, end);
       if (t.mode == UnionMode.dense) requireBytes(2, end * 4);
+      if (t.mode == UnionMode.sparse) {
+        for (var c = 0; c < array.children.length; c++) {
+          if (array.children[c].length < end) {
+            throw ArgumentError(
+              'Sparse union child array #$c has length smaller than '
+              'expected for union array (${array.children[c].length} < $end)',
+            );
+          }
+        }
+      }
       for (var i = offset; i < end; i++) {
         final typeId = buffers[1]![i].toSigned(8);
         final child = t.childIndexForTypeId(typeId);
@@ -737,6 +747,13 @@ Array _unionFromArrays(
     mode: mode,
     typeIds: typeCodes,
   );
+  if (mode == UnionMode.sparse &&
+      children.any((child) => child.length != typeIds.length)) {
+    throw ArgumentError(
+      'Sparse UnionArray must have len(child) == len(type_ids) '
+      'for all children',
+    );
+  }
   final ids = _packedBytes(typeIds, IntegerType(8), 'typeIds');
   return Array.fromBuffers(type, typeIds.length, [
     null,
