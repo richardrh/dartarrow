@@ -26,6 +26,7 @@ final class IpcLimits {
     this.maxMessageBytes = 64 << 20,
     this.maxDictionaries = 1024,
     this.maxBatches = 1 << 20,
+    this.maxDecompressedBytes = 256 << 20,
   });
 
   /// Maximum type nesting depth.
@@ -56,6 +57,12 @@ final class IpcLimits {
 
   /// Maximum number of record batches.
   final int maxBatches;
+
+  /// Maximum total size of decompressed buffers produced by one read (a
+  /// stream reader, or one file `getBatch`/`readAll` call plus the file's
+  /// dictionaries). Uncompressed bodies are zero-copy views and are not
+  /// counted.
+  final int maxDecompressedBytes;
 }
 
 /// A [FormatException] for [value] (described by [what]) breaching the
@@ -105,25 +112,23 @@ RecordBatchFileReader openFile(
     throw const FormatException('IPC file footer has no schema');
   }
   final state = _IpcReadState(_ipcReadSchema(schemaTable, limits), limits);
-  final budget = _IpcValueBudget(limits.maxValues);
-  for (final block in _ipcBlocks(
+  final budget = _IpcValueBudget(limits);
+  final dictionaryBlocks = _ipcBlocks(
     footer,
     2,
     'maxDictionaries',
     limits.maxDictionaries,
-  )) {
+  );
+  final batchBlocks = _ipcBlocks(footer, 3, 'maxBatches', limits.maxBatches);
+  _ipcCheckDisjointBlocks([...dictionaryBlocks, ...batchBlocks]);
+  for (final block in dictionaryBlocks) {
     final message = _ipcReadBlock(data, block, limits);
     if (message.headerType != _ipcHeaderDictionaryBatch) {
       throw const FormatException('Dictionary block has wrong message type');
     }
     state.acceptDictionary(message, budget, allowReplacement: false);
   }
-  return RecordBatchFileReader._(
-    state,
-    data,
-    _ipcBlocks(footer, 3, 'maxBatches', limits.maxBatches),
-    budget.used,
-  );
+  return RecordBatchFileReader._(state, data, batchBlocks, budget);
 });
 
 /// Creates an Arrow IPC stream writer for [schema], like PyArrow's
@@ -149,7 +154,7 @@ RecordBatchFileWriter newFile(Schema schema) =>
 /// batches that follow them.
 final class RecordBatchStreamReader extends Iterable<RecordBatch> {
   RecordBatchStreamReader._(this._state, this._messages)
-    : _budget = _IpcValueBudget(_state.limits.maxValues);
+    : _budget = _IpcValueBudget(_state.limits);
 
   final _IpcReadState _state;
   final _IpcMessageCursor _messages;
@@ -221,13 +226,13 @@ final class RecordBatchFileReader {
     this._state,
     this._data,
     this._blocks,
-    this._dictionaryValues,
+    this._dictionaryBudget,
   );
 
   final _IpcReadState _state;
   final Uint8List _data;
   final List<_IpcBlock> _blocks;
-  final int _dictionaryValues;
+  final _IpcValueBudget _dictionaryBudget;
 
   /// The file schema (from the footer).
   Schema get schema => _state.schema;
@@ -241,9 +246,7 @@ final class RecordBatchFileReader {
   /// Decodes record batch [index] (0-based).
   RecordBatch getBatch(int index) {
     RangeError.checkValidIndex(index, _blocks, 'index');
-    return _ipcGuard(
-      () => _read(index, _IpcValueBudget(limits.maxValues, _dictionaryValues)),
-    );
+    return _ipcGuard(() => _read(index, _dictionaryBudget.copy()));
   }
 
   RecordBatch _read(int index, _IpcValueBudget budget) {
@@ -256,7 +259,7 @@ final class RecordBatchFileReader {
 
   /// Reads every record batch into a [Table] with [schema].
   Table readAll() => _ipcGuard(() {
-    final budget = _IpcValueBudget(limits.maxValues, _dictionaryValues);
+    final budget = _dictionaryBudget.copy();
     return Table.fromBatches([
       for (var i = 0; i < _blocks.length; i++) _read(i, budget),
     ], schema: schema);

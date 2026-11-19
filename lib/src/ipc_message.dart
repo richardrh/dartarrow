@@ -176,6 +176,19 @@ List<_IpcBlock> _ipcBlocks(
   ];
 }
 
+/// Rejects file footers whose Blocks repeat or overlap; every legitimate
+/// writer lays out each message once.
+void _ipcCheckDisjointBlocks(List<_IpcBlock> blocks) {
+  final sorted = [...blocks]..sort((a, b) => a.offset.compareTo(b.offset));
+  for (var i = 1; i < sorted.length; i++) {
+    final previous = sorted[i - 1];
+    final end = previous.offset + previous.metadataLength + previous.bodyLength;
+    if (sorted[i].offset == previous.offset || sorted[i].offset < end) {
+      throw const FormatException('IPC file blocks repeat or overlap');
+    }
+  }
+}
+
 _IpcMessage _ipcReadBlock(Uint8List bytes, _IpcBlock block, IpcLimits limits) {
   if (block.bodyLength > limits.maxMessageBytes) {
     throw _ipcLimitError(

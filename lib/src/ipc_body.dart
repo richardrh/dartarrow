@@ -69,16 +69,40 @@ int _ipcReadOffset(ByteData data, int index, int width) => width == 4
 
 // ----------------------------------------------------------------- reader --
 
-/// Running total of decoded field node lengths, shared across one read.
+/// Running totals shared across one read: decoded field node lengths
+/// (`maxValues`) and decompressed buffer bytes (`maxDecompressedBytes`).
 final class _IpcValueBudget {
-  _IpcValueBudget(this.limit, [this.used = 0]);
-  final int limit;
-  int used;
+  _IpcValueBudget(this.limits);
+  _IpcValueBudget._copy(this.limits, this.used, this.decompressed);
+  final IpcLimits limits;
+  int used = 0;
+  int decompressed = 0;
+
+  /// A budget starting from this one's current totals.
+  _IpcValueBudget copy() => _IpcValueBudget._copy(limits, used, decompressed);
 
   void charge(int count) {
     used += count;
-    if (used > limit) {
-      throw _ipcLimitError('Decoded value count', used, 'maxValues', limit);
+    if (used > limits.maxValues) {
+      throw _ipcLimitError(
+        'Decoded value count',
+        used,
+        'maxValues',
+        limits.maxValues,
+      );
+    }
+  }
+
+  /// Charges [size] decompressed bytes before they are allocated.
+  void chargeDecompressed(int size) {
+    decompressed += size;
+    if (decompressed > limits.maxDecompressedBytes) {
+      throw _ipcLimitError(
+        'Total decompressed buffer size',
+        decompressed,
+        'maxDecompressedBytes',
+        limits.maxDecompressedBytes,
+      );
     }
   }
 }
@@ -185,14 +209,19 @@ final class _IpcBodyReader {
     );
     final codec = this.codec;
     if (codec == null || raw.isEmpty) return raw;
-    final decoded = _ipcDecompress(
-      raw,
-      codec,
-      _decompressed,
-      limits.maxMessageBytes,
-    );
-    _decompressed += decoded.length;
-    return decoded;
+    return _ipcDecompress(raw, codec, (size, copied) {
+      final total = _decompressed + size;
+      if (total > limits.maxMessageBytes) {
+        throw _ipcLimitError(
+          'Decompressed body size',
+          total,
+          'maxMessageBytes',
+          limits.maxMessageBytes,
+        );
+      }
+      if (copied) budget.chargeDecompressed(size);
+      _decompressed = total;
+    });
   }
 
   /// The validity bitmap of [n], or null when every slot is valid.
