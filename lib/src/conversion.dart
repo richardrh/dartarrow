@@ -788,9 +788,16 @@ final _floatText = RegExp(
   caseSensitive: false,
 );
 
-/// Parses [text] as Arrow's string-to-float cast does: decimal or exponent
-/// notation with an optional sign, and case-insensitive `inf`, `infinity`,
-/// `nan`. No surrounding whitespace or hexadecimal floats.
+/// Accepts the same spellings as Arrow's string-to-float cast: decimal or
+/// exponent notation with an optional sign, and case-insensitive `inf`,
+/// `infinity`, `nan`. No surrounding whitespace or hexadecimal floats.
+///
+/// Values are correctly rounded for float64 only. Float32 (and float16)
+/// targets parse to the nearest double first and then round that double, so
+/// a decimal string within about 2^-29 relative of a float32 rounding
+/// midpoint can land one float32 ULP away from Arrow, which rounds the
+/// decimal directly: `'1.00000005960464477539062500000001'` gives `1.0`
+/// where PyArrow gives `1.0000001192092896`.
 double _parseFloatText(String text, FloatingType type) {
   final match = _floatText.firstMatch(text);
   if (match == null) {
