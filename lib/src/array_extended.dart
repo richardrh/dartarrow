@@ -246,7 +246,7 @@ void _validateExtended(Array array, DataType t, int end) {
       for (var i = offset; i < end; i++) {
         final start = array._offsetAt(i);
         final size = _sizeAt(array, i);
-        if (start < 0 || size < 0 || start + size > limit) {
+        if (start < 0 || size < 0 || start > limit || size > limit - start) {
           throw ArgumentError('List view $i is out of bounds');
         }
       }

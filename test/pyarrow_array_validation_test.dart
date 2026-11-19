@@ -74,4 +74,24 @@ void main() {
       }
     });
   });
+
+  // PyArrow 26.0.0: large_list_view with offsets [2**62], sizes [2**62] and
+  // a 2-element child raises "Offset invariant failure".
+  test('large list view bounds check does not overflow', () {
+    final bytes = ByteData(8)
+      ..setUint32(0, 0, Endian.little)
+      ..setUint32(4, 0x40000000, Endian.little);
+    final huge = pa.Buffer(bytes.buffer.asUint8List());
+    expect(
+      () => pa.Array.fromBuffers(
+        pa.largeListView(pa.int64()),
+        1,
+        [null, huge, huge],
+        children: [
+          pa.array([1, 2]),
+        ],
+      ),
+      throwsArgumentError,
+    );
+  });
 }
