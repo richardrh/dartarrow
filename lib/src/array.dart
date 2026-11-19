@@ -131,13 +131,14 @@ final class Array {
     this._owner,
   ]);
 
-  /// Imports little-endian Arrow _physicalBuffers without copying. Buffer zero is the
+  /// Imports little-endian Arrow buffers without copying. Buffer zero is the
   /// optional LSB-first validity bitmap; remaining slots follow Arrow layout.
-  /// All _physicalBuffers are borrowed and externally read-only. Keep the original
+  /// All buffers are borrowed and externally read-only. Keep the original
   /// storage alive and immutable through every alias while any view is used.
-  /// Required data _physicalBuffers must be supplied even when empty. Null validity
+  /// Required data buffers must be supplied even when empty. Null validity
   /// means all valid; nullCount -1 means unknown. Children use logical indices:
   /// list offsets are relative to child index zero, including sliced children.
+  /// The null type accepts either no buffers or `[null]`, as [buffers] returns.
   factory Array.fromBuffers(
     DataType type,
     int length,
@@ -147,6 +148,11 @@ final class Array {
     Array? dictionary,
     int nullCount = -1,
   }) {
+    if (_physicalType(type) is NullType &&
+        buffers.length == 1 &&
+        buffers.single == null) {
+      buffers = const [];
+    }
     final array = Array._(
       type,
       length,
@@ -460,7 +466,7 @@ final class Array {
     if (_isView(t)
         ? _physicalBuffers.length < slots
         : _physicalBuffers.length != slots)
-      throw ArgumentError('Expected $slots _physicalBuffers for $type');
+      throw ArgumentError('Expected $slots buffers for $type');
     if (slots > 0 &&
         _physicalBuffers[0] != null &&
         _physicalBuffers[0]!.length < bitmapBytes)

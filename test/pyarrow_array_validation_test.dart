@@ -94,4 +94,31 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  // PyArrow 26.0.0: Array.from_buffers(pa.null(), 2, [None]) -> [None, None].
+  test('null type fromBuffers round-trips buffers()', () {
+    final nulls = pa.array([null, null]);
+    expect(nulls.buffers(), [null]);
+    expect(
+      pa.Array.fromBuffers(pa.nullType(), 2, nulls.buffers()).toDartList(),
+      [null, null],
+    );
+    expect(pa.Array.fromBuffers(pa.nullType(), 2, []).toDartList(), [
+      null,
+      null,
+    ]);
+  });
+
+  test('buffer count error names public buffers', () {
+    expect(
+      () => pa.Array.fromBuffers(pa.int32(), 0, [null]),
+      throwsA(
+        isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          startsWith('Expected 2 buffers for '),
+        ),
+      ),
+    );
+  });
 }
