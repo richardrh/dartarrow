@@ -3,12 +3,14 @@ part of 'core.dart';
 final class RecordBatch {
   RecordBatch._(this.schema, List<Array> columns, this.numRows)
     : columns = List.unmodifiable(columns) {
-    if (numRows < 0 || columns.length != schema.length)
+    if (numRows < 0 || columns.length != schema.length) {
       throw ArgumentError('Invalid batch shape');
+    }
     for (var i = 0; i < columns.length; i++) {
       if (columns[i].length != numRows ||
-          columns[i].type != schema.fields[i].type)
+          columns[i].type != schema.fields[i].type) {
         throw ArgumentError('Column $i does not match schema or row count');
+      }
     }
   }
   factory RecordBatch.fromArrays(
@@ -19,10 +21,12 @@ final class RecordBatch {
   }) {
     _checkTabularOptions(names, schema, metadata);
     final values = arrays.toList();
-    if (schema != null && values.length != schema.length)
+    if (schema != null && values.length != schema.length) {
       throw ArgumentError('Schema and column counts differ');
-    if (schema == null && (names == null || names.length != values.length))
+    }
+    if (schema == null && (names == null || names.length != values.length)) {
       throw ArgumentError('Names or schema required for each column');
+    }
     final columns = <Array>[];
     for (var i = 0; i < values.length; i++) {
       final value = values[i];
@@ -55,8 +59,9 @@ final class RecordBatch {
     final names = schema?.names ?? data.keys.toList();
     final values = <Object?>[];
     for (final name in names) {
-      if (!data.containsKey(name))
+      if (!data.containsKey(name)) {
         throw ArgumentError('Missing column "$name"');
+      }
       values.add(data[name]);
     }
     return RecordBatch.fromArrays(
@@ -136,11 +141,13 @@ final class RecordBatch {
   RecordBatch replaceSchemaMetadata(Map<Object, Object>? metadata) =>
       RecordBatch._(schema.withMetadata(metadata), columns, numRows);
   RecordBatch cast(Schema targetSchema, {bool safe = true}) {
-    if (targetSchema.length != numColumns)
+    if (targetSchema.length != numColumns) {
       throw ArgumentError('Target schema names must match');
+    }
     for (var i = 0; i < numColumns; i++) {
-      if (targetSchema.fields[i].name != schema.fields[i].name)
+      if (targetSchema.fields[i].name != schema.fields[i].name) {
         throw ArgumentError('Target schema names must match');
+      }
     }
     return RecordBatch._(targetSchema, [
       for (var i = 0; i < numColumns; i++)
@@ -161,8 +168,9 @@ final class RecordBatch {
   ];
   bool equals(RecordBatch other, {bool checkMetadata = false}) {
     if (numRows != other.numRows ||
-        !schema.equals(other.schema, checkMetadata: checkMetadata))
+        !schema.equals(other.schema, checkMetadata: checkMetadata)) {
       return false;
+    }
     for (var i = 0; i < numColumns; i++) {
       if (!columns[i].equals(other.columns[i])) return false;
     }
@@ -181,8 +189,9 @@ void _checkTabularOptions(
   Schema? schema,
   Map<Object, Object>? metadata,
 ) {
-  if (schema != null && (names != null || metadata != null))
+  if (schema != null && (names != null || metadata != null)) {
     throw ArgumentError('schema cannot be combined with names or metadata');
+  }
 }
 
 int _tabularSliceLength(int rows, int offset, int? length) {
@@ -199,17 +208,19 @@ RecordBatch recordBatch(
   Map<Object, Object>? metadata,
 }) {
   if (data is Map<String, Object?>) {
-    if (names != null)
+    if (names != null) {
       throw ArgumentError('names is not supported for mappings');
+    }
     return RecordBatch.fromDartMap(data, schema: schema, metadata: metadata);
   }
-  if (data is Iterable<Object?>)
+  if (data is Iterable<Object?>) {
     return RecordBatch.fromArrays(
       data,
       names: names,
       schema: schema,
       metadata: metadata,
     );
+  }
   throw ArgumentError.value(data, 'data', 'Expected mapping or arrays');
 }
 

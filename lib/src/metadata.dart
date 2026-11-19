@@ -85,16 +85,18 @@ final class ByteMetadata extends MapBase<Uint8List, Uint8List> {
   };
   static ByteMetadata? fromJson(Object? value) {
     if (value == null) return null;
-    if (value is! Map)
+    if (value is! Map) {
       throw const FormatException('metadata must be an object');
+    }
     if (value['encoding'] == 'base64' && value['entries'] is List) {
       final result = <Object, Object>{};
       for (final entry in value['entries'] as List) {
         if (entry is! List ||
             entry.length != 2 ||
             entry[0] is! String ||
-            entry[1] is! String)
+            entry[1] is! String) {
           throw const FormatException('Invalid binary metadata entry');
+        }
         result[base64Decode(entry[0] as String)] = base64Decode(
           entry[1] as String,
         );
@@ -103,8 +105,9 @@ final class ByteMetadata extends MapBase<Uint8List, Uint8List> {
     }
     final result = <Object, Object>{};
     for (final entry in value.entries) {
-      if (entry.key is! String || entry.value is! String)
+      if (entry.key is! String || entry.value is! String) {
         throw const FormatException('Legacy metadata must contain strings');
+      }
       result[entry.key as String] = entry.value as String;
     }
     return ByteMetadata(result);

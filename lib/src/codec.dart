@@ -52,8 +52,9 @@ final class OwnedBatchJsonCodec {
       throw const FormatException('Batch JSON exceeds the source-size limit');
     }
     final value = jsonDecode(source);
-    if (value is! Map)
+    if (value is! Map) {
       throw const FormatException('Batch must be a JSON object');
+    }
     return fromJson(value.cast<String, Object?>());
   }
 
@@ -68,8 +69,9 @@ final class OwnedBatchJsonCodec {
           'Owned JSON does not encode nested dictionary storage; use physical Arrow buffers',
         );
       }
-      if (array.dictionary case final dictionary?)
+      if (array.dictionary case final dictionary?) {
         checkDictionaries(dictionary);
+      }
     }
 
     batch.columns.forEach(checkDictionaries);
@@ -172,10 +174,11 @@ final class OwnedBatchJsonCodec {
       );
     }
     final dtype = _dtype(json);
-    if (dtype != field.type)
+    if (dtype != field.type) {
       throw FormatException(
         'Column ${field.name} datatype does not match schema',
       );
+    }
     return _arrayFromParts(dtype, json, budget);
   }
 
@@ -186,8 +189,9 @@ final class OwnedBatchJsonCodec {
 
   DataType _dtype(Map<String, Object?> json) {
     final raw = json['dtype'];
-    if (raw is! Map)
+    if (raw is! Map) {
       throw const FormatException('Column dtype must be an object');
+    }
     return DataType.fromJson(raw.cast<String, Object?>());
   }
 
@@ -202,8 +206,9 @@ final class OwnedBatchJsonCodec {
       throw const FormatException('Column values and validity must be lists');
     }
     final validity = rawValidity.map((v) {
-      if (v is! bool)
+      if (v is! bool) {
         throw const FormatException('Validity entries must be booleans');
+      }
       return v;
     }).toList();
     if (validity.length != _rawValues.length) {
@@ -214,20 +219,23 @@ final class OwnedBatchJsonCodec {
     final values = <_Value?>[];
     for (var i = 0; i < _rawValues.length; i++) {
       if (!validity[i]) {
-        if (_rawValues[i] != null)
+        if (_rawValues[i] != null) {
           throw FormatException('Invalid value at index $i must be null');
+        }
         values.add(null);
       } else {
-        if (_rawValues[i] == null)
+        if (_rawValues[i] == null) {
           throw FormatException('Valid value at index $i is null');
+        }
         values.add(_valueFromJson(dtype, _rawValues[i]));
       }
     }
     Array? dictionary;
     final rawDictionary = json['dictionary'];
     if (rawDictionary != null) {
-      if (rawDictionary is! Map)
+      if (rawDictionary is! Map) {
         throw const FormatException('dictionary must be an object');
+      }
       dictionary = _anonymousArrayFromJson(
         rawDictionary.cast<String, Object?>(),
         budget,
@@ -519,8 +527,9 @@ Object _valueToJson(DataType type, _Value value) {
 
 _Value _valueFromJson(DataType type, Object? json) {
   Map<String, Object?> object() {
-    if (json is! Map)
+    if (json is! Map) {
       throw FormatException('Value for $type must be an object');
+    }
     return json.cast<String, Object?>();
   }
 
@@ -528,15 +537,17 @@ _Value _valueFromJson(DataType type, Object? json) {
     case NullType():
       throw const FormatException('Null datatype cannot contain a valid value');
     case BooleanType():
-      if (json is! bool)
+      if (json is! bool) {
         throw const FormatException('Boolean value must be a boolean');
+      }
       return _BooleanValue(json);
     case IntegerType():
       return _IntegerValue(_canonicalInteger(json, 'Integer value'));
     case final FloatingType floating:
       final bits = object()['floatBits'];
-      if (bits is! String)
+      if (bits is! String) {
         throw const FormatException('floatBits must be a string');
+      }
       return _FloatingValue(
         floating.bitWidth,
         _floatBits(bits, floating.bitWidth),
@@ -546,19 +557,22 @@ _Value _valueFromJson(DataType type, Object? json) {
         _canonicalInteger(object()['unscaled'], 'Decimal unscaled value'),
       );
     case Utf8Type():
-      if (json is! String)
+      if (json is! String) {
         throw const FormatException('String value must be a string');
+      }
       return _StringValue(json);
     case BinaryType():
       final encoded = object()['base64'];
-      if (encoded is! String)
+      if (encoded is! String) {
         throw const FormatException('base64 must be a string');
+      }
       return _BinaryValue(base64Decode(encoded));
     case DateType() || TimestampType() || DurationType() || TimeType():
       return _TemporalValue(_canonicalInteger(json, 'Temporal counter'));
     case final ListType list:
-      if (json is! List)
+      if (json is! List) {
         throw const FormatException('List value must be a list');
+      }
       return _ListValue(
         json
             .map(
@@ -568,8 +582,9 @@ _Value _valueFromJson(DataType type, Object? json) {
             .toList(),
       );
     case final FixedSizeListType list:
-      if (json is! List)
+      if (json is! List) {
         throw const FormatException('Fixed list value must be a list');
+      }
       return _ListValue(
         json
             .map(
@@ -579,20 +594,24 @@ _Value _valueFromJson(DataType type, Object? json) {
             .toList(),
       );
     case final StructType struct:
-      if (json is! List)
+      if (json is! List) {
         throw const FormatException('Struct value must be a list');
-      if (json.length != struct.fields.length)
+      }
+      if (json.length != struct.fields.length) {
         throw const FormatException('Struct field count mismatch');
+      }
       return _StructValue([
         for (var i = 0; i < json.length; i++)
           () {
             final raw = json[i];
-            if (raw is! Map)
+            if (raw is! Map) {
               throw const FormatException('Struct entry must be an object');
+            }
             final entry = raw.cast<String, Object?>();
             final name = entry['name'];
-            if (name is! String)
+            if (name is! String) {
               throw const FormatException('Struct entry name must be a string');
+            }
             final _rawValue = entry['value'];
             return _StructEntry(
               name,
@@ -606,20 +625,24 @@ _Value _valueFromJson(DataType type, Object? json) {
       return _DictionaryIndexValue(_canonicalInteger(json, 'Dictionary index'));
     case FixedSizeBinaryType():
       final encoded = object()['base64'];
-      if (encoded is! String)
+      if (encoded is! String) {
         throw const FormatException('base64 must be a string');
+      }
       return _BinaryValue(base64Decode(encoded));
     case final MapType map:
-      if (json is! List)
+      if (json is! List) {
         throw const FormatException('Map value must be a list');
+      }
       return _MapValue([
         for (final raw in json)
           () {
-            if (raw is! Map)
+            if (raw is! Map) {
               throw const FormatException('Map entry must be an object');
+            }
             final key = raw['key'];
-            if (key == null)
+            if (key == null) {
               throw const FormatException('Map keys cannot be null');
+            }
             final item = raw['value'];
             return _MapEntry(
               _valueFromJson(map.keyField.type, key),
@@ -630,8 +653,9 @@ _Value _valueFromJson(DataType type, Object? json) {
     case final UnionType union:
       final tagged = object();
       final typeId = tagged['typeId'];
-      if (typeId is! int)
+      if (typeId is! int) {
         throw const FormatException('typeId must be an integer');
+      }
       final child = union.childIndexForTypeId(typeId);
       if (child < 0) throw FormatException('Undeclared union type id $typeId');
       final item = tagged['value'];
@@ -665,8 +689,9 @@ _Value _valueFromJson(DataType type, Object? json) {
       return _valueFromJson(ree.valuesField.type, json);
     case final ExtensionType extension:
       final storage = object()['storage'];
-      if (storage == null)
+      if (storage == null) {
         throw const FormatException('Extension storage cannot be null');
+      }
       return _ExtensionValue(_valueFromJson(extension.storageType, storage));
   }
 }

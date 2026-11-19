@@ -57,8 +57,9 @@ Array _castArray(Array source, DataType target, {bool safe = true}) {
       for (var i = 0; i <= source.length; i++) {
         final offset = source._offsetAt(source.offset + i) - start;
         if (width == 4) {
-          if (offset > 0x7fffffff)
+          if (offset > 0x7fffffff) {
             throw ArrowInvalid('List offset exceeds 32-bit capacity');
+          }
           bytes.setInt32(i * width, offset, Endian.little);
         } else {
           _setInt64(bytes, i * width, offset);
@@ -101,10 +102,11 @@ Array _castArray(Array source, DataType target, {bool safe = true}) {
         final index = from.fields.indexWhere(
           (candidate) => candidate.name == field.name,
         );
-        if (index < 0)
+        if (index < 0) {
           throw UnsupportedError(
             'Struct cast cannot introduce field ${field.name}',
           );
+        }
         children.add(
           _castArray(
             source.children[index].slice(source.offset, source.length),
@@ -149,11 +151,12 @@ Array _castArray(Array source, DataType target, {bool safe = true}) {
         indices.add(_DictionaryIndexValue(index));
       }
       final indexType = target.indexType as IntegerType;
-      if (BigInt.from(decoded.length - 1) > indexType.maximum)
+      if (BigInt.from(decoded.length - 1) > indexType.maximum) {
         throw ArrowInvalid(
           'Dictionary of ${decoded.length} values cannot be indexed by '
           '$indexType',
         );
+      }
       return Array._fromRaw(
         target,
         indices,
@@ -185,8 +188,10 @@ Array _castArray(Array source, DataType target, {bool safe = true}) {
 }
 
 Uint8List? _visibleValidity(Array source) {
-  if (source._physicalBuffers.isEmpty || source._physicalBuffers.first == null)
+  if (source._physicalBuffers.isEmpty ||
+      source._physicalBuffers.first == null) {
     return null;
+  }
   final validity = Uint8List((source.length + 7) ~/ 8);
   for (var i = 0; i < source.length; i++) {
     if (source._isValid(i)) validity[i >> 3] |= 1 << (i & 7);
@@ -231,12 +236,14 @@ _Value? _castRaw(
     return result == null ? null : _ExtensionValue(result);
   }
   if (raw is _TemporalValue) {
-    if (target is IntegerType)
+    if (target is IntegerType) {
       return _nativeRaw(raw.value, target, safe: safe, casting: true);
+    }
     if (source is TimeType && target is TimestampType ||
         source is DurationType && target is TimestampType ||
-        source is TimestampType && target is DurationType)
+        source is TimestampType && target is DurationType) {
       throw UnsupportedError('Unsupported cast from $source to $target');
+    }
     final temporal = switch (source) {
       DateType t => TemporalValue(
         raw.value,
@@ -276,8 +283,9 @@ _Value? _castRaw(
     final to = target is ListType
         ? target.field
         : (target as FixedSizeListType).field;
-    if (target is FixedSizeListType && raw.values.length != target.size)
+    if (target is FixedSizeListType && raw.values.length != target.size) {
       throw ArgumentError('Fixed-size list length mismatch');
+    }
     return _ListValue([
       for (final child in raw.values)
         _castRaw(child, from.type, to.type, safe, dictionary),
@@ -315,10 +323,11 @@ _Value? _castRaw(
     final result = <_StructEntry>[];
     for (final field in target.fields) {
       final index = source.fields.indexWhere((f) => f.name == field.name);
-      if (index < 0)
+      if (index < 0) {
         throw UnsupportedError(
           'Struct cast cannot introduce field ${field.name}',
         );
+      }
       result.add(
         _StructEntry(
           field.name,
@@ -351,12 +360,14 @@ BigInt _conversionInteger(Object value) {
 BigInt _rescale(BigInt value, int from, int to, bool safe) {
   final difference = to - from;
   if (difference == 0) return value;
-  if (difference.abs() > 10000)
+  if (difference.abs() > 10000) {
     throw ArgumentError('Scale difference exceeds supported value range');
+  }
   final factor = BigInt.from(10).pow(difference.abs());
   if (difference > 0) return value * factor;
-  if (safe && value.remainder(factor) != BigInt.zero)
+  if (safe && value.remainder(factor) != BigInt.zero) {
     throw ArgumentError('Conversion would lose precision');
+  }
   return value ~/ factor;
 }
 
@@ -387,16 +398,18 @@ _Value? _nativeRaw(
   if (type is NullType) throw ArgumentError('Non-null value for null datatype');
   if (type is BooleanType) {
     if (value is bool) return _BooleanValue(value);
-    if (casting && (value is num || value is BigInt))
+    if (casting && (value is num || value is BigInt)) {
       return _BooleanValue(value != 0 && value != BigInt.zero);
+    }
   }
   if (type is IntegerType) {
     BigInt n;
     if (_isHostInteger(value)) {
       n = _conversionInteger(value);
     } else if (value is double) {
-      if (!value.isFinite || (safe && value.truncateToDouble() != value))
+      if (!value.isFinite || (safe && value.truncateToDouble() != value)) {
         throw ArgumentError('Float cannot be represented as integer');
+      }
       n = BigInt.from(value);
     } else if (casting && value is bool) {
       n = value ? BigInt.one : BigInt.zero;
@@ -410,10 +423,11 @@ _Value? _nativeRaw(
       throw ArgumentError('Cannot convert $value to integer');
     }
     if (n < type.minimum || n > type.maximum) {
-      if (!casting || safe)
+      if (!casting || safe) {
         throw ArgumentError(
           'Integer $n outside ${type.minimum}..${type.maximum}',
         );
+      }
       final modulus = BigInt.one << type.bitWidth;
       n = n % modulus;
       if (type.signed && n > type.maximum) n -= modulus;
@@ -438,8 +452,9 @@ _Value? _nativeRaw(
     final integral = _isHostInteger(value);
     if ((safe || !casting) &&
         integral &&
-        (!n.isFinite || BigInt.from(n) != _conversionInteger(value)))
+        (!n.isFinite || BigInt.from(n) != _conversionInteger(value))) {
       throw ArgumentError('Integer is not exactly representable as float');
+    }
     if ((safe || !casting) && integral) {
       final significantBits = type.bitWidth == 64
           ? 53
@@ -447,10 +462,11 @@ _Value? _nativeRaw(
           ? 24
           : 11;
       final bound = BigInt.one << significantBits;
-      if (_conversionInteger(value).abs() > bound)
+      if (_conversionInteger(value).abs() > bound) {
         throw ArgumentError(
           'Integer outside exactly representable floating range',
         );
+      }
     }
     if (type.bitWidth == 64) return _FloatingValue.float64(n);
     if (type.bitWidth == 32) return _FloatingValue.float32(n);
@@ -459,10 +475,12 @@ _Value? _nativeRaw(
   if (type is Utf8Type) {
     if (value is String) return _StringValue(value);
     if (casting && value is Uint8List) return _StringValue(utf8.decode(value));
-    if (casting && value is DecimalValue)
+    if (casting && value is DecimalValue) {
       return _StringValue(_decimalText(value.unscaled, value.scale));
-    if (casting && (value is num || value is BigInt || value is bool))
+    }
+    if (casting && (value is num || value is BigInt || value is bool)) {
       return _StringValue(value.toString());
+    }
   }
   if (type is BinaryType || type is FixedSizeBinaryType) {
     final bytes = value is List<int>
@@ -558,8 +576,9 @@ _Value? _nativeRaw(
     } else {
       throw ArgumentError('Expected exact decimal or integer');
     }
-    if (unscaled.abs().toString().length > type.precision)
+    if (unscaled.abs().toString().length > type.precision) {
       throw ArgumentError('Decimal exceeds precision ${type.precision}');
+    }
     return _DecimalValue(unscaled);
   }
   if (type is DateType ||
@@ -625,8 +644,9 @@ _Value? _nativeRaw(
       if (unit == null) {
         final micros = _rescale(counter, scale, 6, safe);
         final day = BigInt.from(86400000000);
-        if (safe && micros.remainder(day) != BigInt.zero)
+        if (safe && micros.remainder(day) != BigInt.zero) {
           throw ArgumentError('Date conversion loses time of day');
+        }
         n = micros ~/ day;
       } else {
         n = _rescale(counter, scale, _unitScale(unit), safe);
@@ -659,8 +679,9 @@ _Value? _nativeRaw(
     final field = type is ListType
         ? type.field
         : (type as FixedSizeListType).field;
-    if (type is FixedSizeListType && value.length != type.size)
+    if (type is FixedSizeListType && value.length != type.size) {
       throw ArgumentError('Fixed-size list length mismatch');
+    }
     return _ListValue([
       for (final child in value)
         _nativeRaw(child, field.type, safe: safe, casting: casting),

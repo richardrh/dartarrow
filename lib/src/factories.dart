@@ -32,15 +32,17 @@ Array array(
       }
       return source;
     }
-    if (values is! Iterable)
+    if (values is! Iterable) {
       throw ArrowTypeError('Expected iterable, Array, or ChunkedArray');
+    }
     if (size != null && size < 0) throw ArgumentError.value(size, 'size');
     final List<Object?> input = values is List
         ? values.cast<Object?>()
         : (size == null ? values : values.take(size)).cast<Object?>().toList();
     final flags = mask is List<bool> ? mask : mask?.toList();
-    if (flags != null && flags.length != input.length)
+    if (flags != null && flags.length != input.length) {
       throw ArgumentError('Mask length must match values');
+    }
     Object? at(int i) => flags != null && flags[i] ? null : input[i];
     final dtype = type ?? _inferNativeType(Iterable.generate(input.length, at));
     if (dtype is DictionaryType) {
@@ -61,8 +63,9 @@ Array array(
       }
       var indexType = dtype.indexType as IntegerType;
       while (BigInt.from(unique.length - 1) > indexType.maximum) {
-        if (indexType.bitWidth >= 64)
+        if (indexType.bitWidth >= 64) {
           throw ArgumentError('Dictionary exceeds index capacity');
+        }
         indexType = IntegerType(
           indexType.bitWidth * 2,
           signed: indexType.signed,
@@ -235,8 +238,9 @@ class _NativeTypeInference {
     } else if (value is DecimalValue) {
       if (scale == null || value.scale > scale!) scale = value.scale;
       final digits = value.unscaled.abs().toString().length - value.scale;
-      if (integerDigits == null || digits > integerDigits!)
+      if (integerDigits == null || digits > integerDigits!) {
         integerDigits = digits;
+      }
     }
   }
 

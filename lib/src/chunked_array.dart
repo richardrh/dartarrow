@@ -17,12 +17,14 @@ final class ChunkedArray {
         );
       }
       type ??= value.type;
-      if (value.type != type)
+      if (value.type != type) {
         throw ArrowTypeError('All chunks must have the same type');
+      }
       result.add(value);
     }
-    if (type == null)
+    if (type == null) {
       throw ArrowInvalid('An empty chunk collection requires a type');
+    }
     return ChunkedArray._(List.unmodifiable(result), type);
   }
   ChunkedArray._(this.chunks, this.type) {
@@ -91,8 +93,9 @@ final class ChunkedArray {
 
   ChunkedArray slice([int offset = 0, int? length]) {
     if (offset < 0) throw RangeError.value(offset, 'offset');
-    if (length != null && length < 0)
+    if (length != null && length < 0) {
       throw ArgumentError.value(length, 'length');
+    }
     var skip = offset;
     var remaining = length ?? this.length;
     final result = <Array>[];
@@ -110,8 +113,9 @@ final class ChunkedArray {
       skip = 0;
       if (remaining == 0) break;
     }
-    if (result.isEmpty && chunks.isNotEmpty)
+    if (result.isEmpty && chunks.isNotEmpty) {
       result.add(chunks.last.slice(chunks.last.length, 0));
+    }
     return ChunkedArray._(List.unmodifiable(result), type);
   }
 
@@ -140,8 +144,9 @@ final class ChunkedArray {
       final size = left.length - ai < right.length - bi
           ? left.length - ai
           : right.length - bi;
-      if (size > 0 && !left.slice(ai, size).equals(right.slice(bi, size)))
+      if (size > 0 && !left.slice(ai, size).equals(right.slice(bi, size))) {
         return false;
+      }
       ai += size;
       bi += size;
       if (ai == left.length) {

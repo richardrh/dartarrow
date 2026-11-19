@@ -14,8 +14,9 @@ final class DecimalValue {
     final fraction = match[3] ?? match[4] ?? '';
     final digits = '${match[2] ?? '0'}$fraction';
     final exponent = int.tryParse(match[5] ?? '0');
-    if (exponent == null)
+    if (exponent == null) {
       throw FormatException('Decimal exponent out of range', source);
+    }
     final scale = BigInt.from(fraction.length) - BigInt.from(exponent);
     if (scale < _minInt || scale > _maxInt) {
       throw FormatException('Decimal scale out of range', source);
@@ -269,8 +270,9 @@ class Scalar {
           childType,
           raw.values[i],
           i,
-        ).equals(other._child(childType, right.values[i], i)))
+        ).equals(other._child(childType, right.values[i], i))) {
           return false;
+        }
       }
       return true;
     }
@@ -284,8 +286,9 @@ class Scalar {
           struct: true,
         ).equals(
           other._child(fields[i].type, right.fields[i].value, i, struct: true),
-        ))
+        )) {
           return false;
+        }
       }
       return true;
     }
@@ -498,8 +501,9 @@ final class DictionaryScalar extends Scalar {
         : _IntegerValue((_rawValue as _DictionaryIndexValue).index),
   );
   Scalar get value {
-    if (!isValid)
+    if (!isValid) {
       return Scalar._fromRaw((type as DictionaryType).valueType, null);
+    }
     final position = (_rawValue as _DictionaryIndexValue).index;
     if (position.isNegative || position >= BigInt.from(dictionary.length)) {
       throw RangeError('Dictionary index $position is out of bounds');
@@ -592,10 +596,11 @@ double _floating(_FloatingValue value) {
     final negative = bits & 0x8000 != 0;
     final exponent = (bits >> 10) & 31;
     final fraction = bits & 1023;
-    if (exponent == 31)
+    if (exponent == 31) {
       return fraction == 0
           ? (negative ? double.negativeInfinity : double.infinity)
           : double.nan;
+    }
     final magnitude = exponent == 0
         ? fraction * math.pow(2, -24).toDouble()
         : (1024 + fraction) * math.pow(2, exponent - 25).toDouble();

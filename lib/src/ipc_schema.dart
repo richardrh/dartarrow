@@ -124,8 +124,8 @@ _FbTableObject _ipcFieldTable(_IpcField descriptor) {
   final metadata = <MapEntry<List<int>, List<int>>>[
     ...?field.metadata?.entries,
   ];
-  if (field.metadata?[_ipcExtensionName] != null ||
-      field.metadata?[_ipcExtensionMetadata] != null) {
+  if (field.metadata?[utf8.encode(_ipcExtensionName)] != null ||
+      field.metadata?[utf8.encode(_ipcExtensionMetadata)] != null) {
     throw ArgumentError(
       'Use ExtensionType instead of reserved extension metadata keys',
     );

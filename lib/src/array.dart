@@ -6,7 +6,9 @@ final class Array {
   /// A lazy scalar view; separate from [cast] because Dart's Iterable.cast
   /// has an incompatible generic signature.
   Iterable<Scalar> get scalars sync* {
-    for (var i = 0; i < length; i++) yield this[i];
+    for (var i = 0; i < length; i++) {
+      yield this[i];
+    }
   }
 
   factory Array._fromRaw(
@@ -16,11 +18,13 @@ final class Array {
     Array? dictionary,
   }) {
     if (validity != null) {
-      if (validity.length != values.length)
+      if (validity.length != values.length) {
         throw ArgumentError('Validity length mismatch');
+      }
       for (var i = 0; i < values.length; i++) {
-        if (validity[i] != (values[i] != null))
+        if (validity[i] != (values[i] != null)) {
           throw ArgumentError('Validity and values disagree at $i');
+        }
       }
     }
     final dt = _dictionaryType(type);
@@ -313,8 +317,9 @@ final class Array {
   /// Constant-time view; shares _physicalBuffers, children and dictionary without scans.
   Array slice([int offset = 0, int? length]) {
     if (offset < 0) throw RangeError.value(offset, 'offset');
-    if (length != null && length < 0)
+    if (length != null && length < 0) {
       throw ArgumentError.value(length, 'length');
+    }
     if (offset > this.length) offset = this.length;
     final available = this.length - offset;
     final size = length == null || length > available ? available : length;
@@ -355,7 +360,9 @@ final class Array {
   void validate({bool full = false}) {
     _validate();
     if (full) {
-      for (final child in children) child.validate(full: true);
+      for (final child in children) {
+        child.validate(full: true);
+      }
       dictionary?.validate(full: true);
     }
   }
@@ -387,7 +394,7 @@ final class Array {
     final i = offset + index;
     _Value decode(DataType t) {
       if (t is ExtensionType) return _ExtensionValue(decode(t.storageType));
-      if (t is DictionaryType)
+      if (t is DictionaryType) {
         return _DictionaryIndexValue(
           _readInteger(
             _data,
@@ -396,19 +403,23 @@ final class Array {
             (t.indexType as IntegerType).signed,
           ),
         );
-      if (t is BooleanType)
+      }
+      if (t is BooleanType) {
         return _BooleanValue(
           _physicalBuffers[1]![i >> 3] & (1 << (i & 7)) != 0,
         );
-      if (t is IntegerType)
+      }
+      if (t is IntegerType) {
         return _IntegerValue(
           _readInteger(_data, i * (t.bitWidth ~/ 8), t.bitWidth ~/ 8, t.signed),
         );
-      if (t is FloatingType)
+      }
+      if (t is FloatingType) {
         return _FloatingValue(
           t.bitWidth,
           _readInteger(_data, i * (t.bitWidth ~/ 8), t.bitWidth ~/ 8, false),
         );
+      }
       if (t is DecimalType) {
         final width = t.bitWidth ~/ 8;
         return _DecimalValue(_readInteger(_data, i * width, width, true));
@@ -424,19 +435,22 @@ final class Array {
             ? _StringValue(utf8.decode(bytes))
             : _BinaryValue(bytes);
       }
-      if (t is ListType)
+      if (t is ListType) {
         return _ListValue(
           children[0]
               .slice(_offsetAt(i), _offsetAt(i + 1) - _offsetAt(i))
               ._rawValues,
         );
-      if (t is FixedSizeListType)
+      }
+      if (t is FixedSizeListType) {
         return _ListValue(children[0].slice(i * t.size, t.size)._rawValues);
-      if (t is StructType)
+      }
+      if (t is StructType) {
         return _StructValue([
           for (var c = 0; c < children.length; c++)
             _StructEntry(t.fields[c].name, children[c]._rawValue(i)),
         ]);
+      }
       return _TemporalValue(
         _readInteger(_data, i * _byteWidth(t), _byteWidth(t), true),
       );
@@ -446,8 +460,9 @@ final class Array {
   }
 
   void _validate() {
-    if (length < 0 || offset < 0)
+    if (length < 0 || offset < 0) {
       throw ArgumentError('Negative length or offset');
+    }
     final t = _storage;
     final end = offset + length;
     if (end < offset) throw ArgumentError('Array offset plus length overflows');
@@ -465,24 +480,29 @@ final class Array {
         : 2;
     if (_isView(t)
         ? _physicalBuffers.length < slots
-        : _physicalBuffers.length != slots)
+        : _physicalBuffers.length != slots) {
       throw ArgumentError('Expected $slots buffers for $type');
+    }
     if (slots > 0 &&
         _physicalBuffers[0] != null &&
-        _physicalBuffers[0]!.length < bitmapBytes)
+        _physicalBuffers[0]!.length < bitmapBytes) {
       throw ArgumentError('Truncated validity bitmap');
+    }
     void requireBuffer(int slot, int count, [int width = 1]) {
       if (_physicalBuffers[slot] == null ||
-          _physicalBuffers[slot]!.length ~/ width < count)
+          _physicalBuffers[slot]!.length ~/ width < count) {
         throw ArgumentError('Truncated buffer $slot');
+      }
     }
 
     final fields = _childFields(t);
-    if (children.length != fields.length)
+    if (children.length != fields.length) {
       throw ArgumentError('Incorrect child count');
+    }
     for (var c = 0; c < fields.length; c++) {
-      if (children[c].type != fields[c].type)
+      if (children[c].type != fields[c].type) {
         throw ArgumentError('Child datatype mismatch');
+      }
     }
     if (_isExtendedStorage(t)) {
       _validateExtended(this, t, end);
@@ -499,31 +519,38 @@ final class Array {
       if (previous < 0) throw ArgumentError('Negative offset');
       for (var i = offset + 1; i <= end; i++) {
         final next = _offsetAt(i);
-        if (next < previous || next > limit)
+        if (next < previous || next > limit) {
           throw ArgumentError('Invalid offsets');
+        }
         previous = next;
       }
       if (previous > limit) throw ArgumentError('Offset exceeds storage');
     } else if (t is BooleanType) {
       requireBuffer(1, bitmapBytes);
     } else if (t is FixedSizeListType) {
-      if (t.size != 0 && children[0].length ~/ t.size < end)
+      if (t.size != 0 && children[0].length ~/ t.size < end) {
         throw ArgumentError('Truncated list child');
+      }
     } else if (t is StructType) {
-      if (children.any((c) => c.length < end))
+      if (children.any((c) => c.length < end)) {
         throw ArgumentError('Truncated struct child');
+      }
     } else if (t is! NullType) {
       requireBuffer(1, end, _byteWidth(t));
     }
     final dt = _dictionaryType(type);
-    if (dt == null && dictionary != null)
+    if (dt == null && dictionary != null) {
       throw ArgumentError('Unexpected dictionary');
-    if (dt != null && (dictionary == null || dictionary!.type != dt.valueType))
+    }
+    if (dt != null &&
+        (dictionary == null || dictionary!.type != dt.valueType)) {
       throw ArgumentError('Dictionary datatype mismatch');
+    }
     if (t is FixedSizeListType && t.size == 0) return;
     // Semantic invariants not expressible by buffer sizes alone.
-    if (dt == null && t is! Utf8Type && t is! TimeType && t is! DecimalType)
+    if (dt == null && t is! Utf8Type && t is! TimeType && t is! DecimalType) {
       return;
+    }
     for (var i = 0; i < length; i++) {
       if (!_isValid(i)) continue;
       if (dt != null) {
@@ -533,11 +560,13 @@ final class Array {
           _byteWidth(t),
           (dt.indexType as IntegerType).signed,
         );
-        if (index.isNegative || index >= BigInt.from(dictionary!.length))
+        if (index.isNegative || index >= BigInt.from(dictionary!.length)) {
           throw RangeError('Dictionary index out of bounds');
+        }
       }
-      if (t is Utf8Type || t is TimeType || t is DecimalType)
+      if (t is Utf8Type || t is TimeType || t is DecimalType) {
         _validateRawValue(type, _rawValue(i)!);
+      }
     }
   }
 }
@@ -590,8 +619,9 @@ int _byteWidth(DataType t) {
   if (t is FixedSizeBinaryType) return t.byteWidth;
   if (t is IntervalType) return _intervalWidth(t);
   if (t is DateType) return t.unit == DateUnit.day ? 4 : 8;
-  if (t is TimeType)
+  if (t is TimeType) {
     return t.unit == TimeUnit.second || t.unit == TimeUnit.millisecond ? 4 : 8;
+  }
   return 8;
 }
 
@@ -710,8 +740,9 @@ Array _encode(DataType type, List<_Value?> input, Array? dictionary) {
     for (var i = 0; i < n; i++) {
       final v = input[i] as _ListValue?;
       if (v != null) childValues.addAll(v.values);
-      if (v == null && type is FixedSizeListType)
+      if (v == null && type is FixedSizeListType) {
         childValues.addAll(List.filled(type.size, null));
+      }
       offsets?.add(childValues.length);
     }
     if (offsets != null) {
@@ -742,8 +773,9 @@ Array _encode(DataType type, List<_Value?> input, Array? dictionary) {
   } else if (type is BooleanType) {
     final data = Uint8List((n + 7) ~/ 8);
     for (var i = 0; i < n; i++) {
-      if ((input[i] as _BooleanValue?)?.value == true)
+      if ((input[i] as _BooleanValue?)?.value == true) {
         data[i >> 3] |= 1 << (i & 7);
+      }
     }
     _physicalBuffers.add(data);
   } else {
@@ -790,8 +822,9 @@ void _validateRawValue(DataType type, _Value value, {String path = 'value'}) {
         );
       }
     case final FloatingType floating:
-      if (value is! _FloatingValue || value.bitWidth != floating.bitWidth)
+      if (value is! _FloatingValue || value.bitWidth != floating.bitWidth) {
         mismatch();
+      }
     case final DecimalType decimal:
       if (value is! _DecimalValue) mismatch();
       final limit = BigInt.one << (decimal.bitWidth - 1);
@@ -913,8 +946,9 @@ Array concatArrays(List<Array> arrays) {
   if (arrays.isEmpty) throw ArgumentError('At least one array is required');
   if (arrays.length == 1) return arrays.single;
   final type = arrays.first.type;
-  if (arrays.any((a) => a.type != type))
+  if (arrays.any((a) => a.type != type)) {
     throw ArgumentError('Array types must match');
+  }
   var length = 0;
   for (final array in arrays) {
     length = _checkedLengthAdd(length, array.length);
@@ -1051,8 +1085,9 @@ Array concatArrays(List<Array> arrays) {
 }
 
 Array _concatLeaf(List<Array> arrays, DataType type, int length) {
-  if (type is NullType)
+  if (type is NullType) {
     return Array._(type, length, 0, const [], const [], null);
+  }
   Uint8List? validity;
   if (arrays.any((a) => a.nullCount != 0)) {
     validity = Uint8List((length + 7) ~/ 8);
@@ -1221,8 +1256,9 @@ bool _elementEquals(
         right.children[c],
         right.offset + ri,
         dictionaries,
-      ))
+      )) {
         return false;
+      }
     }
     return true;
   }
@@ -1262,8 +1298,9 @@ bool _elementEquals(
         right.children.single,
         rs + i,
         dictionaries,
-      ))
+      )) {
         return false;
+      }
     }
     return true;
   }
@@ -1295,8 +1332,9 @@ bool _rawEquals(DataType type, _Value? left, _Value? right) {
             type.valueField.type,
             left.entries[i].value,
             right.entries[i].value,
-          ))
+          )) {
         return false;
+      }
     }
     return true;
   }
@@ -1324,8 +1362,9 @@ bool _rawEquals(DataType type, _Value? left, _Value? right) {
         type.fields[i].type,
         left.fields[i].value,
         right.fields[i].value,
-      ))
+      )) {
         return false;
+      }
     }
     return true;
   }

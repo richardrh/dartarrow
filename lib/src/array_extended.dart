@@ -382,8 +382,9 @@ Array _encodeExtended(DataType type, List<_Value?> input) {
       final data = Uint8List(n * byteWidth);
       for (var i = 0; i < n; i++) {
         final v = input[i] as _BinaryValue?;
-        if (v != null)
+        if (v != null) {
           data.setRange(i * byteWidth, (i + 1) * byteWidth, v.bytes);
+        }
       }
       return _owned(type, n, [_validityBits(input), data]);
     case IntervalType():

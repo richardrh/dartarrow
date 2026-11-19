@@ -1,3 +1,6 @@
+// ByteMetadata looks String keys up by their UTF-8 bytes.
+// ignore_for_file: collection_methods_unrelated_type
+
 import 'dart:typed_data';
 
 import 'package:dartarrow/arrow.dart' as pa;
