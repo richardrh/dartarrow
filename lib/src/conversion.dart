@@ -255,6 +255,9 @@ _Value? _castRaw(
     };
     return _nativeRaw(temporal, target, safe: safe, casting: true);
   }
+  if (raw is _FloatingValue && target is Utf8Type) {
+    return _StringValue(_formatFloat(raw));
+  }
   if (raw is _DecimalValue && source is DecimalType) {
     return _nativeRaw(
       DecimalValue(raw.unscaled, source.scale),
@@ -741,6 +744,111 @@ String _decimalText(BigInt unscaled, int scale) {
   final fraction = digits.length > 1 ? '.${digits.substring(1)}' : '';
   final exponent = adjusted >= 0 ? '+$adjusted' : '$adjusted';
   return '$sign${digits[0]}${fraction}E$exponent';
+}
+
+/// Arrow's float-to-string cast: double-conversion shortest round-trip
+/// digits (as float32 for float32 values, as float64 otherwise), fixed
+/// notation for decimal exponents in (-6, 10], else `d.ddde±x`.
+String _formatFloat(_FloatingValue raw) {
+  final value = _floating(raw);
+  if (value.isNaN) return 'nan';
+  final sign = value.isNegative ? '-' : '';
+  if (value.isInfinite) return '${sign}inf';
+  if (value == 0) return '${sign}0';
+  final (digits, point) = raw.bitWidth == 32
+      ? _shortestFloat32(raw.bits.toInt())
+      : _shortestDigits(value.abs());
+  String body;
+  if (point > -6 && point <= 10) {
+    if (point <= 0) {
+      body = '0.${'0' * -point}$digits';
+    } else if (point >= digits.length) {
+      body = '$digits${'0' * (point - digits.length)}';
+    } else {
+      body = '${digits.substring(0, point)}.${digits.substring(point)}';
+    }
+  } else {
+    final exponent = point - 1;
+    final fraction = digits.length > 1 ? '.${digits.substring(1)}' : '';
+    body = '${digits[0]}${fraction}e${exponent >= 0 ? '+' : ''}$exponent';
+  }
+  return '$sign$body';
+}
+
+/// Shortest round-trip digits of a positive finite double (Dart's `toString`
+/// is shortest round-trip on every platform), as (digits, decimal point):
+/// value = 0.digits × 10^point.
+(String, int) _shortestDigits(double value) {
+  final text = value.toString();
+  final e = text.indexOf('e');
+  final mantissa = e < 0 ? text : text.substring(0, e);
+  final exponent = e < 0 ? 0 : int.parse(text.substring(e + 1));
+  final dot = mantissa.indexOf('.');
+  var digits = mantissa.replaceFirst('.', '');
+  var point = (dot < 0 ? mantissa.length : dot) + exponent;
+  final leading = digits.length - digits.replaceFirst(RegExp('^0+'), '').length;
+  digits = digits.substring(leading);
+  point -= leading;
+  return (digits.replaceFirst(RegExp(r'0+$'), ''), point);
+}
+
+/// Shortest decimal digits that round-trip to the float32 with [bits]
+/// (positive, finite, non-zero), choosing the closest such candidate, as
+/// double-conversion's `ToShortestSingle` does. Exact BigInt arithmetic.
+(String, int) _shortestFloat32(int bits) {
+  final biased = (bits >> 23) & 0xff;
+  final fraction = bits & 0x7fffff;
+  final m = biased == 0 ? fraction : fraction | 0x800000;
+  final e = biased == 0 ? -149 : biased - 150;
+  // Work in units of 2^(e-2): value = 4m, neighbours' midpoints at ±2 (or
+  // -1 below a power of two whose predecessor has a smaller exponent).
+  final value = BigInt.from(4 * m);
+  final high = BigInt.from(4 * m + 2);
+  final low = BigInt.from(fraction == 0 && biased > 1 ? 4 * m - 1 : 4 * m - 2);
+  final inclusive = m.isEven;
+  final ten = BigInt.from(10);
+  final binaryUp = e - 2 > 0 ? BigInt.one << (e - 2) : BigInt.one;
+  final binaryDown = e - 2 < 0 ? BigInt.one << (2 - e) : BigInt.one;
+  // Compare d·10^s against x·2^(e-2) as integers.
+  BigInt left(BigInt d, int s) =>
+      d * (s > 0 ? ten.pow(s) : BigInt.one) * binaryDown;
+  BigInt right(BigInt x, int s) =>
+      x * (s < 0 ? ten.pow(-s) : BigInt.one) * binaryUp;
+  var k = (math.log(m * math.pow(2.0, e)) / math.ln10).floor();
+  while (left(BigInt.one, k) > right(value, k)) {
+    k--;
+  }
+  while (left(BigInt.one, k + 1) <= right(value, k + 1)) {
+    k++;
+  }
+  for (var precision = 1; ; precision++) {
+    final s = k - precision + 1;
+    final floor = right(value, s) ~/ left(BigInt.one, s);
+    BigInt? best;
+    BigInt? bestDistance;
+    for (final candidate in [floor, floor + BigInt.one]) {
+      final scaled = left(candidate, s);
+      final lowBound = right(low, s);
+      final highBound = right(high, s);
+      final inside = inclusive
+          ? scaled >= lowBound && scaled <= highBound
+          : scaled > lowBound && scaled < highBound;
+      if (!inside) continue;
+      final distance = (scaled - right(value, s)).abs();
+      // Exact ties take the even candidate, matching double-conversion.
+      if (bestDistance == null ||
+          distance < bestDistance ||
+          distance == bestDistance && candidate.isEven) {
+        best = candidate;
+        bestDistance = distance;
+      }
+    }
+    if (best != null) {
+      final text = best.toString();
+      final point = k + 1 + (text.length - precision);
+      return (text.replaceFirst(RegExp(r'0+$'), ''), point);
+    }
+  }
 }
 
 double _pow10(int exponent) {

@@ -195,6 +195,84 @@ void main() {
     });
   });
 
+  // Expected values: PyArrow 26.0.0 float -> string casts.
+  group('float to string', () {
+    test('float64 matches Arrow formatting', () {
+      expect(
+        _strings(
+          pa.array([
+            1.0,
+            double.nan,
+            double.infinity,
+            double.negativeInfinity,
+            -0.0,
+            1e15,
+            1e16,
+            123456789012345680.0,
+            1e-5,
+            1e-4,
+            1e-7,
+            1.5e300,
+            5e-324,
+            100.0,
+            1234.5,
+          ], type: pa.float64()),
+        ),
+        [
+          '1',
+          'nan',
+          'inf',
+          '-inf',
+          '-0',
+          '1e+15',
+          '1e+16',
+          '1.2345678901234568e+17',
+          '0.00001',
+          '0.0001',
+          '1e-7',
+          '1.5e+300',
+          '5e-324',
+          '100',
+          '1234.5',
+        ],
+      );
+    });
+
+    test('float32 uses the shortest float32 round-trip digits', () {
+      expect(
+        _strings(
+          pa.array([
+            0.1,
+            16777216.0,
+            3.4028234663852886e38,
+            1e-10,
+            -20906.4375,
+            482830.125,
+            1e9,
+            1e10,
+          ], type: pa.float32()),
+        ),
+        [
+          '0.1',
+          '16777216',
+          '3.4028235e+38',
+          '1e-10',
+          '-20906.438',
+          '482830.12',
+          '1000000000',
+          '1e+10',
+        ],
+      );
+    });
+
+    test('float16 formats its exact value as a double', () {
+      expect(_strings(pa.array([0.1, 65504.0], type: pa.float16())), [
+        '0.0999755859375',
+        '65504',
+      ]);
+    });
+  });
+
   // Expected values: PyArrow 26.0.0 `pa.scalar(-0.0)` / `pa.scalar(-inf)`
   // infer double; web-relevant, also hold on the VM.
   group('host numbers', () {
