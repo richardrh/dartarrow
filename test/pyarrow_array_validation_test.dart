@@ -145,4 +145,95 @@ void main() {
       ),
     );
   });
+
+  group('dictionary unification by representation', () {
+    pa.Array dict(List<int?> indices, List<Object?> values, pa.DataType t) =>
+        pa.Array.fromDictionary(
+          pa.array(indices, type: pa.int32()),
+          pa.array(values, type: t),
+        );
+    List<Object?> indicesOf(pa.Array a) =>
+        pa.Array.fromBuffers(pa.int32(), a.length, a.buffers()).toDartList();
+    String signs(List<Object?> values) => [
+      for (final v in values)
+        v == null
+            ? 'null'
+            : (v as double).isNaN
+            ? 'nan'
+            : '${v.isNegative ? '-' : '+'}${v.abs().toStringAsFixed(1)}',
+    ].join(',');
+
+    // PyArrow 26.0.0 concat_arrays and chunked_array(...).combine_chunks() of
+    // float64 dicts [nan, 0.0] idx [0,1,None] + [nan, -0.0, 1.0]
+    // idx [0,1,2,1,0] -> dictionary [nan, 0.0, -0.0, 1.0],
+    // indices [0, 1, None, 0, 2, 3, 2, 0].
+    for (final combine in [false, true]) {
+      test('NaN unifies, signed zeros survive (combine: $combine)', () {
+        final a = dict([0, 1, null], [double.nan, 0.0], pa.float64());
+        final b = dict([0, 1, 2, 1, 0], [double.nan, -0.0, 1.0], pa.float64());
+        final r = combine
+            ? pa.chunkedArray([a, b]).combineChunks()
+            : pa.concatArrays([a, b]);
+        expect(signs(r.dictionary!.toDartList()), 'nan,+0.0,-0.0,+1.0');
+        expect(indicesOf(r), [0, 1, null, 0, 2, 3, 2, 0]);
+        expect(signs(r.toDartList()), 'nan,+0.0,null,nan,-0.0,+1.0,-0.0,nan');
+      });
+    }
+
+    // PyArrow 26.0.0 float64 dicts [-0.0, 0.0, 5.0] + [0.0, -0.0], both idx
+    // [0,1] -> dictionary [-0.0, 0.0, 5.0], indices [0, 1, 1, 0].
+    test('-0.0 first keeps both zeros', () {
+      final r = pa.concatArrays([
+        dict([0, 1], [-0.0, 0.0, 5.0], pa.float64()),
+        dict([0, 1], [0.0, -0.0], pa.float64()),
+      ]);
+      expect(signs(r.dictionary!.toDartList()), '-0.0,+0.0,+5.0');
+      expect(indicesOf(r), [0, 1, 1, 0]);
+      expect(signs(r.toDartList()), '-0.0,+0.0,+0.0,-0.0');
+    });
+
+    // PyArrow 26.0.0 raises NotImplemented for list<double> unification; the
+    // expectation applies its float64 result ([nan, 0.0, -0.0] dictionary)
+    // to list elements by representation.
+    test('list<float64> entries unify by representation', () {
+      final t = pa.listType(pa.float64());
+      final r = pa.concatArrays([
+        dict(
+          [0, 1],
+          [
+            [double.nan],
+            [0.0],
+          ],
+          t,
+        ),
+        dict(
+          [0, 1, 2],
+          [
+            [double.nan],
+            [-0.0],
+            [0.0],
+          ],
+          t,
+        ),
+      ]);
+      expect(r.dictionary!.length, 3);
+      expect(indicesOf(r), [0, 1, 0, 2, 1]);
+      expect(
+        signs([for (final v in r.toDartList()) (v! as List).single]),
+        'nan,+0.0,nan,-0.0,+0.0',
+      );
+    });
+
+    // PyArrow 26.0.0: float64 dicts [nan, nan] + [nan] -> dictionary [nan],
+    // indices [0, 0, 0].
+    test('40,000 NaN dictionary entries unify to one', () {
+      const n = 40000;
+      final r = pa.concatArrays([
+        dict([0, n - 1], List.filled(n, double.nan), pa.float64()),
+        dict([0], [double.nan], pa.float64()),
+      ]);
+      expect(r.dictionary!.length, 1);
+      expect(indicesOf(r), [0, 0, 0]);
+    });
+  });
 }
