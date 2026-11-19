@@ -29,8 +29,15 @@ final class _IpcBlock {
 
 // ------------------------------------------------------------ decoding ----
 
-_IpcMessage _ipcParseMessage(Uint8List metadata, Uint8List body) {
-  final message = _FbReader(ByteData.sublistView(metadata)).root();
+_IpcMessage _ipcParseMessage(
+  Uint8List metadata,
+  Uint8List body,
+  IpcLimits limits,
+) {
+  final message = _FbReader(
+    ByteData.sublistView(metadata),
+    limits.maxMessageBytes,
+  ).root();
   final version = message.i16(0, 0);
   _ipcCheckVersion(version, 'metadata');
   final headerType = message.u8(1, 0);
@@ -101,6 +108,7 @@ final class _IpcMessageCursor {
     final message = _ipcParseMessage(
       metadata,
       Uint8List.sublistView(bytes, position),
+      limits,
     );
     if (message.body.length > limits.maxMessageBytes) {
       throw _ipcLimitError(
@@ -146,6 +154,7 @@ bool _ipcHasMagic(Uint8List bytes, int at) {
   }
   final footer = _FbReader(
     ByteData.sublistView(bytes, start, bytes.length - trailer),
+    limits.maxMessageBytes,
   ).root();
   _ipcCheckVersion(footer.i16(0, 0), 'file');
   return (footer, start);

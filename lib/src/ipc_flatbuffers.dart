@@ -222,8 +222,14 @@ final class _FbWriter {
 /// Bounds-checked view of a FlatBuffer. Every read validates its range so
 /// malformed input surfaces as a [FormatException] rather than a crash.
 final class _FbReader {
-  _FbReader(this.data);
+  _FbReader(this.data, this.maxDecodedBytes);
   final ByteData data;
+
+  /// Bound on the total bytes handed out by [_FbTableView.bytes] (strings
+  /// and metadata, which callers copy): offsets may alias one object many
+  /// times, so this is charged per reference (`IpcLimits.maxMessageBytes`).
+  final int maxDecodedBytes;
+  int _decodedBytes = 0;
   int get length => data.lengthInBytes;
 
   void check(int position, int size) {
@@ -331,6 +337,15 @@ final class _FbTableView {
     final start = _indirect(p);
     final count = reader.u32(start);
     reader.check(start + 4, count);
+    reader._decodedBytes += count;
+    if (reader._decodedBytes > reader.maxDecodedBytes) {
+      throw _ipcLimitError(
+        'Decoded metadata string bytes',
+        reader._decodedBytes,
+        'maxMessageBytes',
+        reader.maxDecodedBytes,
+      );
+    }
     return Uint8List.sublistView(reader.data, start + 4, start + 4 + count);
   }
 

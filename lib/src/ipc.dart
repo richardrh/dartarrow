@@ -47,7 +47,8 @@ final class IpcLimits {
   final int maxBuffers;
 
   /// Maximum size of a message's metadata, body, decompressed body or file
-  /// footer.
+  /// footer; also bounds the bytes of metadata strings decoded from one
+  /// message and the bytes referenced by one message's view columns.
   final int maxMessageBytes;
 
   /// Maximum number of dictionary batches.
