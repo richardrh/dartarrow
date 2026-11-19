@@ -112,6 +112,34 @@ final class _IpcBodyReader {
   int _buffer = 0;
   int _variadic = 0;
   int _decompressed = 0;
+  int _viewBytes = 0;
+
+  /// Charges the lengths of the valid views in [views] against
+  /// `maxMessageBytes` for this message, so view validation work stays
+  /// proportional to the message bound however often views alias data.
+  void chargeViews(Uint8List views, Buffer? validity, int length) {
+    final data = ByteData.sublistView(views);
+    final bits = validity?._bytes;
+    final count = length < views.length ~/ 16 ? length : views.length ~/ 16;
+    for (var i = 0; i < count; i++) {
+      if (bits != null &&
+          (i >> 3 >= bits.length || (bits[i >> 3] >> (i & 7)) & 1 == 0)) {
+        continue;
+      }
+      final size = data.getInt32(i * 16, Endian.little);
+      if (size <= 0) continue;
+      _viewBytes += size;
+      if (_viewBytes > limits.maxMessageBytes) {
+        throw _ipcLimitError(
+          'View data bytes referenced by one message',
+          _viewBytes,
+          'maxMessageBytes',
+          limits.maxMessageBytes,
+        );
+      }
+    }
+  }
+
   int depth = 0;
 
   _IpcNode node() {
@@ -285,7 +313,9 @@ Array _ipcReadArrayAt(_IpcBodyReader r, DataType type, _IpcField field) {
     case BooleanType():
       buffers = [validity, Buffer(r.buffer())];
     case Utf8Type() || BinaryType() when _ipcIsView(storage):
-      final views = Buffer(r.buffer());
+      final viewBytes = r.buffer();
+      r.chargeViews(viewBytes, validity, n.length);
+      final views = Buffer(viewBytes);
       final count = r.variadicCount();
       if (count < 0) {
         throw FormatException('Invalid variadic buffer count $count');
