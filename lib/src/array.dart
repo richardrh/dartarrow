@@ -941,25 +941,46 @@ Array concatArrays(List<Array> arrays) {
     );
   }
   if (type is DictionaryType) {
-    final entries = <Array>[];
+    final shared = arrays.first.dictionary!;
+    if (arrays.every((a) => identical(a.dictionary, shared))) {
+      return Array._fromRaw(type, [
+        for (final a in arrays) ...a._rawValues,
+      ], dictionary: shared);
+    }
+    // Entries are (source dictionary, index); equal hashes are confirmed with
+    // the element equality Array.equals uses, keeping first occurrence.
+    final sources = <Array>[];
+    final indices = <int>[];
+    final buckets = <int, List<int>>{};
     final remaps = <List<int>>[];
     for (final a in arrays) {
       final source = a.dictionary!;
       final remap = <int>[];
       for (var i = 0; i < source.length; i++) {
-        final value = source.slice(i, 1);
-        var found = entries.indexWhere((entry) => entry.equals(value));
+        final bucket = buckets[_elementHash(source, i)] ??= <int>[];
+        var found = -1;
+        for (final k in bucket) {
+          if (_elementEquals(sources[k], indices[k], source, i)) {
+            found = k;
+            break;
+          }
+        }
         if (found < 0) {
-          found = entries.length;
-          entries.add(value);
+          found = sources.length;
+          sources.add(source);
+          indices.add(i);
+          bucket.add(found);
         }
         remap.add(found);
       }
       remaps.add(remap);
     }
-    final dictionary = entries.isEmpty
-        ? arrays.first.dictionary!.slice(0, 0)
-        : concatArrays(entries);
+    final dictionary = sources.isEmpty
+        ? shared.slice(0, 0)
+        : concatArrays([
+            for (var k = 0; k < sources.length; k++)
+              sources[k].slice(indices[k], 1),
+          ]);
     return Array._fromRaw(type, [
       for (var c = 0; c < arrays.length; c++)
         for (final value in arrays[c]._rawValues)
@@ -1111,6 +1132,59 @@ Array _concatLeaf(List<Array> arrays, DataType type, int length) {
 
 bool _hasDictionaryStorage(Array array) =>
     array.dictionary != null || array.children.any(_hasDictionaryStorage);
+
+/// Hash consistent with [_elementEquals]: equal elements hash equally.
+int _elementHash(Array array, int index) {
+  final type = _physicalType(array.type);
+  if (type is DictionaryType) return array._isValid(index) ? 1 : 0;
+  if (!array._isValid(index)) return 0;
+  if (type is StructType) {
+    return Object.hashAll([
+      for (final child in array.children)
+        _elementHash(child, array.offset + index),
+    ]);
+  }
+  if (type is UnionType) {
+    final (child, position) = _unionSlot(array, type, array.offset + index);
+    return Object.hash(child, _elementHash(array.children[child], position));
+  }
+  if (type is RunEndEncodedType) {
+    return _elementHash(
+      array.children[1],
+      _runIndex(array, type, array.offset + index),
+    );
+  }
+  if (type is ListType || type is FixedSizeListType || type is MapType) {
+    final (start, length) = type is FixedSizeListType
+        ? ((array.offset + index) * type.size, type.size)
+        : _listRange(array, array.offset + index);
+    return Object.hashAll([
+      length,
+      for (var i = 0; i < length; i++)
+        _elementHash(array.children.single, start + i),
+    ]);
+  }
+  return _rawHash(array._rawValue(index));
+}
+
+/// Hash consistent with [_rawEquals] for leaf values.
+int _rawHash(_Value? value) => switch (value) {
+  null => 0,
+  _FloatingValue() => switch (_floating(value)) {
+    0.0 => 0, // -0.0 == 0.0
+    final double d => d.hashCode,
+  },
+  _ExtensionValue() => _rawHash(value.storage),
+  _IntegerValue() ||
+  _DecimalValue() ||
+  _StringValue() ||
+  _BinaryValue() ||
+  _TemporalValue() ||
+  _BooleanValue() ||
+  _IntervalValue() ||
+  _DictionaryIndexValue() => value.hashCode,
+  _ => 2,
+};
 
 bool _elementEquals(
   Array left,

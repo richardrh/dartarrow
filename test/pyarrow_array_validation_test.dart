@@ -75,6 +75,30 @@ void main() {
     });
   });
 
+  // PyArrow 26.0.0: concat_arrays of two 50_000-entry string dictionaries
+  // overlapping in v25000..v49999 gives 14286 values, a 75000-entry
+  // dictionary, c[0] 'v0', c[7142] 'v49994', c[7143] 'v74999', c[-1] 'v25005'.
+  test('concatArrays unifies large partially overlapping dictionaries', () {
+    const n = 50000;
+    final left = pa.Array.fromDictionary(
+      pa.array([for (var i = 0; i < n; i += 7) i], type: pa.int32()),
+      pa.array([for (var i = 0; i < n; i++) 'v$i']),
+    );
+    final right = pa.Array.fromDictionary(
+      pa.array([for (var i = n - 1; i >= 0; i -= 7) i], type: pa.int32()),
+      pa.array([for (var i = n ~/ 2; i < n ~/ 2 + n; i++) 'v$i']),
+    );
+    final combined = pa.concatArrays([left, right]);
+    final values = combined.toDartList();
+    expect(values.length, 14286);
+    expect(combined.dictionary!.length, 75000);
+    expect(values[0], 'v0');
+    expect(values[7142], 'v49994');
+    expect(values[7143], 'v74999');
+    expect(values.last, 'v25005');
+    expect(values, [...left.toDartList(), ...right.toDartList()]);
+  });
+
   // PyArrow 26.0.0: large_list_view with offsets [2**62], sizes [2**62] and
   // a 2-element child raises "Offset invariant failure".
   test('large list view bounds check does not overflow', () {
