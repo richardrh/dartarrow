@@ -482,4 +482,59 @@ void main() {
       }
     });
   });
+
+  // Expected values: PyArrow 26.0.0
+  // `pa.array([0], pa.timestamp('us', tz=z)).cast(pa.date32())`.
+  group('timestamp to date time zones', () {
+    test('match Arrow wherever no time zone database is needed', () {
+      final accepted = {
+        '+05:30': DateTime.utc(1970),
+        '-05:30': DateTime.utc(1969, 12, 31),
+        '+0530': DateTime.utc(1970),
+        '+23:59': DateTime.utc(1970),
+        '-00:00': DateTime.utc(1970),
+        '+0530x': DateTime.utc(1970),
+        '+12345': DateTime.utc(1970),
+        'UTC': DateTime.utc(1970),
+        'Etc/UTC': DateTime.utc(1970),
+        'GMT': DateTime.utc(1970),
+        '': DateTime.utc(1970),
+      };
+      for (final MapEntry(key: zone, value: date) in accepted.entries) {
+        final array = pa.array([0], type: pa.timestamp('us', tz: zone));
+        expect(array.cast(pa.date32()).toDartList(), [date], reason: zone);
+      }
+      for (final zone in [
+        '+05',
+        '05:30',
+        '+5:30',
+        '+25:00',
+        '+05:60',
+        '+24:00',
+        '+05:30:00',
+        ' +05:30',
+        '+1:30',
+        '+123',
+      ]) {
+        expect(
+          () => pa
+              .array([0], type: pa.timestamp('us', tz: zone))
+              .cast(pa.date32()),
+          throwsA(isA<pa.ArrowInvalid>()),
+          reason: zone,
+        );
+      }
+      // PyArrow accepts America/New_York, EST and rejects utc, Z, Foo; both
+      // need its time zone database.
+      for (final zone in ['America/New_York', 'EST', 'utc', 'Z', 'Foo']) {
+        expect(
+          () => pa
+              .array([0], type: pa.timestamp('us', tz: zone))
+              .cast(pa.date32()),
+          throwsUnsupportedError,
+          reason: zone,
+        );
+      }
+    });
+  });
 }
