@@ -12,7 +12,9 @@ part of 'core.dart';
 /// Resource limits applied while decoding untrusted IPC input.
 ///
 /// Defaults are conservative; trusted callers handling larger data should
-/// pass raised limits explicitly.
+/// pass raised limits explicitly. Every breach raises a [FormatException]
+/// naming the `IpcLimits` field, its configured value and the offending
+/// value.
 final class IpcLimits {
   /// Creates limits; every bound is inclusive.
   const IpcLimits({
@@ -55,6 +57,18 @@ final class IpcLimits {
   final int maxBatches;
 }
 
+/// A [FormatException] for [value] (described by [what]) breaching the
+/// `IpcLimits` field [name] configured as [limit].
+FormatException _ipcLimitError(
+  String what,
+  int value,
+  String name,
+  int limit,
+) => FormatException(
+  '$what $value exceeds IpcLimits.$name ($limit); pass larger IpcLimits '
+  'to openStream/openFile for trusted input',
+);
+
 /// Opens an in-memory Arrow IPC stream, like PyArrow's `ipc.open_stream`.
 ///
 /// The schema message is decoded immediately. Malformed input raises
@@ -91,7 +105,12 @@ RecordBatchFileReader openFile(
   }
   final state = _IpcReadState(_ipcReadSchema(schemaTable, limits), limits);
   final budget = _IpcValueBudget(limits.maxValues);
-  for (final block in _ipcBlocks(footer, 2, limits.maxDictionaries)) {
+  for (final block in _ipcBlocks(
+    footer,
+    2,
+    'maxDictionaries',
+    limits.maxDictionaries,
+  )) {
     final message = _ipcReadBlock(data, block, limits);
     if (message.headerType != _ipcHeaderDictionaryBatch) {
       throw const FormatException('Dictionary block has wrong message type');
@@ -101,7 +120,7 @@ RecordBatchFileReader openFile(
   return RecordBatchFileReader._(
     state,
     data,
-    _ipcBlocks(footer, 3, limits.maxBatches),
+    _ipcBlocks(footer, 3, 'maxBatches', limits.maxBatches),
     budget.used,
   );
 });
@@ -156,7 +175,12 @@ final class RecordBatchStreamReader extends Iterable<RecordBatch> {
           _state.acceptDictionary(message, _budget, allowReplacement: true);
         case _ipcHeaderRecordBatch:
           if (++_batches > limits.maxBatches) {
-            throw const FormatException('Too many record batches');
+            throw _ipcLimitError(
+              'Record batch count',
+              _batches,
+              'maxBatches',
+              limits.maxBatches,
+            );
           }
           return _state.decodeBatch(message, _budget);
         case _ipcHeaderSchema:
@@ -247,13 +271,16 @@ final class RecordBatchStreamWriter {
   Schema get schema => _core.ipc.schema;
 
   /// Writes [batch], preceded by any new, replaced or delta dictionaries.
-  void writeBatch(RecordBatch batch) => _core.writeBatch(batch);
+  /// If this throws, nothing is written and the writer state is unchanged.
+  void writeBatch(RecordBatch batch) => _core.writeBatches([batch]);
 
   /// Writes the batches of [table], optionally split to [maxChunkSize] rows.
+  /// All-or-nothing: if any chunk fails, no chunk is written.
   void writeTable(Table table, {int? maxChunkSize}) =>
       _ipcWriteTable(_core, table, maxChunkSize);
 
-  /// Writes a [RecordBatch] or a [Table].
+  /// Writes a [RecordBatch] or a [Table], atomically like [writeBatch] and
+  /// [writeTable].
   void write(Object data) => _ipcWrite(_core, data);
 
   /// Appends the end-of-stream marker and returns the stream bytes. Further
@@ -270,14 +297,17 @@ final class RecordBatchFileWriter {
   Schema get schema => _core.ipc.schema;
 
   /// Writes [batch], preceded by any new or delta dictionaries. Files cannot
-  /// replace a dictionary; doing so throws [UnsupportedError].
-  void writeBatch(RecordBatch batch) => _core.writeBatch(batch);
+  /// replace a dictionary; doing so throws [UnsupportedError]. If this
+  /// throws, nothing is written and the writer state is unchanged.
+  void writeBatch(RecordBatch batch) => _core.writeBatches([batch]);
 
   /// Writes the batches of [table], optionally split to [maxChunkSize] rows.
+  /// All-or-nothing: if any chunk fails, no chunk is written.
   void writeTable(Table table, {int? maxChunkSize}) =>
       _ipcWriteTable(_core, table, maxChunkSize);
 
-  /// Writes a [RecordBatch] or a [Table].
+  /// Writes a [RecordBatch] or a [Table], atomically like [writeBatch] and
+  /// [writeTable].
   void write(Object data) => _ipcWrite(_core, data);
 
   /// Appends the footer and returns the file bytes. Further writes throw
@@ -289,13 +319,11 @@ void _ipcWriteTable(_IpcWriterCore core, Table table, int? maxChunkSize) {
   if (!table.schema.equals(core.ipc.schema)) {
     throw ArgumentError('Table schema does not match writer schema');
   }
-  for (final batch in table.toBatches(maxChunkSize: maxChunkSize)) {
-    core.writeBatch(batch);
-  }
+  core.writeBatches(table.toBatches(maxChunkSize: maxChunkSize));
 }
 
 void _ipcWrite(_IpcWriterCore core, Object data) => switch (data) {
-  RecordBatch() => core.writeBatch(data),
+  RecordBatch() => core.writeBatches([data]),
   Table() => _ipcWriteTable(core, data, null),
   _ => throw ArgumentError.value(data, 'data', 'Expected RecordBatch or Table'),
 };

@@ -32,11 +32,7 @@ final class _IpcBlock {
 _IpcMessage _ipcParseMessage(Uint8List metadata, Uint8List body) {
   final message = _FbReader(ByteData.sublistView(metadata)).root();
   final version = message.i16(0, 0);
-  if (version != _ipcMetadataV5) {
-    throw FormatException(
-      'Unsupported IPC metadata version $version (need V5)',
-    );
-  }
+  _ipcCheckVersion(version, 'metadata');
   final headerType = message.u8(1, 0);
   final header = message.table(2);
   if (header == null) throw const FormatException('IPC message has no header');
@@ -51,6 +47,18 @@ _IpcMessage _ipcParseMessage(Uint8List metadata, Uint8List body) {
     header,
     Uint8List.sublistView(body, 0, bodyLength),
   );
+}
+
+/// Accepts MetadataVersion V5; earlier well-formed versions (V1 = 0 to
+/// V4 = 3) are valid but unsupported, anything else is malformed.
+void _ipcCheckVersion(int version, String what) {
+  if (version == _ipcMetadataV5) return;
+  if (version >= 0 && version < _ipcMetadataV5) {
+    throw UnsupportedError(
+      'Unsupported IPC $what version V${version + 1} (need V5)',
+    );
+  }
+  throw FormatException('Invalid IPC $what version $version');
 }
 
 /// Walks encapsulated messages: `0xFFFFFFFF`, int32 length, metadata, body.
@@ -77,9 +85,15 @@ final class _IpcMessageCursor {
     // Pre-0.15 streams omit the continuation token.
     if (length == -1) length = _int32();
     if (length == 0) return null;
-    if (length < 0 ||
-        length > limits.maxMessageBytes ||
-        length > bytes.length - position) {
+    if (length > limits.maxMessageBytes) {
+      throw _ipcLimitError(
+        'IPC metadata length',
+        length,
+        'maxMessageBytes',
+        limits.maxMessageBytes,
+      );
+    }
+    if (length < 0 || length > bytes.length - position) {
       throw FormatException('Invalid IPC metadata length $length');
     }
     final metadata = Uint8List.sublistView(bytes, position, position + length);
@@ -89,7 +103,12 @@ final class _IpcMessageCursor {
       Uint8List.sublistView(bytes, position),
     );
     if (message.body.length > limits.maxMessageBytes) {
-      throw const FormatException('IPC body exceeds maxMessageBytes');
+      throw _ipcLimitError(
+        'IPC body length',
+        message.body.length,
+        'maxMessageBytes',
+        limits.maxMessageBytes,
+      );
     }
     position += message.body.length;
     return message;
@@ -118,24 +137,29 @@ bool _ipcHasMagic(Uint8List bytes, int at) {
     throw FormatException('Invalid IPC file footer length $length');
   }
   if (length > limits.maxMessageBytes) {
-    throw const FormatException('IPC footer exceeds maxMessageBytes');
+    throw _ipcLimitError(
+      'IPC footer length',
+      length,
+      'maxMessageBytes',
+      limits.maxMessageBytes,
+    );
   }
   final footer = _FbReader(
     ByteData.sublistView(bytes, start, bytes.length - trailer),
   ).root();
-  final version = footer.i16(0, 0);
-  if (version != _ipcMetadataV5) {
-    throw FormatException('Unsupported IPC file version $version (need V5)');
-  }
+  _ipcCheckVersion(footer.i16(0, 0), 'file');
   return (footer, start);
 }
 
-List<_IpcBlock> _ipcBlocks(_FbTableView footer, int slot, int max) {
+List<_IpcBlock> _ipcBlocks(
+  _FbTableView footer,
+  int slot,
+  String name,
+  int max,
+) {
   final structs = footer.structs(slot, 24);
   if (structs.count > max) {
-    throw FormatException(
-      'IPC file has ${structs.count} blocks; limit is $max',
-    );
+    throw _ipcLimitError('IPC file block count', structs.count, name, max);
   }
   return [
     for (var i = 0; i < structs.count; i++)
@@ -144,11 +168,18 @@ List<_IpcBlock> _ipcBlocks(_FbTableView footer, int slot, int max) {
 }
 
 _IpcMessage _ipcReadBlock(Uint8List bytes, _IpcBlock block, IpcLimits limits) {
+  if (block.bodyLength > limits.maxMessageBytes) {
+    throw _ipcLimitError(
+      'IPC file block body length',
+      block.bodyLength,
+      'maxMessageBytes',
+      limits.maxMessageBytes,
+    );
+  }
   final end = block.offset + block.metadataLength + block.bodyLength;
   if (block.offset < 8 ||
       block.metadataLength < 8 ||
       block.bodyLength < 0 ||
-      block.bodyLength > limits.maxMessageBytes ||
       end > bytes.length) {
     throw const FormatException('IPC file block lies outside the file');
   }
@@ -207,7 +238,12 @@ final class _IpcReadState {
     required bool allowReplacement,
   }) {
     if (++_dictionaryCount > limits.maxDictionaries) {
-      throw const FormatException('Too many dictionary batches');
+      throw _ipcLimitError(
+        'Dictionary batch count',
+        _dictionaryCount,
+        'maxDictionaries',
+        limits.maxDictionaries,
+      );
     }
     final id = message.header.i64(0, 0);
     final slot = _slots[id];
@@ -229,7 +265,12 @@ final class _IpcReadState {
       throw const FormatException('IPC files may not replace dictionaries');
     }
     if (isDelta && existing!.length + values.length > limits.maxRows) {
-      throw const FormatException('Dictionary delta exceeds row limit');
+      throw _ipcLimitError(
+        'Dictionary $id length after delta',
+        existing.length + values.length,
+        'maxRows',
+        limits.maxRows,
+      );
     }
     _dictionaries[id] = isDelta ? concatArrays([existing!, values]) : values;
   }
@@ -250,8 +291,9 @@ final class _IpcReadState {
     _IpcValueBudget budget,
   ) {
     final length = batch.i64(0, 0);
-    if (length < 0 || length > limits.maxRows) {
-      throw FormatException('Batch length $length exceeds limits');
+    if (length < 0) throw FormatException('Invalid batch length $length');
+    if (length > limits.maxRows) {
+      throw _ipcLimitError('Batch length', length, 'maxRows', limits.maxRows);
     }
     final reader = _IpcBodyReader(
       body,
@@ -285,7 +327,12 @@ final class _IpcReadState {
 
   List<(int, int)> _ipcPairs(_FbStructs structs, String name) {
     if (structs.count > limits.maxBuffers) {
-      throw FormatException('Too many $name');
+      throw _ipcLimitError(
+        'RecordBatch $name count',
+        structs.count,
+        'maxBuffers',
+        limits.maxBuffers,
+      );
     }
     return [
       for (var i = 0; i < structs.count; i++)
@@ -296,7 +343,12 @@ final class _IpcReadState {
   List<int> _ipcVariadicCounts(_FbTableView batch) {
     final structs = batch.structs(4, 8);
     if (structs.count > limits.maxBuffers) {
-      throw const FormatException('Too many variadic buffer counts');
+      throw _ipcLimitError(
+        'Variadic buffer count entries',
+        structs.count,
+        'maxBuffers',
+        limits.maxBuffers,
+      );
     }
     return [for (var i = 0; i < structs.count; i++) structs.i64(i, 0)];
   }
@@ -400,8 +452,31 @@ final class _IpcWriterCore {
   final List<_IpcBlock> batchBlocks = [];
   Uint8List? _closed;
 
-  void writeBatch(RecordBatch batch) {
+  /// Writes [batches] atomically: every dictionary and record batch message
+  /// is encoded first, and nothing (bytes, blocks, dictionary bookkeeping)
+  /// is committed unless all of them succeed.
+  void writeBatches(Iterable<RecordBatch> batches) {
     if (_closed != null) throw StateError('IPC writer is closed');
+    final written = Map.of(_written);
+    final staged = <(int, _FbTableObject, Uint8List)>[];
+    for (final batch in batches) {
+      _stageBatch(batch, written, staged);
+    }
+    for (final (headerType, header, body) in staged) {
+      final block = sink.message(headerType, header, body);
+      (headerType == _ipcHeaderRecordBatch ? batchBlocks : dictionaryBlocks)
+          .add(block);
+    }
+    _written
+      ..clear()
+      ..addAll(written);
+  }
+
+  void _stageBatch(
+    RecordBatch batch,
+    Map<int, Array> written,
+    List<(int, _FbTableObject, Uint8List)> staged,
+  ) {
     if (!batch.schema.equals(ipc.schema)) {
       throw ArgumentError('Record batch schema does not match writer schema');
     }
@@ -419,38 +494,35 @@ final class _IpcWriterCore {
       visit(batch.columns[c], ipc.fields[c]);
     }
     // Nested dictionaries must precede dictionaries whose values use them.
-    final pending = <(int, Array, bool)>[];
     for (final (id, dictionary) in dictionaries.reversed) {
-      final previous = _written[id];
+      final previous = written[id];
       if (previous != null &&
           (identical(previous, dictionary) || previous.equals(dictionary))) {
         continue;
       }
+      final Array values;
+      final bool isDelta;
       if (previous != null &&
           previous.length < dictionary.length &&
           previous.equals(dictionary.slice(0, previous.length))) {
-        pending.add((id, dictionary.slice(previous.length), true));
+        (values, isDelta) = (dictionary.slice(previous.length), true);
       } else if (previous != null && file) {
         throw UnsupportedError(
           'IPC files cannot replace a dictionary between batches',
         );
       } else {
-        pending.add((id, dictionary, false));
+        (values, isDelta) = (dictionary, false);
       }
-      _written[id] = dictionary;
-    }
-    for (final (id, values, isDelta) in pending) {
       final (data, body) = _ipcEncodeBody(values.length, [values]);
-      dictionaryBlocks.add(
-        sink.message(
-          _ipcHeaderDictionaryBatch,
-          _FbTableObject({0: _fbI64(id), 1: _FbRef(data), 2: _fbBool(isDelta)}),
-          body,
-        ),
-      );
+      staged.add((
+        _ipcHeaderDictionaryBatch,
+        _FbTableObject({0: _fbI64(id), 1: _FbRef(data), 2: _fbBool(isDelta)}),
+        body,
+      ));
+      written[id] = dictionary;
     }
     final (header, body) = _ipcEncodeBody(batch.numRows, batch.columns);
-    batchBlocks.add(sink.message(_ipcHeaderRecordBatch, header, body));
+    staged.add((_ipcHeaderRecordBatch, header, body));
   }
 
   Uint8List close() {
