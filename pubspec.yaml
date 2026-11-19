@@ -1,8 +1,17 @@
 name: dartarrow
-description: Pure Dart Arrow arrays, typed scalars, schemas, chunked tables, and owned JSON.
-version: 0.2.0
+description: >-
+  Apache Arrow in pure Dart with a PyArrow-style API: typed arrays and scalars,
+  schemas, chunked tables, and Arrow IPC streams and files.
+version: 0.3.0
 repository: https://github.com/richardrh/dartarrow
 issue_tracker: https://github.com/richardrh/dartarrow/issues
+documentation: https://richardrh.github.io/dartarrow/
+topics:
+  - arrow
+  - ipc
+  - columnar
+  - serialization
+  - pyarrow
 environment:
   sdk: ^3.13.0
 dependencies:

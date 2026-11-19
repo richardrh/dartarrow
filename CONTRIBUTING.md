@@ -40,7 +40,20 @@ to make a mismatch disappear.
 
 ## Releases
 
-Manual and GitHub-first. Validate a green `main` commit, create the matching
-annotated tag (e.g. `v0.2.0`), then dispatch the release workflow. It produces a
-**draft** GitHub release with a source archive and SHA-256 checksums for review.
-Nothing publishes to pub.dev. Existing tags are immutable.
+1. Move the `Unreleased` changelog entries under a new `## <version>` heading,
+   set the same `version:` in `pubspec.yaml`, merge to `main` and wait for
+   green CI on that commit.
+2. Tag that commit with an annotated tag and push it:
+   `git tag -a v<version> -m "dartarrow <version>" <commit> && git push origin v<version>`.
+
+The `Release` workflow re-verifies the tagged source, publishes it to pub.dev
+through GitHub OIDC (no stored secret; skipped when pub.dev already has that
+version) and then publishes the GitHub release with the changelog section, a
+source archive and SHA-256 checksums. A failed run can be re-run: neither step
+repeats work that already succeeded.
+
+pub.dev trusts tag pushes matching `v{{version}}` from `richardrh/dartarrow`
+(package Admin tab, "Automated publishing"). To require a manual approval per
+publication, add required reviewers to the `pub.dev` GitHub environment and
+require that environment on pub.dev. Published versions and pushed tags are
+permanent: never move a tag, release a new version instead.
