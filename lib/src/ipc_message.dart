@@ -400,8 +400,31 @@ final class _IpcWriterCore {
   final List<_IpcBlock> batchBlocks = [];
   Uint8List? _closed;
 
-  void writeBatch(RecordBatch batch) {
+  /// Writes [batches] atomically: every dictionary and record batch message
+  /// is encoded first, and nothing (bytes, blocks, dictionary bookkeeping)
+  /// is committed unless all of them succeed.
+  void writeBatches(Iterable<RecordBatch> batches) {
     if (_closed != null) throw StateError('IPC writer is closed');
+    final written = Map.of(_written);
+    final staged = <(int, _FbTableObject, Uint8List)>[];
+    for (final batch in batches) {
+      _stageBatch(batch, written, staged);
+    }
+    for (final (headerType, header, body) in staged) {
+      final block = sink.message(headerType, header, body);
+      (headerType == _ipcHeaderRecordBatch ? batchBlocks : dictionaryBlocks)
+          .add(block);
+    }
+    _written
+      ..clear()
+      ..addAll(written);
+  }
+
+  void _stageBatch(
+    RecordBatch batch,
+    Map<int, Array> written,
+    List<(int, _FbTableObject, Uint8List)> staged,
+  ) {
     if (!batch.schema.equals(ipc.schema)) {
       throw ArgumentError('Record batch schema does not match writer schema');
     }
@@ -419,38 +442,35 @@ final class _IpcWriterCore {
       visit(batch.columns[c], ipc.fields[c]);
     }
     // Nested dictionaries must precede dictionaries whose values use them.
-    final pending = <(int, Array, bool)>[];
     for (final (id, dictionary) in dictionaries.reversed) {
-      final previous = _written[id];
+      final previous = written[id];
       if (previous != null &&
           (identical(previous, dictionary) || previous.equals(dictionary))) {
         continue;
       }
+      final Array values;
+      final bool isDelta;
       if (previous != null &&
           previous.length < dictionary.length &&
           previous.equals(dictionary.slice(0, previous.length))) {
-        pending.add((id, dictionary.slice(previous.length), true));
+        (values, isDelta) = (dictionary.slice(previous.length), true);
       } else if (previous != null && file) {
         throw UnsupportedError(
           'IPC files cannot replace a dictionary between batches',
         );
       } else {
-        pending.add((id, dictionary, false));
+        (values, isDelta) = (dictionary, false);
       }
-      _written[id] = dictionary;
-    }
-    for (final (id, values, isDelta) in pending) {
       final (data, body) = _ipcEncodeBody(values.length, [values]);
-      dictionaryBlocks.add(
-        sink.message(
-          _ipcHeaderDictionaryBatch,
-          _FbTableObject({0: _fbI64(id), 1: _FbRef(data), 2: _fbBool(isDelta)}),
-          body,
-        ),
-      );
+      staged.add((
+        _ipcHeaderDictionaryBatch,
+        _FbTableObject({0: _fbI64(id), 1: _FbRef(data), 2: _fbBool(isDelta)}),
+        body,
+      ));
+      written[id] = dictionary;
     }
     final (header, body) = _ipcEncodeBody(batch.numRows, batch.columns);
-    batchBlocks.add(sink.message(_ipcHeaderRecordBatch, header, body));
+    staged.add((_ipcHeaderRecordBatch, header, body));
   }
 
   Uint8List close() {

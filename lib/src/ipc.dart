@@ -247,13 +247,16 @@ final class RecordBatchStreamWriter {
   Schema get schema => _core.ipc.schema;
 
   /// Writes [batch], preceded by any new, replaced or delta dictionaries.
-  void writeBatch(RecordBatch batch) => _core.writeBatch(batch);
+  /// If this throws, nothing is written and the writer state is unchanged.
+  void writeBatch(RecordBatch batch) => _core.writeBatches([batch]);
 
   /// Writes the batches of [table], optionally split to [maxChunkSize] rows.
+  /// All-or-nothing: if any chunk fails, no chunk is written.
   void writeTable(Table table, {int? maxChunkSize}) =>
       _ipcWriteTable(_core, table, maxChunkSize);
 
-  /// Writes a [RecordBatch] or a [Table].
+  /// Writes a [RecordBatch] or a [Table], atomically like [writeBatch] and
+  /// [writeTable].
   void write(Object data) => _ipcWrite(_core, data);
 
   /// Appends the end-of-stream marker and returns the stream bytes. Further
@@ -270,14 +273,17 @@ final class RecordBatchFileWriter {
   Schema get schema => _core.ipc.schema;
 
   /// Writes [batch], preceded by any new or delta dictionaries. Files cannot
-  /// replace a dictionary; doing so throws [UnsupportedError].
-  void writeBatch(RecordBatch batch) => _core.writeBatch(batch);
+  /// replace a dictionary; doing so throws [UnsupportedError]. If this
+  /// throws, nothing is written and the writer state is unchanged.
+  void writeBatch(RecordBatch batch) => _core.writeBatches([batch]);
 
   /// Writes the batches of [table], optionally split to [maxChunkSize] rows.
+  /// All-or-nothing: if any chunk fails, no chunk is written.
   void writeTable(Table table, {int? maxChunkSize}) =>
       _ipcWriteTable(_core, table, maxChunkSize);
 
-  /// Writes a [RecordBatch] or a [Table].
+  /// Writes a [RecordBatch] or a [Table], atomically like [writeBatch] and
+  /// [writeTable].
   void write(Object data) => _ipcWrite(_core, data);
 
   /// Appends the footer and returns the file bytes. Further writes throw
@@ -289,13 +295,11 @@ void _ipcWriteTable(_IpcWriterCore core, Table table, int? maxChunkSize) {
   if (!table.schema.equals(core.ipc.schema)) {
     throw ArgumentError('Table schema does not match writer schema');
   }
-  for (final batch in table.toBatches(maxChunkSize: maxChunkSize)) {
-    core.writeBatch(batch);
-  }
+  core.writeBatches(table.toBatches(maxChunkSize: maxChunkSize));
 }
 
 void _ipcWrite(_IpcWriterCore core, Object data) => switch (data) {
-  RecordBatch() => core.writeBatch(data),
+  RecordBatch() => core.writeBatches([data]),
   Table() => _ipcWriteTable(core, data, null),
   _ => throw ArgumentError.value(data, 'data', 'Expected RecordBatch or Table'),
 };
