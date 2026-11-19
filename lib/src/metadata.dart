@@ -1,6 +1,8 @@
 part of 'core.dart';
 
-/// Immutable byte-keyed metadata. Keys are compared by content, not identity.
+/// Immutable byte-keyed metadata. Keys and values are compared by content,
+/// not identity; lookups ([], [containsKey], [containsValue]) accept either a
+/// `String` (UTF-8 encoded) or a `Uint8List`.
 final class ByteMetadata extends MapBase<Uint8List, Uint8List> {
   ByteMetadata(Map<Object, Object> values) {
     for (final entry in values.entries) {
@@ -31,6 +33,25 @@ final class ByteMetadata extends MapBase<Uint8List, Uint8List> {
     if (key is Uint8List) return _entries[base64Encode(key)]?.value;
     return null;
   }
+
+  @override
+  bool containsKey(Object? key) => this[key] != null;
+
+  @override
+  bool containsValue(Object? value) {
+    final Uint8List bytes;
+    if (value is String) {
+      bytes = utf8.encode(value);
+    } else if (value is Uint8List) {
+      bytes = value;
+    } else {
+      return false;
+    }
+    return _entries.values.any((e) => _same(e.value, bytes));
+  }
+
+  @override
+  int get length => _entries.length;
 
   @override
   Iterable<Uint8List> get keys => _entries.values.map((e) => e.key);
