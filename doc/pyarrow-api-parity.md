@@ -173,11 +173,22 @@ Behaviour that is implemented but deviates from PyArrow 26, verified against it:
   bool/date/timestamp, timestamp to time. They throw `UnsupportedError` or
   `ArrowInvalid`. Bytes are not accepted for a string type at construction.
 - **Casts that differ:** float to decimal converts the shortest decimal text of
-  the double (`0.1` becomes exactly `0.1`), not its exact binary value. A
-  timestamp with a time zone casts to a date only for UTC and fixed `±HH:MM`
-  zones; other zone names need a time zone database and throw
-  `UnsupportedError`. An integer to dictionary cast works here; PyArrow does
-  not implement it.
+  the double (`0.1` becomes exactly `0.1`), not its exact binary value. String
+  to float32/float16 rounds through the nearest double, so a string within a
+  hair of a rounding midpoint can be one step off. A timestamp with a time
+  zone casts to a date only for UTC and fixed `±HH:MM` zones; any other name
+  throws `UnsupportedError` because no time zone database is available, both
+  for real zones (`America/New_York`) and for unknown ones (`utc`, `Z`) that
+  PyArrow rejects with `ArrowInvalid`. An integer to dictionary cast works
+  here; PyArrow does not implement it.
+- **Construction is stricter:** with an explicit type, floats and decimals are
+  not accepted for integer or temporal types, nor bools for floating types;
+  PyArrow converts them, truncating `1.5` to `1`.
+- **Dictionary unification** in `concatArrays`/`combineChunks` treats entries
+  as the same when their stored representation is identical, for every value
+  type and with null entries. PyArrow refuses dictionaries with nulls or
+  nested values, and reuses the first dictionary when the inputs compare
+  numerically equal, which turns a `0.0` into `-0.0`.
 - **Host dates and times:** every `DateTime` is an instant. Timestamp columns
   store that instant, so a local `DateTime` is not a naive wall-clock value as
   a naive Python `datetime` is. Date columns store the `DateTime`'s own
@@ -204,7 +215,8 @@ Behaviour that is implemented but deviates from PyArrow 26, verified against it:
   `string_view`/`binary_view` column whose views reference more than 64 MiB in
   total, even when they alias the same bytes. Pass larger `limits:` to read them.
 - **dart2js:** integers beyond 2^53 are `BigInt`, and whole-number doubles are
-  integers, so `array([1.0])` infers int64 there.
+  integers, so `array([1.0])` infers int64 there. A `Duration` beyond 2^53
+  microseconds stays a `TemporalValue`.
 
 ## Evidence and sources
 
