@@ -32,11 +32,7 @@ final class _IpcBlock {
 _IpcMessage _ipcParseMessage(Uint8List metadata, Uint8List body) {
   final message = _FbReader(ByteData.sublistView(metadata)).root();
   final version = message.i16(0, 0);
-  if (version != _ipcMetadataV5) {
-    throw FormatException(
-      'Unsupported IPC metadata version $version (need V5)',
-    );
-  }
+  _ipcCheckVersion(version, 'metadata');
   final headerType = message.u8(1, 0);
   final header = message.table(2);
   if (header == null) throw const FormatException('IPC message has no header');
@@ -51,6 +47,18 @@ _IpcMessage _ipcParseMessage(Uint8List metadata, Uint8List body) {
     header,
     Uint8List.sublistView(body, 0, bodyLength),
   );
+}
+
+/// Accepts MetadataVersion V5; earlier well-formed versions (V1 = 0 to
+/// V4 = 3) are valid but unsupported, anything else is malformed.
+void _ipcCheckVersion(int version, String what) {
+  if (version == _ipcMetadataV5) return;
+  if (version >= 0 && version < _ipcMetadataV5) {
+    throw UnsupportedError(
+      'Unsupported IPC $what version V${version + 1} (need V5)',
+    );
+  }
+  throw FormatException('Invalid IPC $what version $version');
 }
 
 /// Walks encapsulated messages: `0xFFFFFFFF`, int32 length, metadata, body.
@@ -123,10 +131,7 @@ bool _ipcHasMagic(Uint8List bytes, int at) {
   final footer = _FbReader(
     ByteData.sublistView(bytes, start, bytes.length - trailer),
   ).root();
-  final version = footer.i16(0, 0);
-  if (version != _ipcMetadataV5) {
-    throw FormatException('Unsupported IPC file version $version (need V5)');
-  }
+  _ipcCheckVersion(footer.i16(0, 0), 'file');
   return (footer, start);
 }
 
