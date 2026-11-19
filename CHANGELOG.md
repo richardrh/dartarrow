@@ -60,6 +60,13 @@ First release on pub.dev.
 - IPC readers raise `UnsupportedError` (not `FormatException`) for metadata
   versions before V5, accept compressed buffers declaring length 0, and name
   the exceeded `IpcLimits` field in limit errors.
+- Harden IPC readers against small inputs that expand: decoded metadata
+  strings and the data referenced by `string_view`/`binary_view` columns count
+  against `IpcLimits.maxMessageBytes` even when offsets alias one value, file
+  footers whose blocks repeat or overlap are rejected, and the new
+  `IpcLimits.maxDecompressedBytes` (default 256 MiB) bounds decompressed
+  buffers per read. The limits bound decoding, not later materialization of
+  columns that share values, and do not replace process isolation.
 - Upgrade `libcompress` to 2.x, which decodes ZSTD bodies that 1.x rejected or
   could exhaust memory on.
 - On dart2js, integers and temporal counters beyond 2^53 are returned as

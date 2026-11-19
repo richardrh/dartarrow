@@ -84,8 +84,10 @@ the known behavioural differences.
 - `Array` does not implement `Iterable` (its `cast<R>()` clashes with Arrow's `cast(type)`). Use `values.scalars` or `values.toDartList()`.
 - `Array.fromBuffers` borrows memory. Keep buffers alive and unmutated while arrays or slices exist.
 - IPC readers enforce `IpcLimits`. The defaults (about one million rows per
-  array and four million values per reader) reject larger inputs with a
-  `FormatException` that names the limit; pass `limits:` for bigger trusted data.
+  array, four million values and 256 MiB of decompressed buffers per read)
+  reject larger inputs with a `FormatException` that names the limit; pass
+  `limits:` for bigger trusted data. The limits bound decoding work, not what
+  `toDartList()` later materializes, so isolate untrusted input.
 - Under dart2js, integers beyond 2^53 are returned as `BigInt`, and
   whole-number doubles such as `1.0` are indistinguishable from integers, so
   `pa.array([1.0])` infers `int64` there. Pass an explicit type when it matters.

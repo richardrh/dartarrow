@@ -1,12 +1,13 @@
 # PyArrow-shaped Dart interface: implemented scope
 
-Status: **approved breaking 0.2.0 interface; scoped independent API acceptance
-passed**, researched against Apache Arrow/PyArrow **26.0.0**. The 219 executable
-API cases pass; this establishes the tested scope, not complete PyArrow parity.
+Status: **0.3.0 interface; scoped independent API acceptance passed**,
+researched against Apache Arrow/PyArrow **26.0.0**. The 219 executable API
+cases pass; this establishes the tested scope, not complete PyArrow parity.
 Every standard Arrow logical type family is implemented, and standard Arrow IPC
 streams/files interoperate with PyArrow 26 in both directions (see
 [Arrow IPC](#arrow-ipc)). This is still not full PyArrow (no compute, datasets or
-native runtime). The historical 0.1.0 tag/draft is unchanged.
+native runtime); [Known differences](#known-differences-from-pyarrow) lists
+where implemented behaviour deviates.
 
 ## Current public interface
 
@@ -145,12 +146,62 @@ views over uncompressed bodies and decode LZ4_FRAME and ZSTD bodies (VM, pure
 Dart `libcompress`) or LZ4_FRAME (web). Writers emit uncompressed bodies directly
 from physical buffers, rebasing slices. Dictionaries may be nested or wrapped by
 extension types; readers apply stream replacements and deltas, writers emit
-deltas for extended dictionaries and (streams only) replacements otherwise. All decoding
-is bounded by `IpcLimits` (depth, fields, rows, values, buffers, message bytes,
-dictionaries, batches). Malformed input raises `FormatException`; unsupported
-features (big-endian, unknown codec or type) raise `UnsupportedError`; binding
+deltas for extended dictionaries and (streams only) replacements otherwise. A
+write that throws leaves the writer unchanged. Decoding is bounded by
+`IpcLimits` (depth, fields, rows, values, buffers, message bytes, dictionaries,
+batches, decompressed bytes); a breach raises a `FormatException` naming the
+field. The limits bound work inside the reader, not later materialization of
+run-end encoded, dictionary or view columns that share values. Malformed input
+raises `FormatException`; unsupported features (big-endian, metadata versions
+before V5, unknown codec or type) raise `UnsupportedError`; binding
 `int128`/`uint128` columns are rejected by writers. Non-UTF-8 extension metadata
 is rejected because `ExtensionType.metadata` is a `String`.
+
+## Known differences from PyArrow
+
+Behaviour that is implemented but deviates from PyArrow 26, verified against it:
+
+- **Type equality** of list, fixed-size list and map types includes the child
+  field name, so `listType(field('element', int64()))` differs from
+  `listType(int64())` and the two cannot be concatenated. PyArrow ignores it.
+- **Printing:** `DataType.toString()` is a descriptor map (`{kind: int32}`),
+  also used in error messages. `Array`, `Scalar`, `Field`, `Schema`,
+  `RecordBatch`, `ChunkedArray` and `Table` have no `toString`, and only
+  `Scalar`, `Field`, `Schema` and `DataType` define `==`; compare arrays and
+  tables with `equals`.
+- **Casts not implemented:** date/time/timestamp to string, string to
+  bool/date/timestamp, timestamp to time. They throw `UnsupportedError` or
+  `ArrowInvalid`. Bytes are not accepted for a string type at construction.
+- **Casts that differ:** float to decimal converts the shortest decimal text of
+  the double (`0.1` becomes exactly `0.1`), not its exact binary value. A
+  timestamp with a time zone casts to a date only for UTC and fixed `±HH:MM`
+  zones; other zone names need a time zone database and throw
+  `UnsupportedError`. An integer to dictionary cast works here; PyArrow does
+  not implement it.
+- **Host dates and times:** every `DateTime` is an instant. Timestamp columns
+  store that instant, so a local `DateTime` is not a naive wall-clock value as
+  a naive Python `datetime` is. Date columns store the `DateTime`'s own
+  calendar date; for a pre-1970 value PyArrow's date64 truncates toward zero
+  (`1969-12-31T23:00` stores day 0) while this package stores `1969-12-31`.
+- **Inference:** decimals infer the minimal precision (`DecimalValue(5, 2)` is
+  `decimal(1, 2)`; PyArrow infers `decimal128(2, 2)`).
+  `Table.fromDartList([{}, {}])` keeps two rows; PyArrow returns none.
+- **Errors:** `Array.fromBuffers` reports invalid UTF-8 as `FormatException`
+  while other validation failures are `ArgumentError`.
+  `RecordBatch.fromStructArray` rejects a union or run-end encoded child under
+  a null parent.
+- **Metadata:** `ByteMetadata` looks `String` keys up by their UTF-8 bytes in
+  `[]`, `containsKey` and `containsValue`; PyArrow metadata is bytes-only.
+  Because it is a `Map<Uint8List, Uint8List>`, a `String` key trips the
+  `collection_methods_unrelated_type` lint in calling code.
+- **IPC:** only metadata version V5 is read. Footer and per-message custom
+  metadata are neither exposed nor writable. A file footer that lists a block
+  twice is rejected. Flatbuffer verification, view prefix consistency and
+  buffer alignment are checked less strictly than by PyArrow, which rejects
+  some inputs this reader accepts. Default `IpcLimits` reject batches beyond
+  1,048,576 rows.
+- **dart2js:** integers beyond 2^53 are `BigInt`, and whole-number doubles are
+  integers, so `array([1.0])` infers int64 there.
 
 ## Evidence and sources
 
