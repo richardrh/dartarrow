@@ -388,7 +388,7 @@ _Value? _nativeRaw(
   }
   if (type is IntegerType) {
     BigInt n;
-    if (value is int || value is BigInt) {
+    if (_isHostInteger(value)) {
       n = _conversionInteger(value);
     } else if (value is double) {
       if (!value.isFinite || (safe && value.truncateToDouble() != value))
@@ -431,11 +431,12 @@ _Value? _nativeRaw(
     } else {
       throw ArgumentError('Cannot convert $value to float');
     }
+    final integral = _isHostInteger(value);
     if ((safe || !casting) &&
-        (value is int || value is BigInt) &&
+        integral &&
         (!n.isFinite || BigInt.from(n) != _conversionInteger(value)))
       throw ArgumentError('Integer is not exactly representable as float');
-    if ((safe || !casting) && (value is int || value is BigInt)) {
+    if ((safe || !casting) && integral) {
       final significantBits = type.bitWidth == 64
           ? 53
           : type.bitWidth == 32

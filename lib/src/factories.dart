@@ -189,7 +189,7 @@ class _NativeTypeInference {
     if (value == null) return;
     final next = switch (value) {
       bool() => 'bool',
-      int() || BigInt() => 'int',
+      _ when _isHostInteger(value) => 'int',
       num() => 'float',
       String() => 'string',
       Uint8List() => 'binary',
@@ -321,7 +321,10 @@ Array _encodeNative(
         validity.fillRange(0, validity.length, 255);
       }
       validity[i >> 3] &= ~(1 << (i & 7));
-    } else if (integer != null && width <= 8 && native is int) {
+    } else if (integer != null &&
+        width <= 8 &&
+        native is int &&
+        _isHostInteger(native)) {
       if (native < integerMinimum || native > integerMaximum) {
         throw ArrowInvalid(
           'Integer $native outside ${integer.minimum}..${integer.maximum}',
