@@ -54,7 +54,7 @@ jobs:
       - name: Compile and run example
         run: |
           mkdir -p build
-          dart compile exe example/arrow.dart -o build/arrow-example
+          dart compile exe example/dartarrow_example.dart -o build/arrow-example
           ./build/arrow-example
       - name: Rebuild guide and API reference
         run: python3 tool/build_docs.py

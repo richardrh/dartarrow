@@ -47,7 +47,7 @@ jobs:
       - name: Compile and execute the example
         run: |
           mkdir -p build
-          dart compile exe example/arrow.dart -o build/arrow-example.exe
+          dart compile exe example/dartarrow_example.dart -o build/arrow-example.exe
           ./build/arrow-example.exe
           dart run example/arrow_ipc.dart
       - name: Validate package publishing without publishing
