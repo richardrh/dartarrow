@@ -67,6 +67,134 @@ void main() {
     });
   });
 
+  // Expected values: PyArrow 26.0.0 timestamp -> date32/date64 casts.
+  group('timestamp to date', () {
+    final seconds = pa.array([
+      -1,
+      -86400,
+      -86401,
+      0,
+      86399,
+    ], type: pa.timestamp('s'));
+
+    test('floors to the day', () {
+      expect(_counters(seconds.cast(pa.date32())), [-1, -1, -2, 0, 0]);
+      expect(_counters(seconds.cast(pa.date64())), [
+        -86400000,
+        -86400000,
+        -172800000,
+        0,
+        0,
+      ]);
+    });
+
+    test('drops the time of day even when safe', () {
+      final noon = pa.array([DateTime.utc(2020, 1, 1, 12)]);
+      expect(noon.cast(pa.date32()).toDartList(), [DateTime.utc(2020)]);
+      final ms = pa.array([
+        DateTime.utc(2020, 1, 1, 12),
+        DateTime.utc(1969, 12, 31, 23),
+      ], type: pa.timestamp('ms'));
+      expect(_counters(ms.cast(pa.date64())), [1577836800000, -86400000]);
+    });
+
+    test('uses the zone-local date for UTC names and fixed offsets', () {
+      final early = DateTime.utc(2020, 1, 1, 3);
+      expect(
+        pa
+            .array([early], type: pa.timestamp('us', tz: 'UTC'))
+            .cast(pa.date32())
+            .toDartList(),
+        [DateTime.utc(2020)],
+      );
+      expect(
+        pa
+            .array([early], type: pa.timestamp('us', tz: 'Etc/GMT'))
+            .cast(pa.date32())
+            .toDartList(),
+        [DateTime.utc(2020)],
+      );
+      final evening = DateTime.utc(2020, 1, 1, 20);
+      expect(
+        pa
+            .array([evening], type: pa.timestamp('us', tz: '+05:30'))
+            .cast(pa.date32())
+            .toDartList(),
+        [DateTime.utc(2020, 1, 2)],
+      );
+      expect(
+        _counters(
+          pa
+              .array([1577905200], type: pa.timestamp('s', tz: '-08:00'))
+              .cast(pa.date64()),
+        ),
+        [1577836800000],
+      );
+    });
+
+    test('rejects zone names that need a time zone database', () {
+      final ny = pa.array([
+        DateTime.utc(2020, 1, 1, 3),
+      ], type: pa.timestamp('us', tz: 'America/New_York'));
+      expect(
+        () => ny.cast(pa.date32()),
+        throwsA(
+          isA<UnsupportedError>().having(
+            (e) => e.message,
+            'message',
+            contains('time zone database'),
+          ),
+        ),
+      );
+    });
+
+    test('date64 to date32 keeps Arrow truncation semantics', () {
+      final date64 = pa.array([86400001, -1], type: pa.date64());
+      expect(() => date64.cast(pa.date32()), throwsA(isA<pa.ArrowInvalid>()));
+      expect(_counters(date64.cast(pa.date32(), safe: false)), [1, 0]);
+    });
+  });
+
+  // Expected values: PyArrow 26.0.0 `pa.array([datetime(...)], type=date32/64)`
+  // for post-epoch values; pre-epoch date64 follows the calendar-date rule.
+  group('DateTime to date', () {
+    test('stores the DateTime calendar date', () {
+      expect(
+        _counters(pa.array([DateTime.utc(2020, 1, 1, 12)], type: pa.date64())),
+        [1577836800000],
+      );
+      expect(
+        pa.array([
+          DateTime.utc(2020, 1, 1, 12),
+        ], type: pa.date32()).toDartList(),
+        [DateTime.utc(2020)],
+      );
+      expect(
+        _counters(
+          pa.array([DateTime.utc(1969, 12, 31, 23)], type: pa.date32()),
+        ),
+        [-1],
+      );
+      expect(
+        _counters(
+          pa.array([DateTime.utc(1969, 12, 31, 23)], type: pa.date64()),
+        ),
+        [-86400000],
+      );
+    });
+
+    test('uses local DateTime fields, not the instant', () {
+      final local = DateTime(2020, 1, 1, 23, 30);
+      expect(pa.array([local], type: pa.date32()).toDartList(), [
+        DateTime.utc(2020),
+      ]);
+    });
+
+    test('raw date64 integers are stored unchanged', () {
+      expect(_counters(pa.array([5], type: pa.date64())), [5]);
+    });
+  });
+
   // Expected values: PyArrow 26.0.0 `pa.scalar(-0.0)` / `pa.scalar(-inf)`
   // infer double; web-relevant, also hold on the VM.
   group('host numbers', () {

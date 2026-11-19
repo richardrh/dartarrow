@@ -572,6 +572,32 @@ _Value? _nativeRaw(
     BigInt n;
     if (value is int || value is BigInt) {
       n = _conversionInteger(value);
+    } else if (type is DateType &&
+        (value is DateTime ||
+            value is TemporalValue && value.kind == 'timestamp')) {
+      // A DateTime contributes its own calendar date; a timestamp is floored
+      // to its (zone-local) day, as Arrow's timestamp-to-date cast does.
+      final BigInt days;
+      if (value is DateTime) {
+        days = BigInt.from(
+          DateTime.utc(
+                value.year,
+                value.month,
+                value.day,
+              ).millisecondsSinceEpoch ~/
+              Duration.millisecondsPerDay,
+        );
+      } else {
+        final timestamp = value as TemporalValue;
+        final perSecond = BigInt.from(10).pow(_unitScale(timestamp.unit));
+        final local =
+            timestamp.counter +
+            BigInt.from(_zoneOffsetSeconds(timestamp.timeZone)) * perSecond;
+        days = _floorDivide(local, BigInt.from(86400) * perSecond);
+      }
+      n = type.unit == DateUnit.day
+          ? days
+          : days * BigInt.from(Duration.millisecondsPerDay);
     } else {
       BigInt counter;
       int scale;
@@ -583,8 +609,7 @@ _Value? _nativeRaw(
         } else {
           scale = _unitScale(value.unit);
         }
-      } else if (value is DateTime &&
-          (type is DateType || type is TimestampType)) {
+      } else if (value is DateTime && type is TimestampType) {
         counter = BigInt.from(value.microsecondsSinceEpoch);
         scale = 6;
       } else if (value is Duration && type is DurationType) {
@@ -664,6 +689,39 @@ _Value? _nativeRaw(
   throw UnsupportedError(
     'Conversion of ${value.runtimeType} to $type is unsupported',
   );
+}
+
+BigInt _floorDivide(BigInt a, BigInt b) {
+  final quotient = a ~/ b;
+  return a.remainder(b) < BigInt.zero ? quotient - BigInt.one : quotient;
+}
+
+/// Time-zone names Arrow resolves to UTC through its tz database.
+const _utcZoneNames = {
+  'UTC', 'Etc/UTC', 'UCT', 'Etc/UCT', 'Universal', 'Etc/Universal', //
+  'Zulu', 'Etc/Zulu', 'GMT', 'Etc/GMT', 'GMT0', 'Etc/GMT0', 'GMT+0',
+  'GMT-0', 'Etc/GMT+0', 'Etc/GMT-0', 'Greenwich', 'Etc/Greenwich',
+};
+
+/// The UTC offset in seconds of a timestamp time zone: UTC-equivalent names
+/// and fixed `±HH:MM`/`±HHMM` offsets. Named zones with rules need a time
+/// zone database, which this pure-Dart library does not ship.
+int _zoneOffsetSeconds(String? zone) {
+  if (zone == null || _utcZoneNames.contains(zone)) return 0;
+  final match = RegExp(r'^([+-])(\d\d):?(\d\d)$').firstMatch(zone);
+  if (match == null) {
+    throw UnsupportedError(
+      'Time zone "$zone" requires a time zone database, which is not '
+      'available; only UTC and fixed ±HH:MM offsets are supported',
+    );
+  }
+  final hours = int.parse(match[2]!);
+  final minutes = int.parse(match[3]!);
+  if (hours > 23 || minutes > 59) {
+    throw ArrowInvalid('Cannot parse time zone "$zone"');
+  }
+  final seconds = hours * 3600 + minutes * 60;
+  return match[1] == '-' ? -seconds : seconds;
 }
 
 /// Arrow's decimal text: plain notation when the scale is non-negative and
