@@ -455,11 +455,9 @@ _Value? _nativeRaw(
   if (type is Utf8Type) {
     if (value is String) return _StringValue(value);
     if (casting && value is Uint8List) return _StringValue(utf8.decode(value));
-    if (casting &&
-        (value is num ||
-            value is BigInt ||
-            value is bool ||
-            value is DecimalValue))
+    if (casting && value is DecimalValue)
+      return _StringValue(_decimalText(value.unscaled, value.scale));
+    if (casting && (value is num || value is BigInt || value is bool))
       return _StringValue(value.toString());
   }
   if (type is BinaryType || type is FixedSizeBinaryType) {
@@ -666,6 +664,25 @@ _Value? _nativeRaw(
   throw UnsupportedError(
     'Conversion of ${value.runtimeType} to $type is unsupported',
   );
+}
+
+/// Arrow's decimal text: plain notation when the scale is non-negative and
+/// the adjusted exponent is at least -6, otherwise scientific (`1.2E+3`).
+String _decimalText(BigInt unscaled, int scale) {
+  final sign = unscaled.isNegative ? '-' : '';
+  final digits = unscaled.abs().toString();
+  final adjusted = digits.length - 1 - scale;
+  if (scale >= 0 && adjusted >= -6) {
+    if (scale == 0) return '$sign$digits';
+    if (digits.length > scale) {
+      final point = digits.length - scale;
+      return '$sign${digits.substring(0, point)}.${digits.substring(point)}';
+    }
+    return '${sign}0.${'0' * (scale - digits.length)}$digits';
+  }
+  final fraction = digits.length > 1 ? '.${digits.substring(1)}' : '';
+  final exponent = adjusted >= 0 ? '+$adjusted' : '$adjusted';
+  return '$sign${digits[0]}${fraction}E$exponent';
 }
 
 double _pow10(int exponent) {

@@ -8,6 +8,65 @@ List<Object?> _counters(pa.Array array) => [
 List<Object?> _strings(pa.Array array) => array.cast(pa.string()).toDartList();
 
 void main() {
+  // Expected values: PyArrow 26.0.0, `pa.array([...], type).cast(pa.string())`.
+  group('decimal to string', () {
+    test('uses Arrow decimal text for every width', () {
+      final values = [
+        pa.DecimalValue(123, 2),
+        pa.DecimalValue(50000, 2),
+        pa.DecimalValue(-5, 2),
+        pa.DecimalValue(0, 2),
+      ];
+      for (final type in [
+        pa.decimal32(5, 2),
+        pa.decimal64(10, 2),
+        pa.decimal128(10, 2),
+        pa.decimal256(10, 2),
+      ]) {
+        expect(_strings(pa.array(values, type: type)), [
+          '1.23',
+          '500.00',
+          '-0.05',
+          '0.00',
+        ]);
+      }
+    });
+
+    test('switches to scientific notation like Arrow', () {
+      expect(
+        _strings(
+          pa.array([
+            pa.DecimalValue(5, -2),
+            pa.DecimalValue(-12, -2),
+            pa.DecimalValue(0, -2),
+          ], type: pa.decimal128(5, -2)),
+        ),
+        ['5E+2', '-1.2E+3', '0E+2'],
+      );
+      expect(
+        _strings(
+          pa.array([
+            pa.DecimalValue(1, 7),
+            pa.DecimalValue(123, 7),
+            pa.DecimalValue(10, 7),
+            pa.DecimalValue(-1, 7),
+          ], type: pa.decimal256(10, 7)),
+        ),
+        ['1E-7', '0.0000123', '0.0000010', '-1E-7'],
+      );
+      expect(
+        _strings(
+          pa.array([
+            pa.DecimalValue(5, 0),
+            pa.DecimalValue(-17, 0),
+          ], type: pa.decimal32(5, 0)),
+        ),
+        ['5', '-17'],
+      );
+      expect(pa.DecimalValue(123, 2).toString(), 'DecimalValue(123, 2)');
+    });
+  });
+
   // Expected values: PyArrow 26.0.0 `pa.scalar(-0.0)` / `pa.scalar(-inf)`
   // infer double; web-relevant, also hold on the VM.
   group('host numbers', () {
