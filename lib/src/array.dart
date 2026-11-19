@@ -91,9 +91,9 @@ final class Array {
     );
   }
 
-  /// Builds a sparse union from int8 [typeIds] and children at least as long,
-  /// as PyArrow's `UnionArray.from_sparse`. Field names default to `'0'`,
-  /// `'1'`, ...; [typeCodes] default to child positions.
+  /// Builds a sparse union from int8 [typeIds] and children exactly as long
+  /// as [typeIds], as PyArrow's `UnionArray.from_sparse`. Field names default
+  /// to `'0'`, `'1'`, ...; [typeCodes] default to child positions.
   factory Array.fromSparseUnion(
     Array typeIds,
     List<Array> children, {
@@ -981,8 +981,9 @@ Array concatArrays(List<Array> arrays) {
         for (final a in arrays) ...a._rawValues,
       ], dictionary: shared);
     }
-    // Entries are (source dictionary, index); equal hashes are confirmed with
-    // the element equality Array.equals uses, keeping first occurrence.
+    // Entries are (source dictionary, index); equal hashes are confirmed by
+    // representation (as PyArrow's unifier: NaNs with the same bits unify,
+    // -0.0 and 0.0 stay distinct), keeping first occurrence.
     final sources = <Array>[];
     final indices = <int>[];
     final buckets = <int, List<int>>{};
@@ -991,10 +992,11 @@ Array concatArrays(List<Array> arrays) {
       final source = a.dictionary!;
       final remap = <int>[];
       for (var i = 0; i < source.length; i++) {
-        final bucket = buckets[_elementHash(source, i)] ??= <int>[];
+        final bucket =
+            buckets[_elementHash(source, i, representation: true)] ??= <int>[];
         var found = -1;
         for (final k in bucket) {
-          if (_elementEquals(sources[k], indices[k], source, i)) {
+          if (_elementEquals(sources[k], indices[k], source, i, null, true)) {
             found = k;
             break;
           }
@@ -1168,25 +1170,38 @@ Array _concatLeaf(List<Array> arrays, DataType type, int length) {
 bool _hasDictionaryStorage(Array array) =>
     array.dictionary != null || array.children.any(_hasDictionaryStorage);
 
-/// Hash consistent with [_elementEquals]: equal elements hash equally.
-int _elementHash(Array array, int index) {
+/// Hash consistent with [_elementEquals] (with the same [representation]):
+/// equal elements hash equally.
+int _elementHash(Array array, int index, {bool representation = false}) {
   final type = _physicalType(array.type);
   if (type is DictionaryType) return array._isValid(index) ? 1 : 0;
   if (!array._isValid(index)) return 0;
   if (type is StructType) {
     return Object.hashAll([
       for (final child in array.children)
-        _elementHash(child, array.offset + index),
+        _elementHash(
+          child,
+          array.offset + index,
+          representation: representation,
+        ),
     ]);
   }
   if (type is UnionType) {
     final (child, position) = _unionSlot(array, type, array.offset + index);
-    return Object.hash(child, _elementHash(array.children[child], position));
+    return Object.hash(
+      child,
+      _elementHash(
+        array.children[child],
+        position,
+        representation: representation,
+      ),
+    );
   }
   if (type is RunEndEncodedType) {
     return _elementHash(
       array.children[1],
       _runIndex(array, type, array.offset + index),
+      representation: representation,
     );
   }
   if (type is ListType || type is FixedSizeListType || type is MapType) {
@@ -1196,20 +1211,25 @@ int _elementHash(Array array, int index) {
     return Object.hashAll([
       length,
       for (var i = 0; i < length; i++)
-        _elementHash(array.children.single, start + i),
+        _elementHash(
+          array.children.single,
+          start + i,
+          representation: representation,
+        ),
     ]);
   }
-  return _rawHash(array._rawValue(index));
+  return _rawHash(array._rawValue(index), representation);
 }
 
 /// Hash consistent with [_rawEquals] for leaf values.
-int _rawHash(_Value? value) => switch (value) {
+int _rawHash(_Value? value, [bool representation = false]) => switch (value) {
   null => 0,
+  _FloatingValue() when representation => value.hashCode,
   _FloatingValue() => switch (_floating(value)) {
     0.0 => 0, // -0.0 == 0.0
     final double d => d.hashCode,
   },
-  _ExtensionValue() => _rawHash(value.storage),
+  _ExtensionValue() => _rawHash(value.storage, representation),
   _IntegerValue() ||
   _DecimalValue() ||
   _StringValue() ||
@@ -1221,12 +1241,16 @@ int _rawHash(_Value? value) => switch (value) {
   _ => 2,
 };
 
+/// Element equality used by [Array.equals]: floating values compare as
+/// numbers (NaN never equal, `-0.0 == 0.0`). With [representation], floating
+/// values compare by bit pattern instead (dictionary unification).
 bool _elementEquals(
   Array left,
   int li,
   Array right,
   int ri, [
   Map<Array, Map<Array, bool>>? dictionaries,
+  bool representation = false,
 ]) {
   final type = _physicalType(left.type);
   if (type is DictionaryType) {
@@ -1246,7 +1270,12 @@ bool _elementEquals(
     return left._isValid(li) == right._isValid(ri);
   }
   if (type is DictionaryType) {
-    return _rawEquals(left.type, left._rawValue(li), right._rawValue(ri));
+    return _rawEquals(
+      left.type,
+      left._rawValue(li),
+      right._rawValue(ri),
+      representation,
+    );
   }
   if (type is StructType) {
     for (var c = 0; c < type.fields.length; c++) {
@@ -1256,6 +1285,7 @@ bool _elementEquals(
         right.children[c],
         right.offset + ri,
         dictionaries,
+        representation,
       )) {
         return false;
       }
@@ -1272,6 +1302,7 @@ bool _elementEquals(
           right.children[rc],
           rp,
           dictionaries,
+          representation,
         );
   }
   if (type is RunEndEncodedType) {
@@ -1281,6 +1312,7 @@ bool _elementEquals(
       right.children[1],
       _runIndex(right, type, right.offset + ri),
       dictionaries,
+      representation,
     );
   }
   if (type is ListType || type is FixedSizeListType || type is MapType) {
@@ -1298,27 +1330,43 @@ bool _elementEquals(
         right.children.single,
         rs + i,
         dictionaries,
+        representation,
       )) {
         return false;
       }
     }
     return true;
   }
-  return _rawEquals(left.type, left._rawValue(li), right._rawValue(ri));
+  return _rawEquals(
+    left.type,
+    left._rawValue(li),
+    right._rawValue(ri),
+    representation,
+  );
 }
 
-bool _rawEquals(DataType type, _Value? left, _Value? right) {
+bool _rawEquals(
+  DataType type,
+  _Value? left,
+  _Value? right, [
+  bool representation = false,
+]) {
   if (left == null || right == null) return left == right;
   if (left is _FloatingValue && right is _FloatingValue) {
-    return _floating(left) == _floating(right);
+    return representation ? left == right : _floating(left) == _floating(right);
   }
   if (type is ExtensionType &&
       left is _ExtensionValue &&
       right is _ExtensionValue) {
-    return _rawEquals(type.storageType, left.storage, right.storage);
+    return _rawEquals(
+      type.storageType,
+      left.storage,
+      right.storage,
+      representation,
+    );
   }
   if (type is RunEndEncodedType) {
-    return _rawEquals(type.valuesField.type, left, right);
+    return _rawEquals(type.valuesField.type, left, right, representation);
   }
   if (type is MapType && left is _MapValue && right is _MapValue) {
     if (left.entries.length != right.entries.length) return false;
@@ -1327,11 +1375,13 @@ bool _rawEquals(DataType type, _Value? left, _Value? right) {
             type.keyField.type,
             left.entries[i].key,
             right.entries[i].key,
+            representation,
           ) ||
           !_rawEquals(
             type.valueField.type,
             left.entries[i].value,
             right.entries[i].value,
+            representation,
           )) {
         return false;
       }
@@ -1344,6 +1394,7 @@ bool _rawEquals(DataType type, _Value? left, _Value? right) {
           type.fields[type.childIndexForTypeId(left.typeId)].type,
           left.value,
           right.value,
+          representation,
         );
   }
   if (left is _ListValue && right is _ListValue) {
@@ -1352,7 +1403,14 @@ bool _rawEquals(DataType type, _Value? left, _Value? right) {
         ? type.field.type
         : (type as FixedSizeListType).field.type;
     for (var i = 0; i < left.values.length; i++) {
-      if (!_rawEquals(childType, left.values[i], right.values[i])) return false;
+      if (!_rawEquals(
+        childType,
+        left.values[i],
+        right.values[i],
+        representation,
+      )) {
+        return false;
+      }
     }
     return true;
   }
@@ -1362,6 +1420,7 @@ bool _rawEquals(DataType type, _Value? left, _Value? right) {
         type.fields[i].type,
         left.fields[i].value,
         right.fields[i].value,
+        representation,
       )) {
         return false;
       }
