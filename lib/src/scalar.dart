@@ -564,8 +564,27 @@ BigInt _integer(Object value) {
 
 final _minInt = -(BigInt.one << 63);
 final _maxInt = (BigInt.one << 63) - BigInt.one;
+
+/// True on platforms whose `int` is a JavaScript number (dart2js).
+const bool _jsNumbers = identical(0, 0.0);
+final _maxSafeInt = BigInt.parse('9007199254740991');
+
+/// Whether [value] survives `toInt()` exactly on this platform: within int64,
+/// and within ±(2^53 − 1) where `int` is a JavaScript number.
+bool _fitsHostInt(BigInt value) => _jsNumbers
+    ? value.abs() <= _maxSafeInt
+    : value >= _minInt && value <= _maxInt;
+
+/// An `int` where exactly representable on this platform, otherwise `BigInt`.
 Object _nativeInteger(BigInt value) =>
-    value >= _minInt && value <= _maxInt ? value.toInt() : value;
+    _fitsHostInt(value) ? value.toInt() : value;
+
+/// Whether a host number is an integer for inference and encoding purposes.
+/// Non-finite values and negative zero are always floating, including on
+/// dart2js where `double.infinity is int` and `-0.0 is int` hold.
+bool _isHostInteger(Object? value) =>
+    value is BigInt ||
+    value is int && value.isFinite && !(value == 0 && value.isNegative);
 
 double _floating(_FloatingValue value) {
   if (value.bitWidth == 16) {
@@ -636,7 +655,7 @@ Object _temporal(DataType type, BigInt counter) {
           _ => 1,
         });
   }
-  if (micros < _minInt || micros > _maxInt) return fallback();
+  if (!_fitsHostInt(micros)) return fallback();
   if (type is DurationType) {
     return Duration(microseconds: micros.toInt());
   }

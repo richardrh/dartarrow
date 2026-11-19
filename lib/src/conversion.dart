@@ -148,17 +148,14 @@ Array _castArray(Array source, DataType target, {bool safe = true}) {
         });
         indices.add(_DictionaryIndexValue(index));
       }
-      var indexType = target.indexType as IntegerType;
-      while (BigInt.from(decoded.length - 1) > indexType.maximum) {
-        if (indexType.bitWidth >= 64)
-          throw ArgumentError('Dictionary exceeds index capacity');
-        indexType = IntegerType(
-          indexType.bitWidth * 2,
-          signed: indexType.signed,
+      final indexType = target.indexType as IntegerType;
+      if (BigInt.from(decoded.length - 1) > indexType.maximum)
+        throw ArrowInvalid(
+          'Dictionary of ${decoded.length} values cannot be indexed by '
+          '$indexType',
         );
-      }
       return Array._fromRaw(
-        DictionaryType(indexType, target.valueType, ordered: target.ordered),
+        target,
         indices,
         dictionary: Array._fromRaw(target.valueType, decoded),
       );
@@ -236,6 +233,10 @@ _Value? _castRaw(
   if (raw is _TemporalValue) {
     if (target is IntegerType)
       return _nativeRaw(raw.value, target, safe: safe, casting: true);
+    if (source is TimeType && target is TimestampType ||
+        source is DurationType && target is TimestampType ||
+        source is TimestampType && target is DurationType)
+      throw UnsupportedError('Unsupported cast from $source to $target');
     final temporal = switch (source) {
       DateType t => TemporalValue(
         raw.value,
@@ -254,6 +255,9 @@ _Value? _castRaw(
       _ => throw UnsupportedError('Invalid temporal source $source'),
     };
     return _nativeRaw(temporal, target, safe: safe, casting: true);
+  }
+  if (raw is _FloatingValue && target is Utf8Type) {
+    return _StringValue(_formatFloat(raw));
   }
   if (raw is _DecimalValue && source is DecimalType) {
     return _nativeRaw(
@@ -388,7 +392,7 @@ _Value? _nativeRaw(
   }
   if (type is IntegerType) {
     BigInt n;
-    if (value is int || value is BigInt) {
+    if (_isHostInteger(value)) {
       n = _conversionInteger(value);
     } else if (value is double) {
       if (!value.isFinite || (safe && value.truncateToDouble() != value))
@@ -397,7 +401,7 @@ _Value? _nativeRaw(
     } else if (casting && value is bool) {
       n = value ? BigInt.one : BigInt.zero;
     } else if (casting && value is String) {
-      n = BigInt.parse(value);
+      n = _parseIntegerText(value, type);
     } else if (casting && value is DecimalValue) {
       n = _rescale(value.unscaled, value.scale, 0, safe);
     } else if (casting && value is TemporalValue) {
@@ -423,7 +427,7 @@ _Value? _nativeRaw(
     } else if (value is BigInt) {
       n = value.toDouble();
     } else if (casting && value is String) {
-      n = double.parse(value);
+      n = _parseFloatText(value, type);
     } else if (casting && value is bool) {
       n = value ? 1 : 0;
     } else if (casting && value is DecimalValue) {
@@ -431,11 +435,12 @@ _Value? _nativeRaw(
     } else {
       throw ArgumentError('Cannot convert $value to float');
     }
+    final integral = _isHostInteger(value);
     if ((safe || !casting) &&
-        (value is int || value is BigInt) &&
+        integral &&
         (!n.isFinite || BigInt.from(n) != _conversionInteger(value)))
       throw ArgumentError('Integer is not exactly representable as float');
-    if ((safe || !casting) && (value is int || value is BigInt)) {
+    if ((safe || !casting) && integral) {
       final significantBits = type.bitWidth == 64
           ? 53
           : type.bitWidth == 32
@@ -454,11 +459,9 @@ _Value? _nativeRaw(
   if (type is Utf8Type) {
     if (value is String) return _StringValue(value);
     if (casting && value is Uint8List) return _StringValue(utf8.decode(value));
-    if (casting &&
-        (value is num ||
-            value is BigInt ||
-            value is bool ||
-            value is DecimalValue))
+    if (casting && value is DecimalValue)
+      return _StringValue(_decimalText(value.unscaled, value.scale));
+    if (casting && (value is num || value is BigInt || value is bool))
       return _StringValue(value.toString());
   }
   if (type is BinaryType || type is FixedSizeBinaryType) {
@@ -573,6 +576,32 @@ _Value? _nativeRaw(
     BigInt n;
     if (value is int || value is BigInt) {
       n = _conversionInteger(value);
+    } else if (type is DateType &&
+        (value is DateTime ||
+            value is TemporalValue && value.kind == 'timestamp')) {
+      // A DateTime contributes its own calendar date; a timestamp is floored
+      // to its (zone-local) day, as Arrow's timestamp-to-date cast does.
+      final BigInt days;
+      if (value is DateTime) {
+        days = BigInt.from(
+          DateTime.utc(
+                value.year,
+                value.month,
+                value.day,
+              ).millisecondsSinceEpoch ~/
+              Duration.millisecondsPerDay,
+        );
+      } else {
+        final timestamp = value as TemporalValue;
+        final perSecond = BigInt.from(10).pow(_unitScale(timestamp.unit));
+        final local =
+            timestamp.counter +
+            BigInt.from(_zoneOffsetSeconds(timestamp.timeZone)) * perSecond;
+        days = _floorDivide(local, BigInt.from(86400) * perSecond);
+      }
+      n = type.unit == DateUnit.day
+          ? days
+          : days * BigInt.from(Duration.millisecondsPerDay);
     } else {
       BigInt counter;
       int scale;
@@ -584,8 +613,7 @@ _Value? _nativeRaw(
         } else {
           scale = _unitScale(value.unit);
         }
-      } else if (value is DateTime &&
-          (type is DateType || type is TimestampType)) {
+      } else if (value is DateTime && type is TimestampType) {
         counter = BigInt.from(value.microsecondsSinceEpoch);
         scale = 6;
       } else if (value is Duration && type is DurationType) {
@@ -662,9 +690,220 @@ _Value? _nativeRaw(
     );
     return storage == null ? null : _ExtensionValue(storage);
   }
+  if (!casting) {
+    throw ArrowTypeError(
+      'Cannot convert ${value.runtimeType} value $value to $type',
+    );
+  }
   throw UnsupportedError(
     'Conversion of ${value.runtimeType} to $type is unsupported',
   );
+}
+
+BigInt _floorDivide(BigInt a, BigInt b) {
+  final quotient = a ~/ b;
+  return a.remainder(b) < BigInt.zero ? quotient - BigInt.one : quotient;
+}
+
+/// Time-zone names Arrow resolves to UTC through its tz database.
+const _utcZoneNames = {
+  'UTC', 'Etc/UTC', 'UCT', 'Etc/UCT', 'Universal', 'Etc/Universal', //
+  'Zulu', 'Etc/Zulu', 'GMT', 'Etc/GMT', 'GMT0', 'Etc/GMT0', 'GMT+0',
+  'GMT-0', 'Etc/GMT+0', 'Etc/GMT-0', 'Greenwich', 'Etc/Greenwich',
+};
+
+/// The UTC offset in seconds of a timestamp time zone: UTC-equivalent names
+/// and fixed `±HH:MM`/`±HHMM` offsets. Named zones with rules need a time
+/// zone database, which this pure-Dart library does not ship.
+int _zoneOffsetSeconds(String? zone) {
+  if (zone == null || _utcZoneNames.contains(zone)) return 0;
+  final match = RegExp(r'^([+-])(\d\d):?(\d\d)$').firstMatch(zone);
+  if (match == null) {
+    throw UnsupportedError(
+      'Time zone "$zone" requires a time zone database, which is not '
+      'available; only UTC and fixed ±HH:MM offsets are supported',
+    );
+  }
+  final hours = int.parse(match[2]!);
+  final minutes = int.parse(match[3]!);
+  if (hours > 23 || minutes > 59) {
+    throw ArrowInvalid('Cannot parse time zone "$zone"');
+  }
+  final seconds = hours * 3600 + minutes * 60;
+  return match[1] == '-' ? -seconds : seconds;
+}
+
+final _hexIntegerText = RegExp(r'^0[xX]([0-9a-fA-F]+)$');
+final _signedIntegerText = RegExp(r'^-?[0-9]+$');
+final _unsignedIntegerText = RegExp(r'^[0-9]+$');
+
+/// Parses [text] as Arrow's string-to-integer cast does: optional `-` (signed
+/// types only) and decimal digits, or `0x` with at most bitWidth/4 hex digits
+/// reinterpreted in two's complement. No whitespace, `+`, or out-of-range.
+BigInt _parseIntegerText(String text, IntegerType type) {
+  BigInt? n;
+  final hex = _hexIntegerText.firstMatch(text);
+  if (hex != null) {
+    final digits = hex[1]!;
+    if (digits.length <= type.bitWidth ~/ 4) {
+      n = BigInt.parse(digits, radix: 16);
+      if (type.signed && n > type.maximum) n -= BigInt.one << type.bitWidth;
+    }
+  } else if ((type.signed ? _signedIntegerText : _unsignedIntegerText).hasMatch(
+    text,
+  )) {
+    n = BigInt.parse(text);
+    if (n < type.minimum || n > type.maximum) n = null;
+  }
+  if (n == null) {
+    throw ArrowInvalid("Failed to parse string: '$text' as a scalar of $type");
+  }
+  return n;
+}
+
+final _floatText = RegExp(
+  r'^[+-]?(?:(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|(inf(?:inity)?)'
+  r'|(nan(?:\([0-9A-Za-z_]*\))?))$',
+  caseSensitive: false,
+);
+
+/// Parses [text] as Arrow's string-to-float cast does: decimal or exponent
+/// notation with an optional sign, and case-insensitive `inf`, `infinity`,
+/// `nan`. No surrounding whitespace or hexadecimal floats.
+double _parseFloatText(String text, FloatingType type) {
+  final match = _floatText.firstMatch(text);
+  if (match == null) {
+    throw ArrowInvalid("Failed to parse string: '$text' as a scalar of $type");
+  }
+  if (match[2] != null) return double.nan;
+  if (match[1] != null) {
+    return text.startsWith('-') ? double.negativeInfinity : double.infinity;
+  }
+  return double.parse(text);
+}
+
+/// Arrow's decimal text: plain notation when the scale is non-negative and
+/// the adjusted exponent is at least -6, otherwise scientific (`1.2E+3`).
+String _decimalText(BigInt unscaled, int scale) {
+  final sign = unscaled.isNegative ? '-' : '';
+  final digits = unscaled.abs().toString();
+  final adjusted = digits.length - 1 - scale;
+  if (scale >= 0 && adjusted >= -6) {
+    if (scale == 0) return '$sign$digits';
+    if (digits.length > scale) {
+      final point = digits.length - scale;
+      return '$sign${digits.substring(0, point)}.${digits.substring(point)}';
+    }
+    return '${sign}0.${'0' * (scale - digits.length)}$digits';
+  }
+  final fraction = digits.length > 1 ? '.${digits.substring(1)}' : '';
+  final exponent = adjusted >= 0 ? '+$adjusted' : '$adjusted';
+  return '$sign${digits[0]}${fraction}E$exponent';
+}
+
+/// Arrow's float-to-string cast: double-conversion shortest round-trip
+/// digits (as float32 for float32 values, as float64 otherwise), fixed
+/// notation for decimal exponents in (-6, 10], else `d.ddde±x`.
+String _formatFloat(_FloatingValue raw) {
+  final value = _floating(raw);
+  if (value.isNaN) return 'nan';
+  final sign = value.isNegative ? '-' : '';
+  if (value.isInfinite) return '${sign}inf';
+  if (value == 0) return '${sign}0';
+  final (digits, point) = raw.bitWidth == 32
+      ? _shortestFloat32(raw.bits.toInt())
+      : _shortestDigits(value.abs());
+  String body;
+  if (point > -6 && point <= 10) {
+    if (point <= 0) {
+      body = '0.${'0' * -point}$digits';
+    } else if (point >= digits.length) {
+      body = '$digits${'0' * (point - digits.length)}';
+    } else {
+      body = '${digits.substring(0, point)}.${digits.substring(point)}';
+    }
+  } else {
+    final exponent = point - 1;
+    final fraction = digits.length > 1 ? '.${digits.substring(1)}' : '';
+    body = '${digits[0]}${fraction}e${exponent >= 0 ? '+' : ''}$exponent';
+  }
+  return '$sign$body';
+}
+
+/// Shortest round-trip digits of a positive finite double (Dart's `toString`
+/// is shortest round-trip on every platform), as (digits, decimal point):
+/// value = 0.digits × 10^point.
+(String, int) _shortestDigits(double value) {
+  final text = value.toString();
+  final e = text.indexOf('e');
+  final mantissa = e < 0 ? text : text.substring(0, e);
+  final exponent = e < 0 ? 0 : int.parse(text.substring(e + 1));
+  final dot = mantissa.indexOf('.');
+  var digits = mantissa.replaceFirst('.', '');
+  var point = (dot < 0 ? mantissa.length : dot) + exponent;
+  final leading = digits.length - digits.replaceFirst(RegExp('^0+'), '').length;
+  digits = digits.substring(leading);
+  point -= leading;
+  return (digits.replaceFirst(RegExp(r'0+$'), ''), point);
+}
+
+/// Shortest decimal digits that round-trip to the float32 with [bits]
+/// (positive, finite, non-zero), choosing the closest such candidate, as
+/// double-conversion's `ToShortestSingle` does. Exact BigInt arithmetic.
+(String, int) _shortestFloat32(int bits) {
+  final biased = (bits >> 23) & 0xff;
+  final fraction = bits & 0x7fffff;
+  final m = biased == 0 ? fraction : fraction | 0x800000;
+  final e = biased == 0 ? -149 : biased - 150;
+  // Work in units of 2^(e-2): value = 4m, neighbours' midpoints at ±2 (or
+  // -1 below a power of two whose predecessor has a smaller exponent).
+  final value = BigInt.from(4 * m);
+  final high = BigInt.from(4 * m + 2);
+  final low = BigInt.from(fraction == 0 && biased > 1 ? 4 * m - 1 : 4 * m - 2);
+  final inclusive = m.isEven;
+  final ten = BigInt.from(10);
+  final binaryUp = e - 2 > 0 ? BigInt.one << (e - 2) : BigInt.one;
+  final binaryDown = e - 2 < 0 ? BigInt.one << (2 - e) : BigInt.one;
+  // Compare d·10^s against x·2^(e-2) as integers.
+  BigInt left(BigInt d, int s) =>
+      d * (s > 0 ? ten.pow(s) : BigInt.one) * binaryDown;
+  BigInt right(BigInt x, int s) =>
+      x * (s < 0 ? ten.pow(-s) : BigInt.one) * binaryUp;
+  var k = (math.log(m * math.pow(2.0, e)) / math.ln10).floor();
+  while (left(BigInt.one, k) > right(value, k)) {
+    k--;
+  }
+  while (left(BigInt.one, k + 1) <= right(value, k + 1)) {
+    k++;
+  }
+  for (var precision = 1; ; precision++) {
+    final s = k - precision + 1;
+    final floor = right(value, s) ~/ left(BigInt.one, s);
+    BigInt? best;
+    BigInt? bestDistance;
+    for (final candidate in [floor, floor + BigInt.one]) {
+      final scaled = left(candidate, s);
+      final lowBound = right(low, s);
+      final highBound = right(high, s);
+      final inside = inclusive
+          ? scaled >= lowBound && scaled <= highBound
+          : scaled > lowBound && scaled < highBound;
+      if (!inside) continue;
+      final distance = (scaled - right(value, s)).abs();
+      // Exact ties take the even candidate, matching double-conversion.
+      if (bestDistance == null ||
+          distance < bestDistance ||
+          distance == bestDistance && candidate.isEven) {
+        best = candidate;
+        bestDistance = distance;
+      }
+    }
+    if (best != null) {
+      final text = best.toString();
+      final point = k + 1 + (text.length - precision);
+      return (text.replaceFirst(RegExp(r'0+$'), ''), point);
+    }
+  }
 }
 
 double _pow10(int exponent) {
