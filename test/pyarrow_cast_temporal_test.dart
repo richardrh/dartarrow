@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dartarrow/arrow.dart' as pa;
 import 'package:test/test.dart';
 
@@ -376,6 +378,57 @@ void main() {
         () => pa.array([1], type: pa.string()),
         throwsA(isA<pa.ArrowTypeError>()),
       );
+    });
+
+    // PyArrow 26.0.0 `pa.array([value], type=t)` for each host kind × type:
+    // ok accepted, I ArrowInvalid, T ArrowTypeError. Python `date` has no
+    // Dart host kind. Cells marked `~` are accepted on one side only (float
+    // or Decimal into int64/temporal, bool into float64 and bytes into string
+    // accepted by PyArrow; a byte list into binary accepted by Dart) and are
+    // not compared.
+    test('exception class matches PyArrow for every rejected cell', () {
+      final types = [
+        pa.boolType(),
+        pa.int64(),
+        pa.float64(),
+        pa.decimal128(10, 2),
+        pa.string(),
+        pa.binary(),
+        pa.date32(),
+        pa.time64('us'),
+        pa.timestamp('us'),
+        pa.duration('us'),
+        pa.listType(pa.int64()),
+        pa.struct([pa.field('x', pa.int64())]),
+      ];
+      final table = <(Object, String)>[
+        (1, 'I  ok ok ok T  T  ok ok ok ok T  T'),
+        (1.5, 'I  ~  ok T  T  T  ~  ~  ~  ~  T  T'),
+        (true, 'ok T  ~  I  T  T  T  T  T  T  T  T'),
+        ('true', 'I  I  I  T  ok ok T  T  T  T  I  T'),
+        (Uint8List.fromList([120]), 'I  I  I  T  ~  ok T  T  T  T  ok T'),
+        (DateTime.utc(2020), 'I  I  I  T  T  T  ok T  ok T  T  T'),
+        (const Duration(days: 1), 'I  I  I  T  T  T  T  T  T  ok T  T'),
+        (pa.DecimalValue(15, 1), 'I  ~  I  ok T  T  ~  ~  ~  ~  T  T'),
+        ([1], 'I  I  I  T  T  ~  T  T  T  T  ok T'),
+        ({'x': 1}, 'I  I  I  T  T  T  T  T  T  T  T  ok'),
+      ];
+      for (final (value, row) in table) {
+        final codes = row.split(RegExp(' +'));
+        for (var i = 0; i < types.length; i++) {
+          String actual;
+          try {
+            pa.array([value], type: types[i]);
+            actual = 'ok';
+          } on pa.ArrowInvalid {
+            actual = 'I';
+          } on pa.ArrowTypeError {
+            actual = 'T';
+          }
+          if (codes[i] == '~') continue;
+          expect(actual, codes[i], reason: '$value -> ${types[i]}');
+        }
+      }
     });
   });
 

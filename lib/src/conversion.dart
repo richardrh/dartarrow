@@ -401,6 +401,7 @@ _Value? _nativeRaw(
     if (casting && (value is num || value is BigInt)) {
       return _BooleanValue(value != 0 && value != BigInt.zero);
     }
+    if (!casting) throw ArrowInvalid('Cannot convert $value to $type');
   }
   if (type is IntegerType) {
     BigInt n;
@@ -419,6 +420,8 @@ _Value? _nativeRaw(
       n = _rescale(value.unscaled, value.scale, 0, safe);
     } else if (casting && value is TemporalValue) {
       n = value.counter;
+    } else if (value is bool) {
+      throw ArrowTypeError('Cannot convert $value to $type');
     } else {
       throw ArgumentError('Cannot convert $value to integer');
     }
@@ -573,6 +576,8 @@ _Value? _nativeRaw(
         type.scale,
         safe,
       );
+    } else if (!casting && value is! bool) {
+      throw ArrowTypeError('Cannot convert $value to $type');
     } else {
       throw ArgumentError('Expected exact decimal or integer');
     }
@@ -638,6 +643,8 @@ _Value? _nativeRaw(
       } else if (value is Duration && type is DurationType) {
         counter = BigInt.from(value.inMicroseconds);
         scale = 6;
+      } else if (!casting && value is! num && value is! DecimalValue) {
+        throw ArrowTypeError('Cannot convert $value to $type');
       } else {
         throw ArgumentError('Cannot convert $value to temporal datatype');
       }
@@ -675,7 +682,12 @@ _Value? _nativeRaw(
     return _TemporalValue(checked.value);
   }
   if (type is ListType || type is FixedSizeListType) {
-    if (value is! List) throw ArgumentError('Expected list');
+    if (value is! List) {
+      if (!casting && value is! String) {
+        throw ArrowTypeError('Cannot convert $value to $type');
+      }
+      throw ArgumentError('Expected list');
+    }
     final field = type is ListType
         ? type.field
         : (type as FixedSizeListType).field;
@@ -688,7 +700,10 @@ _Value? _nativeRaw(
     ]);
   }
   if (type is StructType) {
-    if (value is! Map) throw ArgumentError('Expected struct map');
+    if (value is! Map) {
+      if (!casting) throw ArrowTypeError('Cannot convert $value to $type');
+      throw ArgumentError('Expected struct map');
+    }
     return _StructValue([
       for (final field in type.fields)
         _StructEntry(
