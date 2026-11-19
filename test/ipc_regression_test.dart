@@ -81,7 +81,6 @@ const _zeroLengthZstd =
     'CAAHAAYAAAAAAAABAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB0AAAAAAAAAIAAAAAAA'
     'AAAIAAAAAAAAAAAAAAABAAAAAgAAAAAAAAAAAAAAAAAAAAwAAAAAAAAAKLUv/SAMYQAAAAAA'
     'AAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAA==';
-const _isJs = identical(0, 0.0);
 
 Array _dict(List<int> indices, List<String> values) =>
     Array.fromDictionary(array(indices, type: int32()), array(values));
@@ -149,7 +148,7 @@ void main() {
     expect(values[50], DecimalValue(-482, 2));
     expect(values[53], DecimalValue(-479, 2));
     expect(values[54], isNull);
-  }, skip: _isJs ? 'ZSTD IPC decompression is VM-only' : false);
+  }, testOn: 'vm');
 
   // PyArrow 26 reads these as [{a: 1, s: x}, {a: None, s: None}, ...].
   test('metadata V4 input is unsupported, not malformed', () {
@@ -222,5 +221,5 @@ void main() {
       {'s': ''},
       {'s': ''},
     ]);
-  }, skip: _isJs ? 'ZSTD IPC decompression is VM-only' : false);
+  }, testOn: 'vm');
 }
