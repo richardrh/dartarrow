@@ -91,9 +91,9 @@ final class Array {
     );
   }
 
-  /// Builds a sparse union from int8 [typeIds] and children at least as long,
-  /// as PyArrow's `UnionArray.from_sparse`. Field names default to `'0'`,
-  /// `'1'`, ...; [typeCodes] default to child positions.
+  /// Builds a sparse union from int8 [typeIds] and children exactly as long
+  /// as [typeIds], as PyArrow's `UnionArray.from_sparse`. Field names default
+  /// to `'0'`, `'1'`, ...; [typeCodes] default to child positions.
   factory Array.fromSparseUnion(
     Array typeIds,
     List<Array> children, {
