@@ -1,7 +1,23 @@
+import 'dart:convert';
+
 import 'package:dartarrow/arrow.dart';
 import 'package:dartarrow/ipc.dart' as ipc;
 import 'package:test/test.dart';
 
+// PyArrow 26 ZSTD stream: one decimal256(40, 2) column, 55 rows, 19 nulls.
+const _decimalZstd =
+    '/////4AAAAAQAAAAAAAKAAwABgAFAAgACgAAAAABBAAMAAAACAAIAAAABAAIAAAABAAAAAEA'
+    'AAAUAAAAEAAUAAgABgAHAAwAAAAQABAAAAAAAAEHEAAAABwAAAAEAAAAAAAAAAEAAABhAAoA'
+    'EAAEAAgADAAKAAAAKAAAAAIAAAAAAQAAAAAAAP////+gAAAAFAAAAAAAAAAMABgABgAFAAgA'
+    'DAAMAAAAAAMEABwAAAC4AAAAAAAAAAAAAAAMAB4AEAAEAAgADAAMAAAAUAAAACQAAAAYAAAA'
+    'NwAAAAAAAAAAAAAAAAAGAAgABwAGAAAAAAAAAQIAAAAAAAAAAAAAABgAAAAAAAAAGAAAAAAA'
+    'AACaAAAAAAAAAAAAAAABAAAANwAAAAAAAAATAAAAAAAAAAcAAAAAAAAAKLUv/SAHOQAAbds2'
+    '223bNuAGAAAAAAAAKLUv/WDgBUUEAJIEDRbAJR3+//////9/M5ptttlmySKLNPwUCR1TSP2O'
+    'n6G/4kfob/gJ+gt+gP7SD+nv/IwW4qsjAH8DpAohVATQHGgYgSSgOQKJQSNDi8PAaq4/RlCR'
+    'cwAQMWAIYAgQMWAIYAgQMWAIYAgQMWAIYAgQMWAIYAgQMWAIMBQGEYY2N4SGgUbcYAgAAAAA'
+    'AAD/////AAAAAA==';
+
+const _isJs = identical(0, 0.0);
 
 Array _dict(List<int> indices, List<String> values) =>
     Array.fromDictionary(array(indices, type: int32()), array(values));
@@ -44,5 +60,20 @@ void main() {
       expect(writer.close(), expected);
     });
   });
+
+  // Values from PyArrow 26 ipc.open_stream(...).read_all().
+  test('ZSTD decimal256 stream decodes', () {
+    final table = ipc.openStream(base64Decode(_decimalZstd)).readAll();
+    final column = table.column(0);
+    expect(table.numRows, 55);
+    expect(column.nullCount, 19);
+    final values = column.toDartList();
+    expect(values[0], DecimalValue(-500, 2));
+    expect(values[1], isNull);
+    expect(values[2], DecimalValue(-498, 2));
+    expect(values[50], DecimalValue(-482, 2));
+    expect(values[53], DecimalValue(-479, 2));
+    expect(values[54], isNull);
+  }, skip: _isJs ? 'ZSTD IPC decompression is VM-only' : false);
 
 }
