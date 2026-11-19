@@ -29,8 +29,15 @@ final class _IpcBlock {
 
 // ------------------------------------------------------------ decoding ----
 
-_IpcMessage _ipcParseMessage(Uint8List metadata, Uint8List body) {
-  final message = _FbReader(ByteData.sublistView(metadata)).root();
+_IpcMessage _ipcParseMessage(
+  Uint8List metadata,
+  Uint8List body,
+  IpcLimits limits,
+) {
+  final message = _FbReader(
+    ByteData.sublistView(metadata),
+    limits.maxMessageBytes,
+  ).root();
   final version = message.i16(0, 0);
   _ipcCheckVersion(version, 'metadata');
   final headerType = message.u8(1, 0);
@@ -101,6 +108,7 @@ final class _IpcMessageCursor {
     final message = _ipcParseMessage(
       metadata,
       Uint8List.sublistView(bytes, position),
+      limits,
     );
     if (message.body.length > limits.maxMessageBytes) {
       throw _ipcLimitError(
@@ -146,6 +154,7 @@ bool _ipcHasMagic(Uint8List bytes, int at) {
   }
   final footer = _FbReader(
     ByteData.sublistView(bytes, start, bytes.length - trailer),
+    limits.maxMessageBytes,
   ).root();
   _ipcCheckVersion(footer.i16(0, 0), 'file');
   return (footer, start);
@@ -165,6 +174,19 @@ List<_IpcBlock> _ipcBlocks(
     for (var i = 0; i < structs.count; i++)
       _IpcBlock(structs.i64(i, 0), structs.i32(i, 8), structs.i64(i, 16)),
   ];
+}
+
+/// Rejects file footers whose Blocks repeat or overlap; every legitimate
+/// writer lays out each message once.
+void _ipcCheckDisjointBlocks(List<_IpcBlock> blocks) {
+  final sorted = [...blocks]..sort((a, b) => a.offset.compareTo(b.offset));
+  for (var i = 1; i < sorted.length; i++) {
+    final previous = sorted[i - 1];
+    final end = previous.offset + previous.metadataLength + previous.bodyLength;
+    if (sorted[i].offset == previous.offset || sorted[i].offset < end) {
+      throw const FormatException('IPC file blocks repeat or overlap');
+    }
+  }
 }
 
 _IpcMessage _ipcReadBlock(Uint8List bytes, _IpcBlock block, IpcLimits limits) {
