@@ -421,4 +421,65 @@ void main() {
       }
     });
   });
+
+  // Expected values: PyArrow 26.0.0 `pa.scalar(c, type).as_py()` where Python
+  // datetime can hold it (timestamp[us] ±(2**53+1) -> 2255-06-05
+  // 23:47:34.740993 / 1684-07-28 00:12:25.259007, -1 -> 1969-12-31
+  // 23:59:59.999999, timestamp[s] -62135596800 -> 0001-01-01); DateTime's
+  // extremes (±8.64e15 ms) lie beyond Python's range.
+  group('temporal host conversion is platform independent', () {
+    test('representable values become equal UTC DateTimes', () {
+      for (final (type, counter, expected) in [
+        (pa.date32(), '-100000000', DateTime.utc(-271821, 4, 20)),
+        (pa.date32(), '100000000', DateTime.utc(275760, 9, 13)),
+        (pa.date64(), '-8640000000000000', DateTime.utc(-271821, 4, 20)),
+        (pa.date64(), '8640000000000000', DateTime.utc(275760, 9, 13)),
+        (
+          pa.timestamp('us'),
+          '9007199254740993',
+          DateTime.utc(2255, 6, 5, 23, 47, 34, 740, 993),
+        ),
+        (
+          pa.timestamp('us'),
+          '-9007199254740993',
+          DateTime.utc(1684, 7, 28, 0, 12, 25, 259, 7),
+        ),
+        (
+          pa.timestamp('us'),
+          '-1',
+          DateTime.utc(1969, 12, 31, 23, 59, 59, 999, 999),
+        ),
+        (
+          pa.timestamp('ns'),
+          '-1000',
+          DateTime.utc(1969, 12, 31, 23, 59, 59, 999, 999),
+        ),
+        (pa.timestamp('s'), '-62135596800', DateTime.utc(1)),
+        (
+          pa.timestamp('us'),
+          '8639999999999999999',
+          DateTime.utc(275760, 9, 12, 23, 59, 59, 999, 999),
+        ),
+      ]) {
+        final value = pa.scalar(BigInt.parse(counter), type: type).asDart();
+        expect(value, isA<DateTime>(), reason: '$type $counter');
+        expect((value as DateTime).isUtc, isTrue);
+        expect(value, expected, reason: '$type $counter');
+      }
+    });
+
+    test('unrepresentable values stay TemporalValue', () {
+      for (final (type, counter) in [
+        (pa.timestamp('us'), '8640000000000000001'),
+        (pa.timestamp('ns'), '-1'),
+        (pa.date32(), '100000001'),
+      ]) {
+        expect(
+          pa.scalar(BigInt.parse(counter), type: type).asDart(),
+          isA<pa.TemporalValue>(),
+          reason: '$type $counter',
+        );
+      }
+    });
+  });
 }
